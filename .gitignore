@@ -13,6 +13,7 @@ ios/
 # Local environment
 .env
 .env.*
+!.env.example
 
 # Logs and caches
 npm-debug.log*

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
-import { SafeAreaView, StatusBar, StyleSheet, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, Linking, SafeAreaView, StatusBar, StyleSheet, View } from "react-native";
 
 import { BottomTabs, TabItem } from "./src/components/BottomTabs";
 import { CoachScreen } from "./src/screens/CoachScreen";
@@ -8,7 +8,12 @@ import { DashboardScreen } from "./src/screens/DashboardScreen";
 import { IdeaLabScreen } from "./src/screens/IdeaLabScreen";
 import { StrategyScreen } from "./src/screens/StrategyScreen";
 import { VideoLabScreen } from "./src/screens/VideoLabScreen";
+import {
+  beginTikTokConnection,
+  parseTikTokCallback
+} from "./src/services/tiktok";
 import { palette } from "./src/theme";
+import { TikTokConnectionStatus } from "./src/types";
 
 type TabKey = "dashboard" | "video" | "ideas" | "strategy" | "coach";
 
@@ -22,7 +27,42 @@ const tabs: TabItem<TabKey>[] = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
-  const [isTikTokConnected, setTikTokConnected] = useState(false);
+  const [tiktokStatus, setTikTokStatus] = useState<TikTokConnectionStatus>("idle");
+  const [tiktokHandle, setTikTokHandle] = useState<string | undefined>();
+
+  useEffect(() => {
+    const handleUrl = (url: string) => {
+      const callback = parseTikTokCallback(url);
+
+      if (!callback) return;
+
+      if (callback.connected) {
+        setTikTokHandle(callback.handle);
+        setTikTokStatus("connected");
+      } else {
+        setTikTokStatus("error");
+        Alert.alert("Connexion TikTok", callback.error || "La connexion a echoue.");
+      }
+    };
+
+    Linking.getInitialURL().then((url) => url && handleUrl(url));
+    const subscription = Linking.addEventListener("url", ({ url }) => handleUrl(url));
+    return () => subscription.remove();
+  }, []);
+
+  const connectTikTok = async () => {
+    setTikTokStatus("connecting");
+
+    try {
+      await beginTikTokConnection();
+    } catch (error) {
+      setTikTokStatus("error");
+      Alert.alert(
+        "Configuration TikTok requise",
+        error instanceof Error ? error.message : "Impossible d'ouvrir TikTok."
+      );
+    }
+  };
 
   const screen = useMemo(() => {
     switch (activeTab) {
@@ -38,12 +78,13 @@ export default function App() {
       default:
         return (
           <DashboardScreen
-            isTikTokConnected={isTikTokConnected}
-            onToggleTikTok={() => setTikTokConnected((value) => !value)}
+            onConnectTikTok={connectTikTok}
+            tiktokHandle={tiktokHandle}
+            tiktokStatus={tiktokStatus}
           />
         );
     }
-  }, [activeTab, isTikTokConnected]);
+  }, [activeTab, tiktokHandle, tiktokStatus]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
