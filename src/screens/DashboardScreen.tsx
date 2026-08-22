@@ -21,15 +21,35 @@ import {
   trendSignals
 } from "../data/viralInsights";
 import { formatCompactNumber, gradeVideo } from "../lib/viralScore";
+import { estimateRevenuePotential } from "../lib/revenueModel";
 import { palette, radius, spacing, typography } from "../theme";
+import { TikTokConnectionStatus } from "../types";
 
 type Props = {
-  isTikTokConnected: boolean;
-  onToggleTikTok: () => void;
+  tiktokStatus: TikTokConnectionStatus;
+  tiktokHandle?: string;
+  onConnectTikTok: () => void;
 };
 
-export function DashboardScreen({ isTikTokConnected, onToggleTikTok }: Props) {
+const euro = (value: number) => `${formatCompactNumber(value)} EUR`;
+
+export function DashboardScreen({
+  tiktokStatus,
+  tiktokHandle,
+  onConnectTikTok
+}: Props) {
   const bestVideo = gradeVideo(recentVideos[0]);
+  const isTikTokConnected = tiktokStatus === "connected";
+  const revenueForecast = estimateRevenuePotential({
+    followers: creatorProfile.followers,
+    averageViews: 48000
+  });
+  const connectionLabel =
+    tiktokStatus === "connecting"
+      ? "Connexion..."
+      : isTikTokConnected
+        ? "Connecte"
+        : "TikTok";
 
   return (
     <ScrollView
@@ -40,11 +60,12 @@ export function DashboardScreen({ isTikTokConnected, onToggleTikTok }: Props) {
         <View style={styles.brandRow}>
           <View>
             <Text style={styles.brand}>VIRALY AI</Text>
-            <Text style={styles.handle}>{creatorProfile.handle}</Text>
+            <Text style={styles.handle}>{tiktokHandle || creatorProfile.handle}</Text>
           </View>
           <TouchableOpacity
             accessibilityRole="button"
-            onPress={onToggleTikTok}
+            disabled={tiktokStatus === "connecting"}
+            onPress={onConnectTikTok}
             style={[
               styles.connectButton,
               isTikTokConnected && styles.connectButtonActive
@@ -61,7 +82,7 @@ export function DashboardScreen({ isTikTokConnected, onToggleTikTok }: Props) {
                 isTikTokConnected && styles.connectTextActive
               ]}
             >
-              {isTikTokConnected ? "Connecte" : "TikTok"}
+              {connectionLabel}
             </Text>
           </TouchableOpacity>
         </View>
@@ -86,6 +107,28 @@ export function DashboardScreen({ isTikTokConnected, onToggleTikTok }: Props) {
         {accountMetrics.map((metric) => (
           <MetricCard key={metric.label} {...metric} />
         ))}
+      </View>
+
+      <SectionHeader eyebrow="Potentiel revenus" title="Ce que le compte peut viser" />
+      <View style={styles.revenueHero}>
+        <Text style={styles.revenueRange}>
+          {euro(revenueForecast.monthlyLow)} - {euro(revenueForecast.monthlyHigh)} / mois
+        </Text>
+        <Text style={styles.revenueBasis}>
+          Scenario base sur {formatCompactNumber(revenueForecast.monthlyViews)} vues mensuelles,
+          24 publications et quatre canaux de monetisation.
+        </Text>
+        <View style={styles.revenueChannels}>
+          {revenueForecast.channels.slice(0, 3).map((channel) => (
+            <View key={channel.name} style={styles.revenueLine}>
+              <Text style={styles.revenueName}>{channel.name}</Text>
+              <Text style={styles.revenueValue}>
+                {euro(channel.monthlyLow)} - {euro(channel.monthlyHigh)}
+              </Text>
+            </View>
+          ))}
+        </View>
+        <Text style={styles.disclaimer}>{revenueForecast.disclaimer}</Text>
       </View>
 
       <SectionHeader
@@ -217,6 +260,47 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between"
+  },
+  revenueHero: {
+    backgroundColor: palette.paper,
+    borderRadius: radius.md,
+    gap: spacing.md,
+    padding: spacing.lg
+  },
+  revenueRange: {
+    color: palette.ink,
+    fontSize: 27,
+    fontWeight: "900"
+  },
+  revenueBasis: {
+    ...typography.body,
+    color: palette.graphite
+  },
+  revenueChannels: {
+    borderTopColor: "#C9C8C1",
+    borderTopWidth: 1,
+    gap: spacing.sm,
+    paddingTop: spacing.md
+  },
+  revenueLine: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.md,
+    justifyContent: "space-between"
+  },
+  revenueName: {
+    ...typography.caption,
+    color: palette.graphite,
+    flex: 1
+  },
+  revenueValue: {
+    ...typography.caption,
+    color: palette.ink
+  },
+  disclaimer: {
+    color: palette.muted,
+    fontSize: 11,
+    lineHeight: 16
   },
   stack: {
     gap: spacing.md
