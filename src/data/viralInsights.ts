@@ -270,10 +270,65 @@ export const videoChecklist = [
   "Un appel a l'action lie au revenu ou au trafic"
 ];
 
+export const carouselChecklist = [
+  "Une couverture comprise en moins d'une seconde",
+  "Une seule idee par slide avec texte lisible",
+  "Une progression qui cree une boucle ou une transformation",
+  "Une slide preuve : capture, chiffre, exemple ou resultat",
+  "Une derniere slide avec CTA vers sauvegarde, profil ou offre"
+];
+
 export const storyPlays = [
   "Avant de poster : tease le sujet avec un sondage simple.",
   "Apres 30 minutes : partage la video en story avec une question.",
   "Le lendemain : montre un commentaire ou un resultat obtenu."
+];
+
+export const liveStrategies = [
+  {
+    title: "Audit en direct",
+    cadence: "1 fois par semaine · 35 min",
+    flow: "5 min promesse, 20 min audits, 7 min questions, 3 min CTA",
+    revenue: "Audit premium ou liste d'attente",
+    prep: "Collecter 5 comptes et annoncer le LIVE avec 2 stories."
+  },
+  {
+    title: "Atelier resultat",
+    cadence: "2 fois par mois · 45 min",
+    flow: "Construire un script, une offre ou un calendrier devant l'audience",
+    revenue: "Template, formation courte ou affiliation outil",
+    prep: "Publier une video probleme 24 h avant et epingler la question."
+  },
+  {
+    title: "LIVE Shop demonstration",
+    cadence: "Quand Shop est eligible · 30 min",
+    flow: "Probleme, demonstration, objections, offre, recap",
+    revenue: "Commission produit TikTok Shop",
+    prep: "Choisir un seul produit coherent avec la niche et preparer trois preuves."
+  }
+];
+
+export const storyCycles = [
+  {
+    moment: "J-1",
+    action: "Sondage douleur + annonce du contenu ou du LIVE.",
+    revenueLink: "Qualifier la demande avant de produire."
+  },
+  {
+    moment: "H-2",
+    action: "Coulisse, preuve ou extrait qui cree l'attente.",
+    revenueLink: "Faire remonter le probleme que l'offre resout."
+  },
+  {
+    moment: "Apres publication",
+    action: "Relayer le post avec une question, pas seulement un repost.",
+    revenueLink: "Envoyer vers commentaire, profil, lien ou LIVE."
+  },
+  {
+    moment: "J+1",
+    action: "Partager un resultat, une objection ou une reponse d'abonne.",
+    revenueLink: "Transformer la preuve en prochain contenu de conversion."
+  }
 ];
 
 export const coachQuestions: CoachQuestion[] = [
