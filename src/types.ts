@@ -70,6 +70,39 @@ export type RevenuePath = {
   potential: string;
 };
 
+export type TikTokConnectionStatus =
+  | "idle"
+  | "connecting"
+  | "connected"
+  | "error";
+
+export type EligibilityGoal = {
+  id: "bio" | "live" | "shop";
+  title: string;
+  requirement: string;
+  current: number;
+  target: number;
+  status: string;
+  nextAction: string;
+  icon: IconName;
+};
+
+export type RevenueChannel = {
+  name: string;
+  monthlyLow: number;
+  monthlyHigh: number;
+  contentDirection: string;
+  conversionAction: string;
+};
+
+export type RevenueForecast = {
+  monthlyViews: number;
+  monthlyLow: number;
+  monthlyHigh: number;
+  disclaimer: string;
+  channels: RevenueChannel[];
+};
+
 export type CoachQuestion = {
   question: string;
   shortAnswer: string;
