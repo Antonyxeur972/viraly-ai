@@ -1,0 +1,32 @@
+{
+  "expo": {
+    "name": "VIRALY AI",
+    "slug": "viraly-ai",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "viralyai",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "ai.viraly.mobile",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "VIRALY AI analyse les videos choisies depuis votre galerie pour proposer des conseils de croissance TikTok."
+      }
+    },
+    "android": {
+      "package": "ai.viraly.mobile",
+      "permissions": ["READ_MEDIA_VIDEO", "READ_EXTERNAL_STORAGE"]
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "VIRALY AI analyse les videos choisies depuis votre galerie pour proposer des conseils de croissance TikTok."
+        }
+      ]
+    ],
+    "extra": {
+      "tiktokRedirectUri": "viralyai://auth/tiktok"
+    }
+  }
+}

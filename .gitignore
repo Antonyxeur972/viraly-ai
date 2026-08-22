@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Native build output
+android/
+ios/
+
+# Local environment
+.env
+.env.*
+
+# Logs and caches
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+
+# Codex workspace scratch/output folders
+work/
+outputs/
