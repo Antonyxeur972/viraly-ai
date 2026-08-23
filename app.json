@@ -10,18 +10,18 @@
       "supportsTablet": false,
       "bundleIdentifier": "ai.viraly.mobile",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "VIRALY AI analyse les videos choisies depuis votre galerie pour proposer des conseils de croissance TikTok."
+        "NSPhotoLibraryUsageDescription": "VIRALY AI analyse les captures de profil, videos et carrousels choisis depuis votre galerie pour proposer des conseils de croissance TikTok."
       }
     },
     "android": {
       "package": "ai.viraly.mobile",
-      "permissions": ["READ_MEDIA_VIDEO", "READ_EXTERNAL_STORAGE"]
+      "permissions": ["READ_MEDIA_IMAGES", "READ_MEDIA_VIDEO", "READ_EXTERNAL_STORAGE"]
     },
     "plugins": [
       [
         "expo-image-picker",
         {
-          "photosPermission": "VIRALY AI analyse les videos choisies depuis votre galerie pour proposer des conseils de croissance TikTok."
+          "photosPermission": "VIRALY AI analyse les captures de profil, videos et carrousels choisis depuis votre galerie pour proposer des conseils de croissance TikTok."
         }
       ]
     ],

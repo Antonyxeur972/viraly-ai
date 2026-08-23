@@ -4,7 +4,7 @@ VIRALY AI is a mobile-first TikTok growth assistant for creators who want to tur
 
 The MVP focuses on five jobs:
 
-- connect a TikTok account and turn analytics into daily actions;
+- connect a TikTok account or import a profile screenshot, then turn the available signals into daily actions;
 - analyze a video selected from the phone gallery;
 - score video ideas before recording;
 - choose a niche with growth and revenue potential;
@@ -24,7 +24,7 @@ The 5-10% improvement target is intentionally practical:
 
 ## Current Screens
 
-- `Dashboard`: account snapshot, TikTok connection state, growth score, best actions today, trend signals.
+- `Dashboard`: TikTok connection or profile screenshot import, account snapshot, growth score, best actions today, trend signals.
 - `Video Lab`: pick a video from the gallery and run a structured review of hook, retention, saves, shares, and revenue fit.
 - `Idea Lab`: analyze video ideas before filming and rank them by search pull, shareability, and monetization fit.
 - `Strategy`: niche chooser, best posting slots, weekly cycle, story plays, and revenue paths.

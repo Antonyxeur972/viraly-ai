@@ -54,3 +54,17 @@ goal=reach|traffic|lead|affiliate|shop
 ```
 
 Return a score from 0 to 100, dimension scores, detected risks, a revised hook or cover, slide or scene recommendations, and the best revenue-aligned CTA. Delete source media after analysis unless the user explicitly opts into storage.
+
+## Profile screenshot analysis
+
+Until TikTok access is approved, configure `EXPO_PUBLIC_PROFILE_ANALYSIS_URL` to accept one profile screenshot.
+
+```text
+POST /v1/profile/analyze
+Content-Type: multipart/form-data
+
+source=tiktok_profile_screenshot
+screenshot=file
+```
+
+Use visual extraction only for information actually visible in the image: handle, bio, follower and like counters, pinned posts, cover consistency, visible view counts, and profile CTA. Return `score`, `confidence`, `summary`, `visibleSignals`, and `priorities`. Never present screenshot-derived values as authenticated TikTok data, and delete the uploaded image after analysis unless the user explicitly opts into storage.
