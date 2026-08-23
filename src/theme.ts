@@ -1,13 +1,15 @@
 export const palette = {
-  ink: "#101112",
-  graphite: "#181A1D",
-  panel: "#22252A",
-  line: "#343941",
+  ink: "#06110E",
+  graphite: "rgba(5, 17, 14, 0.94)",
+  panel: "rgba(7, 25, 20, 0.88)",
+  panelSoft: "rgba(9, 32, 26, 0.74)",
+  line: "rgba(135, 255, 205, 0.17)",
   paper: "#FAF8F1",
-  paperMuted: "#E8E2D3",
+  paperMuted: "#D9E4DE",
   white: "#FFFFFF",
-  muted: "#AAA9A3",
-  mint: "#40E3BD",
+  muted: "#9DB0A8",
+  mint: "#35E69A",
+  mintDark: "#0B6A49",
   coral: "#FF5C6C",
   lemon: "#FFD166",
   sky: "#7CC7FF",
@@ -26,8 +28,8 @@ export const spacing = {
 
 export const radius = {
   sm: 8,
-  md: 12,
-  lg: 18,
+  md: 10,
+  lg: 14,
   pill: 999
 };
 

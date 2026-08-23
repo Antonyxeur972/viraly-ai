@@ -1,6 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useMemo, useState } from "react";
-import { Alert, Linking, SafeAreaView, StatusBar, StyleSheet, View } from "react-native";
+import {
+  Alert,
+  ImageBackground,
+  Linking,
+  Platform,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  View
+} from "react-native";
 
 import { BottomTabs, TabItem } from "./src/components/BottomTabs";
 import { CoachScreen } from "./src/screens/CoachScreen";
@@ -18,8 +27,8 @@ import { TikTokConnectionStatus } from "./src/types";
 type TabKey = "dashboard" | "video" | "ideas" | "strategy" | "coach";
 
 const tabs: TabItem<TabKey>[] = [
-  { key: "dashboard", label: "Pulse", icon: "pulse-outline" },
-  { key: "video", label: "Video", icon: "videocam-outline" },
+  { key: "dashboard", label: "Accueil", icon: "home-outline" },
+  { key: "video", label: "Analyse", icon: "stats-chart-outline" },
   { key: "ideas", label: "Idees", icon: "bulb-outline" },
   { key: "strategy", label: "Plan", icon: "calendar-outline" },
   { key: "coach", label: "Coach", icon: "chatbubbles-outline" }
@@ -64,6 +73,14 @@ export default function App() {
     }
   };
 
+  const changeTab = (tab: TabKey) => {
+    setActiveTab(tab);
+
+    if (Platform.OS === "web") {
+      requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+    }
+  };
+
   const screen = useMemo(() => {
     switch (activeTab) {
       case "video":
@@ -88,22 +105,28 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={palette.ink} />
-      <View style={styles.appShell}>
-        <View style={styles.screen}>{screen}</View>
-        <BottomTabs
-          activeTab={activeTab}
-          items={tabs}
-          onChange={setActiveTab}
-          renderIcon={(item, focused) => (
-            <Ionicons
-              color={focused ? palette.ink : palette.muted}
-              name={item.icon}
-              size={21}
-            />
-          )}
-        />
-      </View>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <ImageBackground
+        resizeMode="cover"
+        source={require("./assets/viraly-rainforest.png")}
+        style={styles.background}
+      >
+        <View style={styles.scrim}>
+          <View style={styles.screen}>{screen}</View>
+          <BottomTabs
+            activeTab={activeTab}
+            items={tabs}
+            onChange={changeTab}
+            renderIcon={(item, focused) => (
+              <Ionicons
+                color={focused ? palette.mint : palette.muted}
+                name={focused ? item.icon.replace("-outline", "") as typeof item.icon : item.icon}
+                size={21}
+              />
+            )}
+          />
+        </View>
+      </ImageBackground>
     </SafeAreaView>
   );
 }
@@ -113,9 +136,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: palette.ink
   },
-  appShell: {
+  background: {
     flex: 1,
     backgroundColor: palette.ink
+  },
+  scrim: {
+    backgroundColor: "rgba(0, 10, 8, 0.40)",
+    flex: 1
   },
   screen: {
     flex: 1

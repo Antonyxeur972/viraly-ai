@@ -130,8 +130,8 @@ export function DashboardScreen({
       <View style={styles.hero}>
         <View style={styles.brandRow}>
           <View>
-            <Text style={styles.brand}>VIRALY AI</Text>
-            <Text style={styles.handle}>{tiktokHandle || creatorProfile.handle}</Text>
+            <Text style={styles.brand}>VIRALY <Text style={styles.brandAccent}>AI</Text></Text>
+            <Text style={styles.handle}>Salut Antoine · aperçu du jour</Text>
           </View>
           <TouchableOpacity
             accessibilityRole="button"
@@ -158,8 +158,8 @@ export function DashboardScreen({
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.title}>Ton copilote pour percer sans poster au hasard.</Text>
-        <Text style={styles.subtitle}>{creatorProfile.summary}</Text>
+        <Text style={styles.title}>Ton contenu prend de la vitesse.</Text>
+        <Text style={styles.subtitle}>Deux vidéos ont généré 68% de ta croissance cette semaine.</Text>
 
         <View style={styles.heroTags}>
           <Tag label={creatorProfile.niche} color={palette.mint} />
@@ -241,10 +241,28 @@ export function DashboardScreen({
       ) : null}
 
       <ScoreDial
-        caption="Score base sur les signaux de retention, sauvegardes, partage et potentiel revenu."
+        caption="Progression de 12,4% sur 7 jours. Le format conseils pratiques mène la croissance."
         label="Momentum createur"
-        score={creatorProfile.growthScore}
+        score={82}
       />
+
+      <View style={styles.trendCard}>
+        <View style={styles.trendTop}>
+          <View>
+            <Text style={styles.trendLabel}>Évolution des vues</Text>
+            <Text style={styles.trendValue}>336K <Text style={styles.trendDelta}>+18%</Text></Text>
+          </View>
+          <Text style={styles.trendPeriod}>7 derniers jours</Text>
+        </View>
+        <View style={styles.miniChart}>
+          {[38, 31, 54, 63, 51, 72, 96].map((height, index) => (
+            <View key={index} style={styles.chartColumn}>
+              <View style={[styles.chartBar, { height: `${height}%` }]} />
+              <Text style={styles.chartDay}>{["L", "M", "M", "J", "V", "S", "D"][index]}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
 
       <View style={styles.metricStrip}>
         {accountMetrics.map((metric) => (
@@ -275,8 +293,8 @@ export function DashboardScreen({
       </View>
 
       <SectionHeader
-        eyebrow="Aujourd'hui"
-        title="3 actions qui peuvent bouger le compte"
+        eyebrow="Opportunités"
+        title="À faire aujourd'hui"
       />
       <View style={styles.stack}>
         <ActionCard
@@ -340,12 +358,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl
   },
   hero: {
-    backgroundColor: palette.graphite,
-    borderColor: palette.line,
-    borderRadius: radius.lg,
-    borderWidth: 1,
     gap: spacing.md,
-    padding: spacing.lg
+    paddingBottom: spacing.sm,
+    paddingTop: spacing.md
   },
   brandRow: {
     alignItems: "center",
@@ -354,8 +369,11 @@ const styles = StyleSheet.create({
   },
   brand: {
     color: palette.white,
-    fontSize: 16,
+    fontSize: 26,
     fontWeight: "900"
+  },
+  brandAccent: {
+    color: palette.mint
   },
   handle: {
     ...typography.caption,
@@ -385,7 +403,7 @@ const styles = StyleSheet.create({
     color: palette.ink
   },
   title: {
-    ...typography.title,
+    ...typography.h2,
     color: palette.white,
     marginTop: spacing.sm
   },
@@ -413,7 +431,7 @@ const styles = StyleSheet.create({
   },
   importIcon: {
     alignItems: "center",
-    backgroundColor: palette.lemon,
+    backgroundColor: palette.mint,
     borderRadius: radius.sm,
     height: 44,
     justifyContent: "center",
@@ -425,7 +443,7 @@ const styles = StyleSheet.create({
   },
   importEyebrow: {
     ...typography.caption,
-    color: palette.lemon
+    color: palette.mint
   },
   importTitle: {
     ...typography.h3,
@@ -522,23 +540,87 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "space-between"
   },
-  revenueHero: {
-    backgroundColor: palette.paper,
+  trendCard: {
+    backgroundColor: palette.panel,
+    borderColor: palette.line,
     borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.md,
+    minHeight: 198,
+    padding: spacing.lg
+  },
+  trendTop: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  trendLabel: {
+    ...typography.caption,
+    color: palette.paperMuted
+  },
+  trendValue: {
+    ...typography.h2,
+    color: palette.white,
+    marginTop: 4
+  },
+  trendDelta: {
+    ...typography.caption,
+    color: palette.mint
+  },
+  trendPeriod: {
+    ...typography.caption,
+    borderColor: palette.line,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    color: palette.muted,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs
+  },
+  miniChart: {
+    alignItems: "flex-end",
+    flexDirection: "row",
+    gap: spacing.sm,
+    height: 105,
+    justifyContent: "space-between"
+  },
+  chartColumn: {
+    alignItems: "center",
+    flex: 1,
+    height: "100%",
+    justifyContent: "flex-end"
+  },
+  chartBar: {
+    backgroundColor: palette.mint,
+    borderRadius: radius.sm,
+    minHeight: 6,
+    opacity: 0.78,
+    width: "48%"
+  },
+  chartDay: {
+    ...typography.caption,
+    color: palette.muted,
+    fontSize: 10,
+    marginTop: 5
+  },
+  revenueHero: {
+    backgroundColor: palette.panel,
+    borderColor: palette.line,
+    borderRadius: radius.md,
+    borderWidth: 1,
     gap: spacing.md,
     padding: spacing.lg
   },
   revenueRange: {
-    color: palette.ink,
+    color: palette.white,
     fontSize: 27,
     fontWeight: "900"
   },
   revenueBasis: {
     ...typography.body,
-    color: palette.graphite
+    color: palette.paperMuted
   },
   revenueChannels: {
-    borderTopColor: "#C9C8C1",
+    borderTopColor: palette.line,
     borderTopWidth: 1,
     gap: spacing.sm,
     paddingTop: spacing.md
@@ -551,12 +633,12 @@ const styles = StyleSheet.create({
   },
   revenueName: {
     ...typography.caption,
-    color: palette.graphite,
+    color: palette.paperMuted,
     flex: 1
   },
   revenueValue: {
     ...typography.caption,
-    color: palette.ink
+    color: palette.mint
   },
   disclaimer: {
     color: palette.muted,
@@ -599,14 +681,16 @@ const styles = StyleSheet.create({
   },
   bestVideo: {
     alignItems: "center",
-    backgroundColor: palette.paper,
+    backgroundColor: palette.panel,
+    borderColor: palette.line,
     borderRadius: radius.md,
+    borderWidth: 1,
     flexDirection: "row",
     gap: spacing.lg,
     padding: spacing.lg
   },
   bestScore: {
-    color: palette.ink,
+    color: palette.mint,
     fontSize: 44,
     fontWeight: "900",
     width: 70
@@ -617,10 +701,10 @@ const styles = StyleSheet.create({
   },
   bestLabel: {
     ...typography.h3,
-    color: palette.ink
+    color: palette.white
   },
   bestAdvice: {
     ...typography.body,
-    color: palette.graphite
+    color: palette.paperMuted
   }
 });

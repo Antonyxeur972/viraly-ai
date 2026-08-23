@@ -201,18 +201,20 @@ const styles = StyleSheet.create({
     color: palette.ink
   },
   scriptCard: {
-    backgroundColor: palette.paper,
+    backgroundColor: palette.panel,
+    borderColor: palette.line,
     borderRadius: radius.md,
+    borderWidth: 1,
     gap: spacing.md,
     padding: spacing.lg
   },
   scriptTitle: {
     ...typography.h3,
-    color: palette.ink
+    color: palette.mint
   },
   scriptBody: {
     ...typography.body,
-    color: palette.graphite
+    color: palette.white
   },
   scriptSteps: {
     gap: spacing.sm
@@ -224,7 +226,7 @@ const styles = StyleSheet.create({
   },
   stepText: {
     ...typography.body,
-    color: palette.ink,
+    color: palette.paperMuted,
     flex: 1
   },
   stack: {

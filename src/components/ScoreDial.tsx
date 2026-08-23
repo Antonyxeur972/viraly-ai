@@ -28,7 +28,9 @@ export function ScoreDial({ score, label, caption, color = palette.mint }: Props
 const styles = StyleSheet.create({
   wrap: {
     alignItems: "center",
-    backgroundColor: palette.paper,
+    backgroundColor: palette.panel,
+    borderColor: palette.line,
+    borderWidth: 1,
     borderRadius: radius.lg,
     flexDirection: "row",
     gap: spacing.lg,
@@ -43,14 +45,14 @@ const styles = StyleSheet.create({
     width: 116
   },
   score: {
-    color: palette.ink,
+    color: palette.white,
     fontSize: 38,
     fontWeight: "900",
     lineHeight: 42
   },
   max: {
     ...typography.caption,
-    color: palette.graphite
+    color: palette.muted
   },
   copy: {
     flex: 1,
@@ -58,10 +60,10 @@ const styles = StyleSheet.create({
   },
   label: {
     ...typography.h2,
-    color: palette.ink
+    color: palette.white
   },
   caption: {
     ...typography.body,
-    color: palette.graphite
+    color: palette.paperMuted
   }
 });

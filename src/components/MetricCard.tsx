@@ -27,9 +27,11 @@ const styles = StyleSheet.create({
     borderColor: palette.line,
     borderRadius: radius.md,
     borderWidth: 1,
-    minHeight: 142,
+    flexBasis: "47%",
+    flexGrow: 1,
+    minHeight: 118,
     padding: spacing.md,
-    width: 158
+    minWidth: 140
   },
   accent: {
     borderRadius: radius.pill,

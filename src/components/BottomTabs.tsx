@@ -49,14 +49,17 @@ export function BottomTabs<T extends string>({
 const styles = StyleSheet.create({
   wrap: {
     alignItems: "center",
-    backgroundColor: palette.graphite,
+    backgroundColor: "rgba(3, 17, 13, 0.96)",
     borderColor: palette.line,
-    borderTopWidth: 1,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     flexDirection: "row",
     gap: spacing.xs,
     justifyContent: "space-between",
+    marginBottom: spacing.sm,
+    marginHorizontal: spacing.sm,
     paddingBottom: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     paddingTop: spacing.sm
   },
   tab: {
@@ -66,10 +69,11 @@ const styles = StyleSheet.create({
     minHeight: 54,
     justifyContent: "center",
     paddingHorizontal: spacing.sm,
-    width: 64
+    flex: 1,
+    maxWidth: 76
   },
   tabActive: {
-    backgroundColor: palette.mint
+    backgroundColor: "rgba(53, 230, 154, 0.14)"
   },
   label: {
     ...typography.caption,
@@ -77,6 +81,6 @@ const styles = StyleSheet.create({
     fontSize: 11
   },
   labelActive: {
-    color: palette.ink
+    color: palette.mint
   }
 });

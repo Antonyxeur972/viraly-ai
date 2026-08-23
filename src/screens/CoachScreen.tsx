@@ -141,7 +141,8 @@ const styles = StyleSheet.create({
     padding: spacing.md
   },
   questionCardActive: {
-    backgroundColor: palette.paper
+    backgroundColor: palette.panelSoft,
+    borderColor: palette.mint
   },
   questionIcon: {
     alignItems: "center",
@@ -163,15 +164,15 @@ const styles = StyleSheet.create({
     color: palette.white
   },
   questionActive: {
-    color: palette.ink
+    color: palette.white
   },
   answer: {
     ...typography.body,
-    color: palette.graphite
+    color: palette.paperMuted
   },
   action: {
     ...typography.caption,
-    color: palette.coral
+    color: palette.mint
   },
   stack: {
     gap: spacing.md

@@ -301,8 +301,10 @@ const styles = StyleSheet.create({
     gap: spacing.sm
   },
   slots: {
-    backgroundColor: palette.paper,
+    backgroundColor: palette.panel,
+    borderColor: palette.line,
     borderRadius: radius.md,
+    borderWidth: 1,
     gap: spacing.md,
     padding: spacing.md
   },
@@ -329,11 +331,11 @@ const styles = StyleSheet.create({
   },
   slotTime: {
     ...typography.h3,
-    color: palette.ink
+    color: palette.white
   },
   slotReason: {
     ...typography.body,
-    color: palette.graphite
+    color: palette.paperMuted
   },
   timeline: {
     gap: spacing.md
@@ -368,8 +370,10 @@ const styles = StyleSheet.create({
     color: palette.paperMuted
   },
   paperBlock: {
-    backgroundColor: palette.paper,
+    backgroundColor: palette.panel,
+    borderColor: palette.line,
     borderRadius: radius.md,
+    borderWidth: 1,
     gap: spacing.sm,
     padding: spacing.md
   },
@@ -380,7 +384,7 @@ const styles = StyleSheet.create({
   },
   paperText: {
     ...typography.body,
-    color: palette.ink,
+    color: palette.white,
     flex: 1
   },
   storyCycle: {
@@ -452,22 +456,24 @@ const styles = StyleSheet.create({
     color: palette.lemon
   },
   forecastCard: {
-    backgroundColor: palette.paper,
+    backgroundColor: palette.panel,
+    borderColor: palette.line,
     borderRadius: radius.md,
+    borderWidth: 1,
     gap: spacing.md,
     padding: spacing.lg
   },
   forecastRange: {
-    color: palette.ink,
+    color: palette.white,
     fontSize: 26,
     fontWeight: "900"
   },
   forecastBase: {
     ...typography.caption,
-    color: palette.graphite
+    color: palette.paperMuted
   },
   channelBlock: {
-    borderTopColor: "#C9C8C1",
+    borderTopColor: palette.line,
     borderTopWidth: 1,
     gap: spacing.xs,
     paddingTop: spacing.md
@@ -480,19 +486,19 @@ const styles = StyleSheet.create({
   },
   channelName: {
     ...typography.h3,
-    color: palette.ink
+    color: palette.white
   },
   channelValue: {
     ...typography.caption,
-    color: palette.ink
+    color: palette.mint
   },
   channelDirection: {
     ...typography.body,
-    color: palette.graphite
+    color: palette.paperMuted
   },
   channelAction: {
     ...typography.caption,
-    color: "#29594F"
+    color: palette.mint
   },
   forecastDisclaimer: {
     color: palette.muted,

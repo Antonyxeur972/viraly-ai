@@ -124,12 +124,36 @@ export function VideoLabScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
-        <Text style={styles.kicker}>Content Lab</Text>
-        <Text style={styles.title}>Analyse avant de publier.</Text>
+        <Text style={styles.kicker}>VUE D'ENSEMBLE</Text>
+        <Text style={styles.title}>Analyse</Text>
         <Text style={styles.subtitle}>
-          Video ou carrousel : VIRALY AI relie la structure, l'attention, les
-          sauvegardes et le CTA au revenu recherche.
+          Comprends ce qui fait la différence, puis analyse ton prochain contenu.
         </Text>
+      </View>
+
+      <View style={styles.performanceCard}>
+        <Text style={styles.performanceTitle}>Performance globale · 7 jours</Text>
+        <View style={styles.performanceGrid}>
+          {[
+            ["Vues", "336K", "+18%"],
+            ["Abonnés", "12.7K", "+21%"],
+            ["Visionnage", "78h", "+15%"],
+            ["Partages", "2.1K", "+11%"]
+          ].map(([label, value, delta]) => (
+            <View key={label} style={styles.performanceMetric}>
+              <Text style={styles.performanceLabel}>{label}</Text>
+              <Text style={styles.performanceValue}>{value}</Text>
+              <Text style={styles.performanceDelta}>{delta}</Text>
+            </View>
+          ))}
+        </View>
+        <View style={styles.trafficLine}>
+          <View style={styles.trafficRing}><Text style={styles.trafficRingText}>48%</Text></View>
+          <View style={styles.trafficCopy}>
+            <Text style={styles.trafficTitle}>Source principale · Pour toi</Text>
+            <Text style={styles.trafficBody}>La découverte progresse, mais les sauvegardes restent le meilleur levier.</Text>
+          </View>
+        </View>
       </View>
 
       <View style={styles.segmentedControl}>
@@ -315,6 +339,78 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     padding: 4
   },
+  performanceCard: {
+    backgroundColor: palette.panel,
+    borderColor: palette.line,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.lg
+  },
+  performanceTitle: {
+    ...typography.h3,
+    color: palette.white
+  },
+  performanceGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm
+  },
+  performanceMetric: {
+    borderColor: palette.line,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexBasis: "47%",
+    flexGrow: 1,
+    gap: 3,
+    minWidth: 130,
+    padding: spacing.sm
+  },
+  performanceLabel: {
+    ...typography.caption,
+    color: palette.muted
+  },
+  performanceValue: {
+    ...typography.h2,
+    color: palette.white
+  },
+  performanceDelta: {
+    ...typography.caption,
+    color: palette.mint
+  },
+  trafficLine: {
+    alignItems: "center",
+    borderTopColor: palette.line,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    gap: spacing.md,
+    paddingTop: spacing.md
+  },
+  trafficRing: {
+    alignItems: "center",
+    borderColor: palette.mint,
+    borderRadius: 34,
+    borderWidth: 7,
+    height: 68,
+    justifyContent: "center",
+    width: 68
+  },
+  trafficRingText: {
+    ...typography.h3,
+    color: palette.white
+  },
+  trafficCopy: {
+    flex: 1,
+    gap: 3
+  },
+  trafficTitle: {
+    ...typography.caption,
+    color: palette.mint
+  },
+  trafficBody: {
+    ...typography.body,
+    color: palette.paperMuted
+  },
   segment: {
     alignItems: "center",
     borderRadius: radius.sm,
@@ -441,8 +537,10 @@ const styles = StyleSheet.create({
     gap: spacing.md
   },
   checklist: {
-    backgroundColor: palette.paper,
+    backgroundColor: palette.panel,
+    borderColor: palette.line,
     borderRadius: radius.md,
+    borderWidth: 1,
     gap: spacing.sm,
     padding: spacing.md
   },
@@ -453,7 +551,7 @@ const styles = StyleSheet.create({
   },
   checkIndex: {
     alignItems: "center",
-    backgroundColor: palette.ink,
+    backgroundColor: palette.mintDark,
     borderRadius: radius.pill,
     height: 26,
     justifyContent: "center",
@@ -466,7 +564,7 @@ const styles = StyleSheet.create({
   },
   checkText: {
     ...typography.body,
-    color: palette.ink,
+    color: palette.white,
     flex: 1
   },
   radar: {
