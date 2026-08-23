@@ -1,28 +1,36 @@
 import type { ImagePickerAsset } from "expo-image-picker";
 
+import { apiRequest } from "./api";
+
 export type ContentAnalysisReport = {
   score: number;
   summary: string;
   revenueCta: string;
   improvements: string[];
+  dimensions: Array<{
+    name: string;
+    score: number;
+    evidence: string;
+    action: string;
+  }>;
+  revisedHook: string;
+  storyboard: string[];
+  revenuePotential: {
+    level: "faible" | "moyen" | "élevé";
+    path: string;
+    basis: string;
+  };
+  analysisId: string;
+  transcriptAvailable: boolean;
 };
-
-export function getContentAnalysisEndpoint() {
-  return process.env.EXPO_PUBLIC_CONTENT_ANALYSIS_URL?.trim() || null;
-}
 
 export async function requestContentAnalysis(
   type: "video" | "carousel",
   assets: ImagePickerAsset[]
-): Promise<ContentAnalysisReport | null> {
-  const endpoint = getContentAnalysisEndpoint();
-
-  if (!endpoint) return null;
-
+): Promise<ContentAnalysisReport> {
   const body = new FormData();
   body.append("type", type);
   body.append("goal", "revenue");
-
   assets.forEach((asset, index) => {
     body.append("assets[]", {
       uri: asset.uri,
@@ -31,11 +39,8 @@ export async function requestContentAnalysis(
     } as unknown as Blob);
   });
 
-  const response = await fetch(endpoint, { method: "POST", body });
-
-  if (!response.ok) {
-    throw new Error(`Analyse indisponible (${response.status}).`);
-  }
-
-  return response.json() as Promise<ContentAnalysisReport>;
+  return apiRequest<ContentAnalysisReport>("/api/v1/content/analyze", {
+    method: "POST",
+    body
+  });
 }

@@ -20,6 +20,7 @@ import { IdeaLabScreen } from "./src/screens/IdeaLabScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { StrategyScreen } from "./src/screens/StrategyScreen";
 import { VideoLabScreen } from "./src/screens/VideoLabScreen";
+import { setApiSessionToken } from "./src/services/api";
 import {
   beginGoogleConnection,
   parseGoogleCallback
@@ -28,6 +29,7 @@ import {
   beginTikTokConnection,
   parseTikTokCallback
 } from "./src/services/tiktok";
+import { ProfileAnalysisReport } from "./src/services/profileAnalysis";
 import { palette } from "./src/theme";
 import {
   CreatorOnboardingProfile,
@@ -53,6 +55,7 @@ export default function App() {
   const [googleName, setGoogleName] = useState<string | undefined>();
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [creatorSetup, setCreatorSetup] = useState<CreatorOnboardingProfile | null>(null);
+  const [accountContext, setAccountContext] = useState<ProfileAnalysisReport | null>(null);
 
   useEffect(() => {
     const handleUrl = (url: string) => {
@@ -60,6 +63,7 @@ export default function App() {
 
       if (googleCallback) {
         if (googleCallback.connected) {
+          setApiSessionToken(googleCallback.sessionId);
           setGoogleName(googleCallback.name);
           setGoogleStatus("connected");
         } else {
@@ -117,6 +121,7 @@ export default function App() {
 
   const useDeveloperPreview = () => {
     if (!__DEV__) return;
+    setApiSessionToken(process.env.EXPO_PUBLIC_VIRALY_DEV_TOKEN);
     setGoogleName("Antoine");
     setGoogleStatus("connected");
   };
@@ -135,26 +140,29 @@ export default function App() {
   };
 
   const screen = useMemo(() => {
+    if (!creatorSetup) return null;
+
     switch (activeTab) {
       case "video":
         return <VideoLabScreen />;
       case "ideas":
-        return <IdeaLabScreen />;
+        return <IdeaLabScreen accountContext={accountContext} profile={creatorSetup} />;
       case "strategy":
-        return <StrategyScreen />;
+        return <StrategyScreen accountContext={accountContext} profile={creatorSetup} />;
       case "coach":
-        return <CoachScreen />;
+        return <CoachScreen accountContext={accountContext} profile={creatorSetup} />;
       case "dashboard":
       default:
         return (
           <DashboardScreen
             onConnectTikTok={connectTikTok}
+            onProfileAnalyzed={setAccountContext}
             tiktokHandle={tiktokHandle}
             tiktokStatus={tiktokStatus}
           />
         );
     }
-  }, [activeTab, tiktokHandle, tiktokStatus]);
+  }, [accountContext, activeTab, creatorSetup, tiktokHandle, tiktokStatus]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -218,20 +226,24 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: palette.ink
+    backgroundColor: palette.ink,
+    overflow: "hidden"
   },
   background: {
     flex: 1,
-    backgroundColor: palette.ink
+    backgroundColor: palette.ink,
+    overflow: "hidden"
   },
   scrim: {
-    flex: 1
+    flex: 1,
+    overflow: "hidden"
   },
   screenTexture: {
     ...StyleSheet.absoluteFillObject,
     opacity: 0.07
   },
   screen: {
-    flex: 1
+    flex: 1,
+    overflow: "hidden"
   }
 });

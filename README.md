@@ -2,14 +2,15 @@
 
 VIRALY AI is a mobile-first TikTok growth assistant for creators who want to turn content data into a practical publishing system.
 
-The MVP focuses on five jobs:
+The MVP focuses on these jobs:
 
 - secure a VIRALY AI space with Google, run a seven-step creator diagnostic, and gate the app behind a first personalized report;
-- connect a TikTok account or import a profile screenshot, then turn the available signals into daily actions;
-- analyze a video selected from the phone gallery;
-- score video ideas before recording;
+- import a TikTok profile screenshot, then turn visible signals into daily actions;
+- analyze a video or photo carousel selected from the phone gallery;
+- analyze and generate video ideas before recording;
 - choose a niche with growth and revenue potential;
-- build a repeatable posting, story, engagement, and monetization cycle.
+- build a repeatable posting, story, LIVE, and monetization cycle;
+- generate and persist a seven-day content calendar.
 
 ## Product Angle
 
@@ -23,26 +24,51 @@ The 5-10% improvement target is intentionally practical:
 - separate generic advice from account-specific recommendations once TikTok data is connected;
 - make the mobile experience feel like a creator cockpit, not a spreadsheet.
 
+## Real AI Backend
+
+The `backend/` service is a FastAPI API with SQLite persistence and structured OpenAI responses. It powers onboarding, profile screenshots, videos, carousels, ideas, coaching, strategy, revenue directions, eligibility guidance, and the calendar. It never substitutes demo values when AI is unavailable.
+
+Model routing keeps cost and latency proportional to the task:
+
+- visual model for profile screenshots, video frames, and carousels;
+- strategy model for positioning, ideas, onboarding, and revenue plans;
+- fast model for coaching and calendar generation.
+
+All model names, limits, and upload sizes are configurable in `backend/.env`.
+
 ## Current Screens
 
-- `Dashboard`: TikTok connection or profile screenshot import, account snapshot, growth score, best actions today, trend signals.
-- `Video Lab`: pick a video from the gallery and run a structured review of hook, retention, saves, shares, and revenue fit.
-- `Idea Lab`: analyze video ideas before filming and rank them by search pull, shareability, and monetization fit.
-- `Strategy`: niche chooser, best posting slots, weekly cycle, story plays, and revenue paths.
+- `Dashboard`: TikTok connection or profile screenshot import and evidence-based account analysis.
+- `Video Lab`: analyze a video or carousel, including hook, structure, likely retention signals, and revenue fit.
+- `Idea Lab`: analyze or generate ideas, scripts, risks, and monetization paths.
+- `Strategy`: niches, posting tests, weekly cycle, stories, LIVE, eligibility, revenue, and persistent calendar.
 - `Coach`: answers to common creator questions such as best posting time, stories, likes, saves, posting frequency, and engagement routines.
 
 ## Run Locally
+
+1. Copy `.env.example` to `.env` and point `EXPO_PUBLIC_API_BASE_URL` to the backend.
+2. Copy `backend/.env.example` to `backend/.env` and set `OPENAI_API_KEY`.
+3. For local preview only, set the same non-empty random value in `VIRALY_DEV_TOKEN` and `EXPO_PUBLIC_VIRALY_DEV_TOKEN`.
+
+```bash
+cd backend
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+PYTHONPATH=. .venv/bin/uvicorn app.main:app --reload --port 8000
+```
+
+In another terminal:
 
 ```bash
 npm install
 npm run start
 ```
 
-Then open the project in Expo Go or a simulator.
+The backend container can be deployed with `backend/Dockerfile`. In production, leave both development token variables empty and provide sessions through the Google OAuth service.
 
 ## TikTok Integration Notes
 
-The app currently includes a prepared TikTok service layer and a product-ready connection flow. Production integration should use TikTok Login Kit with OAuth v2, request only the scopes needed, and keep access and refresh tokens on the server side.
+The app includes the TikTok client connection flow. Production connection still requires an approved TikTok developer app and a server-side OAuth service; profile screenshots remain the immediate alternative. Access and refresh tokens must stay encrypted on the server.
 
 Likely scope groups for the first connected version:
 
@@ -53,10 +79,11 @@ Likely scope groups for the first connected version:
 
 The app should never store TikTok tokens directly on the device in plain storage.
 
-## Suggested Next Build Steps
+## Verification
 
-1. Add a backend for TikTok OAuth callback, encrypted token storage, and refresh handling.
-2. Replace demo analytics with account-specific account, video, and audience data.
-3. Add AI scoring endpoints for video file analysis and script/hook generation.
-4. Add a calendar planner with push notifications for posting windows.
-5. Add creator revenue tracking: affiliate links, lead magnets, TikTok Shop, paid community, and brand deal readiness.
+```bash
+npm run typecheck
+cd backend && PYTHONPATH=. .venv/bin/pytest -q
+```
+
+Next production integrations are Google OAuth session issuance, approved TikTok OAuth with encrypted token storage, a managed PostgreSQL database, and calendar notifications.

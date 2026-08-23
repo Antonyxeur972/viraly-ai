@@ -11,22 +11,10 @@ import {
   View
 } from "react-native";
 
-import { ActionCard } from "../components/ActionCard";
-import { GrowthChart } from "../components/AnalyticsCharts";
 import { GlassPanel } from "../components/GlassPanel";
-import { MetricCard } from "../components/MetricCard";
 import { ProgressBar } from "../components/ProgressBar";
 import { ScoreDial } from "../components/ScoreDial";
 import { SectionHeader } from "../components/SectionHeader";
-import { Tag } from "../components/Tag";
-import {
-  accountMetrics,
-  creatorProfile,
-  recentVideos,
-  trendSignals
-} from "../data/viralInsights";
-import { formatCompactNumber, gradeVideo } from "../lib/viralScore";
-import { estimateRevenuePotential } from "../lib/revenueModel";
 import {
   ProfileAnalysisReport,
   requestProfileAnalysis
@@ -38,622 +26,213 @@ type Props = {
   tiktokStatus: TikTokConnectionStatus;
   tiktokHandle?: string;
   onConnectTikTok: () => void;
+  onProfileAnalyzed: (report: ProfileAnalysisReport) => void;
 };
-
-const euro = (value: number) => `${formatCompactNumber(value)} EUR`;
 
 export function DashboardScreen({
   tiktokStatus,
   tiktokHandle,
-  onConnectTikTok
+  onConnectTikTok,
+  onProfileAnalyzed
 }: Props) {
-  const [profileScreenshot, setProfileScreenshot] =
-    useState<ImagePicker.ImagePickerAsset | null>(null);
-  const [profileReport, setProfileReport] =
-    useState<ProfileAnalysisReport | null>(null);
-  const [isAnalyzingProfile, setIsAnalyzingProfile] = useState(false);
-  const bestVideo = gradeVideo(recentVideos[0]);
-  const isTikTokConnected = tiktokStatus === "connected";
-  const revenueForecast = estimateRevenuePotential({
-    followers: creatorProfile.followers,
-    averageViews: 48000
-  });
-  const connectionLabel =
-    tiktokStatus === "connecting"
-      ? "Connexion..."
-      : isTikTokConnected
-        ? "Connecte"
-        : "TikTok";
+  const [screenshot, setScreenshot] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [report, setReport] = useState<ProfileAnalysisReport | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const connected = tiktokStatus === "connected";
 
-  const pickProfileScreenshot = async () => {
+  const pickScreenshot = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
     if (!permission.granted) {
-      Alert.alert(
-        "Acces aux photos",
-        "Autorise VIRALY AI a ouvrir ta galerie pour choisir la capture du profil."
-      );
+      Alert.alert("Accès aux photos", "Autorise VIRALY AI à choisir la capture de ton profil.");
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
       aspect: [9, 16],
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1
     });
-
     if (!result.canceled) {
-      setProfileScreenshot(result.assets[0]);
-      setProfileReport(null);
+      setScreenshot(result.assets[0]);
+      setReport(null);
     }
   };
 
-  const analyzeProfileScreenshot = async () => {
-    if (!profileScreenshot) return;
-
-    setIsAnalyzingProfile(true);
-
+  const analyze = async () => {
+    if (!screenshot) return;
+    setIsAnalyzing(true);
     try {
-      const remoteReport = await requestProfileAnalysis(profileScreenshot);
-      setProfileReport(
-        remoteReport || {
-          score: 58,
-          confidence: "faible",
-          summary:
-            "Capture recue. Cette pre-analyse devient precise des que le moteur visuel est relie au backend VIRALY AI.",
-          visibleSignals: [
-            "Page d'accueil TikTok importee",
-            "Format vertical exploitable",
-            "Source identifiee comme capture, pas comme donnees TikTok certifiees"
-          ],
-          priorities: [
-            "Garder le pseudo, la bio et les compteurs visibles",
-            "Inclure les couvertures des videos recentes",
-            "Ajouter ensuite les statistiques TikTok pour affiner le revenu"
-          ]
-        }
-      );
+      const result = await requestProfileAnalysis(screenshot);
+      setReport(result);
+      onProfileAnalyzed(result);
     } catch (error) {
-      Alert.alert(
-        "Analyse du profil",
-        error instanceof Error ? error.message : "La capture n'a pas pu etre analysee."
-      );
+      Alert.alert("Analyse du profil", error instanceof Error ? error.message : "Analyse impossible.");
     } finally {
-      setIsAnalyzingProfile(false);
+      setIsAnalyzing(false);
     }
   };
+
+  const metrics = report
+    ? [
+        ["Abonnés", report.metrics.followers],
+        ["J'aime", report.metrics.likes],
+        ["Vidéos", report.metrics.videos],
+        ["Compte", report.metrics.handle]
+      ].filter((item): item is [string, string] => Boolean(item[1]))
+    : [];
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.hero}>
         <View style={styles.brandRow}>
           <View>
             <Text style={styles.brand}>VIRALY <Text style={styles.brandAccent}>AI</Text></Text>
-            <Text style={styles.handle}>Salut Antoine · aperçu du jour</Text>
+            <Text style={styles.handle}>{tiktokHandle || "Diagnostic créateur"}</Text>
           </View>
           <TouchableOpacity
-            accessibilityRole="button"
             disabled={tiktokStatus === "connecting"}
             onPress={onConnectTikTok}
-            style={[
-              styles.connectButton,
-              isTikTokConnected && styles.connectButtonActive
-            ]}
+            style={[styles.connectButton, connected && styles.connectButtonActive]}
           >
-            <Ionicons
-              color={isTikTokConnected ? palette.ink : palette.white}
-              name={isTikTokConnected ? "checkmark-circle" : "logo-tiktok"}
-              size={18}
-            />
-            <Text
-              style={[
-                styles.connectText,
-                isTikTokConnected && styles.connectTextActive
-              ]}
-            >
-              {connectionLabel}
+            <Ionicons color={connected ? palette.ink : palette.white} name={connected ? "checkmark-circle" : "logo-tiktok"} size={18} />
+            <Text style={[styles.connectText, connected && styles.connectTextActive]}>
+              {tiktokStatus === "connecting" ? "Connexion..." : connected ? "Connecté" : "TikTok"}
             </Text>
           </TouchableOpacity>
         </View>
-
-        <Text style={styles.title}>Ton compte accélère.</Text>
-        <Text style={styles.subtitle}>Deux vidéos portent 68% de ta croissance cette semaine.</Text>
-
-        <View style={styles.heroTags}>
-          <Tag label={creatorProfile.niche} color={palette.mint} />
-          <Tag label={`stage ${creatorProfile.stage}`} color={palette.lemon} />
-          <Tag label={`${formatCompactNumber(creatorProfile.followers)} abonnes`} color={palette.paper} />
-        </View>
+        <Text style={styles.title}>{report ? "Ton premier diagnostic." : "Partons de données réelles."}</Text>
+        <Text style={styles.subtitle}>
+          {report
+            ? report.summary
+            : "Connecte TikTok ou importe une capture complète. Aucun score n'est affiché avant analyse."}
+        </Text>
       </View>
 
-      {!isTikTokConnected ? (
-        <GlassPanel style={styles.importCard}>
-          <View style={styles.importHeading}>
-            <View style={styles.importIcon}>
-              <Ionicons color={palette.ink} name="scan-outline" size={22} />
-            </View>
+      {!connected ? (
+        <GlassPanel style={styles.importPanel}>
+          <View style={styles.importTop}>
+            <View style={styles.importIcon}><Ionicons color={palette.ink} name="scan-outline" size={22} /></View>
             <View style={styles.importCopy}>
-              <Text style={styles.importEyebrow}>Sans connexion TikTok</Text>
-              <Text style={styles.importTitle}>Analyse une capture de ton profil</Text>
+              <Text style={styles.importTitle}>Analyser la page d'accueil</Text>
+              <Text style={styles.importBody}>La bio, les compteurs et les couvertures doivent rester visibles.</Text>
             </View>
           </View>
-          <Text style={styles.importBody}>
-            Prends un screen de ta page d'accueil avec la bio, les compteurs et les
-            dernieres videos visibles.
-          </Text>
-
-          {profileScreenshot ? (
-            <Image
-              accessibilityLabel="Capture du profil TikTok selectionnee"
-              resizeMode="cover"
-              source={{ uri: profileScreenshot.uri }}
-              style={styles.profilePreview}
-            />
-          ) : null}
-
-          <View style={styles.importActions}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              onPress={pickProfileScreenshot}
-              style={styles.galleryButton}
-            >
+          {screenshot ? <Image source={{ uri: screenshot.uri }} style={styles.preview} /> : null}
+          <View style={styles.buttonRow}>
+            <TouchableOpacity onPress={pickScreenshot} style={styles.secondaryButton}>
               <Ionicons color={palette.white} name="images-outline" size={18} />
-              <Text style={styles.galleryButtonText}>
-                {profileScreenshot ? "Remplacer" : "Choisir le screen"}
-              </Text>
+              <Text style={styles.secondaryText}>{screenshot ? "Changer" : "Choisir"}</Text>
             </TouchableOpacity>
-            {profileScreenshot ? (
-              <TouchableOpacity
-                accessibilityRole="button"
-                disabled={isAnalyzingProfile}
-                onPress={analyzeProfileScreenshot}
-                style={styles.profileAnalyzeButton}
-              >
+            {screenshot ? (
+              <TouchableOpacity disabled={isAnalyzing} onPress={analyze} style={styles.primaryButton}>
                 <Ionicons color={palette.ink} name="sparkles-outline" size={18} />
-                <Text style={styles.profileAnalyzeText}>
-                  {isAnalyzingProfile ? "Analyse..." : "Analyser"}
-                </Text>
+                <Text style={styles.primaryText}>{isAnalyzing ? "Lecture..." : "Analyser"}</Text>
               </TouchableOpacity>
             ) : null}
           </View>
+        </GlassPanel>
+      ) : null}
 
-          {profileReport ? (
-            <View style={styles.profileReport}>
-              <View style={styles.profileReportTop}>
-                <Text style={styles.profileReportTitle}>Diagnostic initial</Text>
-                <Text style={styles.profileReportScore}>{profileReport.score}/100</Text>
-              </View>
-              <Text style={styles.profileConfidence}>
-                Confiance {profileReport.confidence} · estimation sur capture
-              </Text>
-              <Text style={styles.profileReportSummary}>{profileReport.summary}</Text>
-              {profileReport.priorities.map((priority) => (
-                <View key={priority} style={styles.profilePriority}>
-                  <Ionicons color={palette.mint} name="arrow-forward-circle" size={18} />
-                  <Text style={styles.profilePriorityText}>{priority}</Text>
+      {report ? (
+        <>
+          <ScoreDial
+            caption={`Confiance ${report.confidence}. Données issues d'une capture, pas de l'API TikTok.`}
+            color={palette.mint}
+            label="Clarté du profil"
+            score={report.score}
+          />
+
+          {metrics.length ? (
+            <View style={styles.metricGrid}>
+              {metrics.map(([label, value]) => (
+                <View key={label} style={styles.metricCard}>
+                  <Text style={styles.metricLabel}>{label}</Text>
+                  <Text numberOfLines={2} style={styles.metricValue}>{value}</Text>
                 </View>
               ))}
             </View>
           ) : null}
-        </GlassPanel>
-      ) : null}
 
-      <ScoreDial
-        caption="Progression de 12,4% sur 7 jours. Le format conseils pratiques mène la croissance."
-        label="Momentum createur"
-        score={82}
-      />
-
-      <GlassPanel style={styles.trendCard}>
-        <View style={styles.trendTop}>
-          <View>
-            <Text style={styles.trendLabel}>Évolution des vues</Text>
-            <Text style={styles.trendValue}>336K <Text style={styles.trendDelta}>+18%</Text></Text>
-          </View>
-          <Text style={styles.trendPeriod}>7 derniers jours</Text>
-        </View>
-        <GrowthChart />
-      </GlassPanel>
-
-      <View style={styles.metricStrip}>
-        {accountMetrics.map((metric) => (
-          <MetricCard key={metric.label} {...metric} />
-        ))}
-      </View>
-
-      <SectionHeader eyebrow="Potentiel revenus" title="Ce que le compte peut viser" />
-      <GlassPanel style={styles.revenueHero}>
-        <Text style={styles.revenueRange}>
-          {euro(revenueForecast.monthlyLow)} - {euro(revenueForecast.monthlyHigh)} / mois
-        </Text>
-        <Text style={styles.revenueBasis}>
-          Scenario base sur {formatCompactNumber(revenueForecast.monthlyViews)} vues mensuelles,
-          24 publications et quatre canaux de monetisation.
-        </Text>
-        <View style={styles.revenueChannels}>
-          {revenueForecast.channels.slice(0, 3).map((channel) => (
-            <View key={channel.name} style={styles.revenueLine}>
-              <Text style={styles.revenueName}>{channel.name}</Text>
-              <Text style={styles.revenueValue}>
-                {euro(channel.monthlyLow)} - {euro(channel.monthlyHigh)}
-              </Text>
-            </View>
-          ))}
-        </View>
-        <Text style={styles.disclaimer}>{revenueForecast.disclaimer}</Text>
-      </GlassPanel>
-
-      <SectionHeader
-        eyebrow="Opportunités"
-        title="À faire aujourd'hui"
-      />
-      <View style={styles.stack}>
-        <ActionCard
-          accent={palette.mint}
-          body="Publie ton contenu educatif a 19:20 avec une promesse chiffree et un exemple visuel."
-          icon="rocket-outline"
-          meta="priorite A"
-          title="Poster dans la bonne fenetre"
-        />
-        <ActionCard
-          accent={palette.lemon}
-          body="Demande a ton audience quel blocage TikTok elle veut resoudre cette semaine."
-          icon="phone-portrait-outline"
-          meta="story"
-          title="Prechauffer l'idee"
-        />
-        <ActionCard
-          accent={palette.coral}
-          body="Transforme les 3 meilleurs commentaires en scripts de 20 secondes."
-          icon="chatbox-ellipses-outline"
-          meta="recherche"
-          title="Miner les commentaires"
-        />
-      </View>
-
-      <SectionHeader
-        eyebrow="Diagnostic"
-        title="Ce qui tire deja la croissance"
-        action="score live"
-      />
-      <View style={styles.stack}>
-        {trendSignals.map((signal) => (
-          <GlassPanel key={signal.title} style={styles.signalCard} textureOpacity={0.09}>
-            <View style={styles.signalTop}>
-              <Text style={styles.signalTitle}>{signal.title}</Text>
-              <Text style={styles.confidence}>{signal.confidence}%</Text>
-            </View>
-            <ProgressBar color={signal.accent} value={signal.confidence} />
-            <Text style={styles.signalInsight}>{signal.insight}</Text>
-            <Text style={styles.signalAction}>{signal.action}</Text>
+          <SectionHeader eyebrow="Lecture IA" title="Ce que le profil communique" />
+          <GlassPanel style={styles.analysisPanel}>
+            <Text style={styles.analysisTitle}>Positionnement</Text>
+            <Text style={styles.analysisText}>{report.accountPositioning}</Text>
+            <View style={styles.divider} />
+            <Text style={styles.analysisTitle}>Préparation revenu</Text>
+            <Text style={styles.analysisText}>{report.revenueReadiness}</Text>
           </GlassPanel>
-        ))}
-      </View>
 
-      <SectionHeader eyebrow="Video gagnante" title={recentVideos[0].title} />
-      <GlassPanel style={styles.bestVideo}>
-        <Text style={styles.bestScore}>{bestVideo.score}</Text>
-        <View style={styles.bestCopy}>
-          <Text style={styles.bestLabel}>{bestVideo.label}</Text>
-          <Text style={styles.bestAdvice}>{bestVideo.advice}</Text>
+          <SectionHeader eyebrow="Priorités" title="Les prochaines corrections" />
+          <View style={styles.stack}>
+            {report.priorities.map((priority, index) => (
+              <View key={priority} style={styles.priorityCard}>
+                <Text style={styles.priorityIndex}>0{index + 1}</Text>
+                <Text style={styles.priorityText}>{priority}</Text>
+              </View>
+            ))}
+          </View>
+
+          <GlassPanel style={styles.nextPanel}>
+            <Text style={styles.nextLabel}>ACTION PRIORITAIRE</Text>
+            <Text style={styles.nextText}>{report.nextAction}</Text>
+            <ProgressBar color={palette.mint} value={report.score} />
+          </GlassPanel>
+        </>
+      ) : (
+        <View style={styles.waitingCard}>
+          <Ionicons color={palette.mint} name="analytics-outline" size={24} />
+          <View style={styles.waitingCopy}>
+            <Text style={styles.waitingTitle}>Analyse en attente</Text>
+            <Text style={styles.waitingBody}>Les recommandations apparaîtront après lecture du compte.</Text>
+          </View>
         </View>
-      </GlassPanel>
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    gap: spacing.xl,
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl
-  },
-  hero: {
-    gap: spacing.md,
-    paddingBottom: spacing.sm,
-    paddingTop: spacing.md
-  },
-  brandRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between"
-  },
-  brand: {
-    color: palette.white,
-    fontSize: 26,
-    fontWeight: "900"
-  },
-  brandAccent: {
-    color: palette.mint
-  },
-  handle: {
-    ...typography.caption,
-    color: palette.muted,
-    marginTop: 3
-  },
-  connectButton: {
-    alignItems: "center",
-    backgroundColor: palette.panel,
-    borderColor: palette.line,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: spacing.xs,
-    minHeight: 42,
-    paddingHorizontal: spacing.md
-  },
-  connectButtonActive: {
-    backgroundColor: palette.mint,
-    borderColor: palette.mint
-  },
-  connectText: {
-    ...typography.caption,
-    color: palette.white
-  },
-  connectTextActive: {
-    color: palette.ink
-  },
-  title: {
-    ...typography.h2,
-    color: palette.white,
-    marginTop: spacing.sm
-  },
-  subtitle: {
-    ...typography.body,
-    color: palette.paperMuted
-  },
-  heroTags: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm
-  },
-  importCard: {
-    gap: spacing.md,
-    padding: spacing.lg
-  },
-  importHeading: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.md
-  },
-  importIcon: {
-    alignItems: "center",
-    backgroundColor: palette.mint,
-    borderRadius: radius.sm,
-    height: 44,
-    justifyContent: "center",
-    width: 44
-  },
-  importCopy: {
-    flex: 1,
-    gap: 2
-  },
-  importEyebrow: {
-    ...typography.caption,
-    color: palette.mint
-  },
-  importTitle: {
-    ...typography.h3,
-    color: palette.white
-  },
-  importBody: {
-    ...typography.body,
-    color: palette.paperMuted
-  },
-  profilePreview: {
-    aspectRatio: 9 / 16,
-    alignSelf: "center",
-    backgroundColor: palette.graphite,
-    borderRadius: radius.sm,
-    maxHeight: 360,
-    width: "58%"
-  },
-  importActions: {
-    flexDirection: "row",
-    gap: spacing.sm
-  },
-  galleryButton: {
-    alignItems: "center",
-    borderColor: palette.line,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: "row",
-    gap: spacing.sm,
-    justifyContent: "center",
-    minHeight: 48,
-    paddingHorizontal: spacing.sm
-  },
-  galleryButtonText: {
-    ...typography.caption,
-    color: palette.white
-  },
-  profileAnalyzeButton: {
-    alignItems: "center",
-    backgroundColor: palette.mint,
-    borderRadius: radius.sm,
-    flex: 1,
-    flexDirection: "row",
-    gap: spacing.sm,
-    justifyContent: "center",
-    minHeight: 48,
-    paddingHorizontal: spacing.sm
-  },
-  profileAnalyzeText: {
-    ...typography.caption,
-    color: palette.ink
-  },
-  profileReport: {
-    borderTopColor: palette.line,
-    borderTopWidth: 1,
-    gap: spacing.sm,
-    paddingTop: spacing.md
-  },
-  profileReportTop: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.md,
-    justifyContent: "space-between"
-  },
-  profileReportTitle: {
-    ...typography.h3,
-    color: palette.white
-  },
-  profileReportScore: {
-    ...typography.h3,
-    color: palette.mint
-  },
-  profileConfidence: {
-    ...typography.caption,
-    color: palette.lemon
-  },
-  profileReportSummary: {
-    ...typography.body,
-    color: palette.paperMuted
-  },
-  profilePriority: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: spacing.sm
-  },
-  profilePriorityText: {
-    ...typography.body,
-    color: palette.white,
-    flex: 1
-  },
-  metricStrip: {
-    gap: spacing.md,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between"
-  },
-  trendCard: {
-    gap: spacing.md,
-    minHeight: 252,
-    padding: spacing.lg
-  },
-  trendTop: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    justifyContent: "space-between"
-  },
-  trendLabel: {
-    ...typography.caption,
-    color: palette.paperMuted
-  },
-  trendValue: {
-    ...typography.h2,
-    color: palette.white,
-    marginTop: 4
-  },
-  trendDelta: {
-    ...typography.caption,
-    color: palette.mint
-  },
-  trendPeriod: {
-    ...typography.caption,
-    borderColor: palette.line,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    color: palette.muted,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs
-  },
-  revenueHero: {
-    gap: spacing.md,
-    padding: spacing.lg
-  },
-  revenueRange: {
-    color: palette.white,
-    fontSize: 27,
-    fontWeight: "900"
-  },
-  revenueBasis: {
-    ...typography.body,
-    color: palette.paperMuted
-  },
-  revenueChannels: {
-    borderTopColor: palette.line,
-    borderTopWidth: 1,
-    gap: spacing.sm,
-    paddingTop: spacing.md
-  },
-  revenueLine: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.md,
-    justifyContent: "space-between"
-  },
-  revenueName: {
-    ...typography.caption,
-    color: palette.paperMuted,
-    flex: 1
-  },
-  revenueValue: {
-    ...typography.caption,
-    color: palette.mint
-  },
-  disclaimer: {
-    color: palette.muted,
-    fontSize: 11,
-    lineHeight: 16
-  },
-  stack: {
-    gap: spacing.md
-  },
-  signalCard: {
-    gap: spacing.sm,
-    padding: spacing.md
-  },
-  signalTop: {
-    alignItems: "flex-start",
-    flexDirection: "row",
-    gap: spacing.md,
-    justifyContent: "space-between"
-  },
-  signalTitle: {
-    ...typography.h3,
-    color: palette.white,
-    flex: 1
-  },
-  confidence: {
-    ...typography.caption,
-    color: palette.lemon
-  },
-  signalInsight: {
-    ...typography.body,
-    color: palette.paperMuted
-  },
-  signalAction: {
-    ...typography.caption,
-    color: palette.mint
-  },
-  bestVideo: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: spacing.lg,
-    padding: spacing.lg
-  },
-  bestScore: {
-    color: palette.mint,
-    fontSize: 44,
-    fontWeight: "900",
-    width: 70
-  },
-  bestCopy: {
-    flex: 1,
-    gap: spacing.xs
-  },
-  bestLabel: {
-    ...typography.h3,
-    color: palette.white
-  },
-  bestAdvice: {
-    ...typography.body,
-    color: palette.paperMuted
-  }
+  content: { gap: spacing.xl, padding: spacing.lg, paddingBottom: spacing.xxl },
+  hero: { gap: spacing.sm },
+  brandRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
+  brand: { ...typography.h2, color: palette.white },
+  brandAccent: { color: palette.mint },
+  handle: { ...typography.caption, color: palette.paperMuted, marginTop: 4 },
+  title: { ...typography.title, color: palette.white },
+  subtitle: { ...typography.body, color: palette.paperMuted },
+  connectButton: { alignItems: "center", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.xs, minHeight: 40, paddingHorizontal: spacing.md },
+  connectButtonActive: { backgroundColor: palette.mint, borderColor: palette.mint },
+  connectText: { ...typography.caption, color: palette.white },
+  connectTextActive: { color: palette.ink },
+  importPanel: { gap: spacing.md, padding: spacing.lg },
+  importTop: { alignItems: "flex-start", flexDirection: "row", gap: spacing.md },
+  importIcon: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.sm, height: 42, justifyContent: "center", width: 42 },
+  importCopy: { flex: 1, gap: 4 },
+  importTitle: { ...typography.h3, color: palette.white },
+  importBody: { ...typography.body, color: palette.paperMuted },
+  preview: { borderRadius: radius.md, height: 220, resizeMode: "cover", width: "100%" },
+  buttonRow: { flexDirection: "row", gap: spacing.sm },
+  secondaryButton: { alignItems: "center", borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, flexDirection: "row", gap: spacing.xs, justifyContent: "center", minHeight: 46, paddingHorizontal: spacing.md },
+  secondaryText: { ...typography.caption, color: palette.white },
+  primaryButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.sm, flex: 1, flexDirection: "row", gap: spacing.xs, justifyContent: "center", minHeight: 46, paddingHorizontal: spacing.md },
+  primaryText: { ...typography.caption, color: palette.ink },
+  metricGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  metricCard: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, flexBasis: "47%", flexGrow: 1, gap: 4, minWidth: 130, padding: spacing.md },
+  metricLabel: { ...typography.caption, color: palette.muted },
+  metricValue: { ...typography.h2, color: palette.white },
+  analysisPanel: { gap: spacing.sm, padding: spacing.lg },
+  analysisTitle: { ...typography.caption, color: palette.mint },
+  analysisText: { ...typography.body, color: palette.white },
+  divider: { backgroundColor: palette.line, height: 1, marginVertical: spacing.xs },
+  stack: { gap: spacing.sm },
+  priorityCard: { alignItems: "flex-start", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, flexDirection: "row", gap: spacing.md, padding: spacing.md },
+  priorityIndex: { ...typography.caption, color: palette.mint },
+  priorityText: { ...typography.body, color: palette.white, flex: 1 },
+  nextPanel: { gap: spacing.md, padding: spacing.lg },
+  nextLabel: { ...typography.caption, color: palette.lemon },
+  nextText: { ...typography.h3, color: palette.white },
+  waitingCard: { alignItems: "center", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, padding: spacing.lg },
+  waitingCopy: { flex: 1, gap: 4 },
+  waitingTitle: { ...typography.h3, color: palette.white },
+  waitingBody: { ...typography.body, color: palette.paperMuted }
 });

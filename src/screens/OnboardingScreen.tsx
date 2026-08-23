@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,6 +11,7 @@ import {
 
 import { GlassPanel } from "../components/GlassPanel";
 import { ProgressBar } from "../components/ProgressBar";
+import { analyzeOnboarding, OnboardingAIReport } from "../services/ai";
 import { palette, radius, spacing, typography } from "../theme";
 import {
   CreatorOnboardingProfile,
@@ -119,13 +121,6 @@ const questions: Question[] = [
   }
 ];
 
-const monetizationLabels: Record<string, string> = {
-  affiliate: "affiliation",
-  service: "service ou coaching",
-  product: "produit digital",
-  shop: "TikTok Shop"
-};
-
 type Props = {
   googleStatus: GoogleConnectionStatus;
   googleName?: string;
@@ -143,20 +138,34 @@ export function OnboardingScreen({
 }: Props) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Partial<CreatorOnboardingProfile>>({});
+  const [report, setReport] = useState<OnboardingAIReport | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const googleConnected = googleStatus === "connected";
-  const showingReport = step >= questions.length;
+  const showingReport = step >= questions.length && report !== null;
   const current = questions[Math.min(step, questions.length - 1)];
   const selected = answers[current?.id];
 
-  const report = useMemo(() => {
-    const followerScore = answers.followers === "10000+" ? 28 : answers.followers === "1000-10000" ? 20 : answers.followers === "100-1000" ? 12 : 6;
-    const rhythmScore = answers.cadence === "multiple" ? 24 : answers.cadence === "5-7" ? 20 : answers.cadence === "3-4" ? 15 : 9;
-    const clarityScore = answers.niche === "clear" ? 24 : answers.niche === "broad" ? 16 : 9;
-    const capacityScore = answers.time === "10h+" ? 20 : answers.time === "6-10h" ? 17 : answers.time === "3-5h" ? 13 : 8;
-    const score = Math.min(94, followerScore + rhythmScore + clarityScore + capacityScore);
-    const cycle = answers.cadence === "1-2" ? "2 contenus forts / semaine" : answers.cadence === "3-4" ? "4 contenus / semaine" : "1 contenu / jour";
-    return { score, cycle };
-  }, [answers]);
+  const continueOnboarding = async () => {
+    if (!selected || isAnalyzing) return;
+    if (step < questions.length - 1) {
+      setStep((value) => value + 1);
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const nextReport = await analyzeOnboarding(answers as CreatorOnboardingProfile);
+      setReport(nextReport);
+      setStep(questions.length);
+    } catch (error) {
+      Alert.alert(
+        "Bilan indisponible",
+        error instanceof Error ? error.message : "Impossible de générer ton bilan."
+      );
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   if (!googleConnected) {
     return (
@@ -187,15 +196,7 @@ export function OnboardingScreen({
     );
   }
 
-  if (showingReport) {
-    const priorities = [
-      answers.niche === "clear" ? "Consolider une série reconnaissable" : "Valider une niche sur trois angles tests",
-      `Installer un rythme de ${report.cycle.toLowerCase()}`,
-      `Relier les contenus à la piste ${
-        monetizationLabels[answers.monetization || ""] || "de revenu prioritaire"
-      }`
-    ];
-
+  if (showingReport && report) {
     return (
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
@@ -212,11 +213,11 @@ export function OnboardingScreen({
             <View style={styles.reportBadge}><Text style={styles.reportBadgeText}>{report.score >= 70 ? "PRÊT À ACCÉLÉRER" : "BASE À STRUCTURER"}</Text></View>
           </View>
           <ProgressBar color={palette.mint} value={report.score} />
-          <Text style={styles.reportSummary}>Ton avantage n'est pas de publier davantage au hasard, mais de répéter un format naturel avec une promesse mesurable.</Text>
+          <Text style={styles.reportSummary}>{report.summary}</Text>
         </GlassPanel>
         <Text style={styles.sectionLabel}>TES 3 PRIORITÉS</Text>
         <GlassPanel style={styles.priorityPanel} textureOpacity={0.08}>
-          {priorities.map((priority, index) => (
+          {report.priorities.map((priority, index) => (
             <View key={priority} style={styles.priorityLine}>
               <Text style={styles.priorityIndex}>0{index + 1}</Text>
               <Text style={styles.priorityText}>{priority}</Text>
@@ -226,7 +227,11 @@ export function OnboardingScreen({
         <GlassPanel style={styles.cyclePanel}>
           <Text style={styles.cycleLabel}>PREMIER CYCLE RECOMMANDÉ</Text>
           <Text style={styles.cycleValue}>{report.cycle}</Text>
-          <Text style={styles.cycleBody}>1 contenu expertise · 1 contenu preuve · 1 contenu conversation · 1 contenu conversion selon ton rythme.</Text>
+          <Text style={styles.cycleBody}>{report.firstWeek.join(" · ")}</Text>
+          <View style={styles.revenueLine}>
+            <Ionicons color={palette.mint} name="cash-outline" size={18} />
+            <Text style={styles.revenueText}>{report.revenueDirection}</Text>
+          </View>
         </GlassPanel>
         <TouchableOpacity onPress={() => onComplete(answers as CreatorOnboardingProfile)} style={styles.primaryButton}>
           <Text style={styles.primaryButtonText}>Entrer dans VIRALY AI</Text>
@@ -275,8 +280,8 @@ export function OnboardingScreen({
             <Ionicons color={palette.white} name="arrow-back" size={20} />
           </TouchableOpacity>
         ) : <View style={styles.backPlaceholder} />}
-        <TouchableOpacity disabled={!selected} onPress={() => selected && setStep((value) => value + 1)} style={[styles.continueButton, !selected && styles.continueDisabled]}>
-          <Text style={styles.continueText}>{step === questions.length - 1 ? "Voir mon bilan" : "Continuer"}</Text>
+        <TouchableOpacity disabled={!selected || isAnalyzing} onPress={continueOnboarding} style={[styles.continueButton, (!selected || isAnalyzing) && styles.continueDisabled]}>
+          <Text style={styles.continueText}>{isAnalyzing ? "Analyse en cours..." : step === questions.length - 1 ? "Générer mon bilan" : "Continuer"}</Text>
           <Ionicons color={palette.ink} name="arrow-forward" size={20} />
         </TouchableOpacity>
       </View>
@@ -339,6 +344,8 @@ const styles = StyleSheet.create({
   cycleLabel: { ...typography.caption, color: palette.mint },
   cycleValue: { ...typography.h2, color: palette.white },
   cycleBody: { ...typography.body, color: palette.paperMuted },
+  revenueLine: { alignItems: "flex-start", borderTopColor: palette.line, borderTopWidth: 1, flexDirection: "row", gap: spacing.sm, paddingTop: spacing.md },
+  revenueText: { ...typography.body, color: palette.paperMuted, flex: 1 },
   primaryButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.md, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 56 },
   primaryButtonText: { ...typography.body, color: palette.ink, fontWeight: "900" }
 });
