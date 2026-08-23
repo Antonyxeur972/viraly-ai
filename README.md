@@ -4,6 +4,7 @@ VIRALY AI is a mobile-first TikTok growth assistant for creators who want to tur
 
 The MVP focuses on five jobs:
 
+- secure a VIRALY AI space with Google, run a seven-step creator diagnostic, and gate the app behind a first personalized report;
 - connect a TikTok account or import a profile screenshot, then turn the available signals into daily actions;
 - analyze a video selected from the phone gallery;
 - score video ideas before recording;

@@ -2,6 +2,22 @@
 
 The mobile application never stores the TikTok client secret, access token, or refresh token.
 
+## Google account
+
+Configure `EXPO_PUBLIC_GOOGLE_CONNECT_URL` with an HTTPS backend route. Google secures the VIRALY AI account; it does not grant TikTok access.
+
+```text
+GET /oauth/google/start?return_to=viralyai%3A%2F%2Fauth%2Fgoogle
+```
+
+The backend must create and validate OAuth `state`, exchange the Google authorization code server-side, create an opaque VIRALY AI session, then redirect to:
+
+```text
+viralyai://auth/google?session=opaque_session_id&name=Antoine&email=user%40example.com
+```
+
+Never return Google access tokens to the mobile application. The development-only onboarding preview must not be enabled in production builds.
+
 ## TikTok connection
 
 Configure `EXPO_PUBLIC_TIKTOK_CONNECT_URL` with an HTTPS backend route.

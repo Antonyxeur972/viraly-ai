@@ -76,6 +76,22 @@ export type TikTokConnectionStatus =
   | "connected"
   | "error";
 
+export type GoogleConnectionStatus =
+  | "idle"
+  | "connecting"
+  | "connected"
+  | "error";
+
+export type CreatorOnboardingProfile = {
+  goal: string;
+  niche: string;
+  followers: string;
+  cadence: string;
+  format: string;
+  time: string;
+  monetization: string;
+};
+
 export type EligibilityGoal = {
   id: "bio" | "live" | "shop";
   title: string;

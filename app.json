@@ -26,7 +26,8 @@
       ]
     ],
     "extra": {
-      "tiktokRedirectUri": "viralyai://auth/tiktok"
+      "tiktokRedirectUri": "viralyai://auth/tiktok",
+      "googleRedirectUri": "viralyai://auth/google"
     }
   }
 }

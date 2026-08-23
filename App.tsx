@@ -17,14 +17,23 @@ import { BottomTabs, TabItem } from "./src/components/BottomTabs";
 import { CoachScreen } from "./src/screens/CoachScreen";
 import { DashboardScreen } from "./src/screens/DashboardScreen";
 import { IdeaLabScreen } from "./src/screens/IdeaLabScreen";
+import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { StrategyScreen } from "./src/screens/StrategyScreen";
 import { VideoLabScreen } from "./src/screens/VideoLabScreen";
+import {
+  beginGoogleConnection,
+  parseGoogleCallback
+} from "./src/services/google";
 import {
   beginTikTokConnection,
   parseTikTokCallback
 } from "./src/services/tiktok";
 import { palette } from "./src/theme";
-import { TikTokConnectionStatus } from "./src/types";
+import {
+  CreatorOnboardingProfile,
+  GoogleConnectionStatus,
+  TikTokConnectionStatus
+} from "./src/types";
 
 type TabKey = "dashboard" | "video" | "ideas" | "strategy" | "coach";
 
@@ -40,9 +49,26 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
   const [tiktokStatus, setTikTokStatus] = useState<TikTokConnectionStatus>("idle");
   const [tiktokHandle, setTikTokHandle] = useState<string | undefined>();
+  const [googleStatus, setGoogleStatus] = useState<GoogleConnectionStatus>("idle");
+  const [googleName, setGoogleName] = useState<string | undefined>();
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [creatorSetup, setCreatorSetup] = useState<CreatorOnboardingProfile | null>(null);
 
   useEffect(() => {
     const handleUrl = (url: string) => {
+      const googleCallback = parseGoogleCallback(url);
+
+      if (googleCallback) {
+        if (googleCallback.connected) {
+          setGoogleName(googleCallback.name);
+          setGoogleStatus("connected");
+        } else {
+          setGoogleStatus("error");
+          Alert.alert("Connexion Google", googleCallback.error || "La connexion a échoué.");
+        }
+        return;
+      }
+
       const callback = parseTikTokCallback(url);
 
       if (!callback) return;
@@ -73,6 +99,31 @@ export default function App() {
         error instanceof Error ? error.message : "Impossible d'ouvrir TikTok."
       );
     }
+  };
+
+  const connectGoogle = async () => {
+    setGoogleStatus("connecting");
+
+    try {
+      await beginGoogleConnection();
+    } catch (error) {
+      setGoogleStatus("error");
+      Alert.alert(
+        "Configuration Google requise",
+        error instanceof Error ? error.message : "Impossible d'ouvrir Google."
+      );
+    }
+  };
+
+  const useDeveloperPreview = () => {
+    if (!__DEV__) return;
+    setGoogleName("Antoine");
+    setGoogleStatus("connected");
+  };
+
+  const finishOnboarding = (profile: CreatorOnboardingProfile) => {
+    setCreatorSetup(profile);
+    setOnboardingComplete(true);
   };
 
   const changeTab = (tab: TabKey) => {
@@ -131,19 +182,33 @@ export default function App() {
               style={styles.screenTexture}
             />
           </View>
-          <View style={styles.screen}>{screen}</View>
-          <BottomTabs
-            activeTab={activeTab}
-            items={tabs}
-            onChange={changeTab}
-            renderIcon={(item, focused) => (
-              <Ionicons
-                color={focused ? palette.mint : palette.muted}
-                name={focused ? item.icon.replace("-outline", "") as typeof item.icon : item.icon}
-                size={21}
+          {onboardingComplete && creatorSetup ? (
+            <>
+              <View style={styles.screen}>{screen}</View>
+              <BottomTabs
+                activeTab={activeTab}
+                items={tabs}
+                onChange={changeTab}
+                renderIcon={(item, focused) => (
+                  <Ionicons
+                    color={focused ? palette.mint : palette.muted}
+                    name={focused ? item.icon.replace("-outline", "") as typeof item.icon : item.icon}
+                    size={21}
+                  />
+                )}
               />
-            )}
-          />
+            </>
+          ) : (
+            <View style={styles.screen}>
+              <OnboardingScreen
+                googleName={googleName}
+                googleStatus={googleStatus}
+                onComplete={finishOnboarding}
+                onConnectGoogle={connectGoogle}
+                onDeveloperPreview={useDeveloperPreview}
+              />
+            </View>
+          )}
         </View>
       </ImageBackground>
     </SafeAreaView>
