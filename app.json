@@ -2,6 +2,7 @@
   "expo": {
     "name": "VIRALY AI",
     "slug": "viraly-ai",
+    "owner": "global_ai_studio",
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -15,19 +16,36 @@
     },
     "android": {
       "package": "ai.viraly.mobile",
-      "permissions": ["READ_MEDIA_IMAGES", "READ_MEDIA_VIDEO", "READ_EXTERNAL_STORAGE"]
+      "permissions": [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       [
         "expo-image-picker",
         {
-          "photosPermission": "VIRALY AI analyse les captures de profil, videos et carrousels choisis depuis votre galerie pour proposer des conseils de croissance TikTok."
+          "photosPermission": "VIRALY AI analyse les captures de profil, videos et carrousels choisis depuis votre galerie pour proposer des conseils de croissance TikTok.",
+          "microphonePermission": false
         }
       ]
     ],
     "extra": {
       "tiktokRedirectUri": "viralyai://auth/tiktok",
-      "googleRedirectUri": "viralyai://auth/google"
+      "googleRedirectUri": "viralyai://auth/google",
+      "eas": {
+        "projectId": "944108e1-dc57-48e7-bd7b-11a7e1ebc705"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/944108e1-dc57-48e7-bd7b-11a7e1ebc705"
     }
   }
 }
