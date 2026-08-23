@@ -26,6 +26,13 @@ class Settings:
         if item.strip()
     )
     dev_token: str = os.getenv("VIRALY_DEV_TOKEN", "").strip()
+    preview_access_enabled: bool = os.getenv(
+        "VIRALY_PREVIEW_ACCESS_ENABLED", "false"
+    ).lower() in {"1", "true", "yes"}
+    preview_secret: str = os.getenv("VIRALY_PREVIEW_SECRET", "").strip()
+    preview_ai_daily_limit: int = int(
+        os.getenv("VIRALY_PREVIEW_AI_DAILY_LIMIT", "5")
+    )
     visual_model: str = os.getenv("VIRALY_VISUAL_MODEL", "gpt-5.6-sol")
     strategy_model: str = os.getenv("VIRALY_STRATEGY_MODEL", "gpt-5.6-terra")
     fast_model: str = os.getenv("VIRALY_FAST_MODEL", "gpt-5.6-luna")

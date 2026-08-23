@@ -14,6 +14,24 @@ export function setApiSessionToken(token?: string | null) {
   sessionToken = token?.trim() || null;
 }
 
+export async function createPreviewSession(): Promise<{ token: string; name: string }> {
+  const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/preview`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }
+  });
+  if (!response.ok) {
+    let message = `Accès test indisponible (${response.status}).`;
+    try {
+      const payload = await response.json();
+      message = payload.detail || message;
+    } catch {
+      // Keep the status-based error when the backend did not return JSON.
+    }
+    throw new Error(message);
+  }
+  return response.json() as Promise<{ token: string; name: string }>;
+}
+
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const baseUrl = getApiBaseUrl();
   if (!sessionToken) throw new Error("Reconnecte ton compte Google pour lancer cette analyse.");

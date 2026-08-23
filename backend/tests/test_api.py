@@ -111,3 +111,37 @@ def test_onboarding_uses_structured_ai_and_persists_result(client, auth_headers)
 def test_calendar_requires_a_session(client):
     response = client.get("/api/v1/calendar/events")
     assert response.status_code == 401
+
+
+def test_preview_session_is_disabled_by_default(client, monkeypatch):
+    from dataclasses import replace
+    from app import main
+
+    monkeypatch.setattr(main, "settings", replace(main.settings, preview_access_enabled=False))
+    response = client.post("/api/v1/auth/preview")
+    assert response.status_code == 503
+
+
+def test_preview_session_issues_short_lived_token(client, monkeypatch):
+    from dataclasses import replace
+    from app import main
+
+    monkeypatch.setattr(
+        main,
+        "settings",
+        replace(
+            main.settings,
+            preview_access_enabled=True,
+            preview_secret="test-preview-secret",
+        ),
+    )
+    response = client.post("/api/v1/auth/preview")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["token"].startswith("preview_")
+    authorized = client.get(
+        "/api/v1/calendar/events",
+        headers={"Authorization": f"Bearer {payload['token']}"},
+    )
+    assert authorized.status_code == 200

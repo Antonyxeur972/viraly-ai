@@ -92,6 +92,21 @@ class Database:
             )
         return user_id
 
+    def ensure_preview_session(
+        self, token: str, user_id: str, expires_at: str, name: str = "Créateur test"
+    ) -> str:
+        created_at = now_iso()
+        with self.lock, self.connection:
+            self.connection.execute(
+                "INSERT OR IGNORE INTO users(id, name, created_at) VALUES (?, ?, ?)",
+                (user_id, name, created_at),
+            )
+            self.connection.execute(
+                "INSERT OR REPLACE INTO sessions(token, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)",
+                (token, user_id, expires_at, created_at),
+            )
+        return user_id
+
     def user_for_session(self, token: str) -> str | None:
         row = self.connection.execute(
             "SELECT user_id, expires_at FROM sessions WHERE token = ?", (token,)
@@ -208,4 +223,3 @@ class Database:
                 "DELETE FROM calendar_events WHERE id = ? AND user_id = ?", (event_id, user_id)
             )
         return cursor.rowcount > 0
-

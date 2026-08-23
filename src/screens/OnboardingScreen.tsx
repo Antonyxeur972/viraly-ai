@@ -126,6 +126,7 @@ type Props = {
   googleName?: string;
   onConnectGoogle: () => void;
   onDeveloperPreview: () => void;
+  previewAvailable: boolean;
   onComplete: (profile: CreatorOnboardingProfile) => void;
 };
 
@@ -134,6 +135,7 @@ export function OnboardingScreen({
   googleName,
   onConnectGoogle,
   onDeveloperPreview,
+  previewAvailable,
   onComplete
 }: Props) {
   const [step, setStep] = useState(0);
@@ -173,7 +175,7 @@ export function OnboardingScreen({
         <View style={styles.authHero}>
           <Text style={styles.brand}>VIRALY <Text style={styles.brandAccent}>AI</Text></Text>
           <Text style={styles.authTitle}>Construisons ton point de départ.</Text>
-          <Text style={styles.authBody}>Connecte ton compte Google pour conserver ton diagnostic et retrouver ton plan sur tous tes appareils.</Text>
+          <Text style={styles.authBody}>Connecte ton compte Google pour conserver ton diagnostic, ou ouvre la version de test immédiatement.</Text>
         </View>
         <GlassPanel style={styles.authPanel}>
           <View style={styles.authMark}>
@@ -185,9 +187,9 @@ export function OnboardingScreen({
             <Ionicons color={palette.ink} name="logo-google" size={20} />
             <Text style={styles.googleButtonText}>{googleStatus === "connecting" ? "Connexion..." : "Continuer avec Google"}</Text>
           </TouchableOpacity>
-          {__DEV__ ? (
-            <TouchableOpacity onPress={onDeveloperPreview} style={styles.previewButton}>
-              <Text style={styles.previewText}>Tester le parcours sans OAuth</Text>
+          {previewAvailable ? (
+            <TouchableOpacity disabled={googleStatus === "connecting"} onPress={onDeveloperPreview} style={styles.previewButton}>
+              <Text style={styles.previewText}>{googleStatus === "connecting" ? "Ouverture..." : "Accéder à la version de test"}</Text>
             </TouchableOpacity>
           ) : null}
         </GlassPanel>

@@ -20,7 +20,7 @@ import { IdeaLabScreen } from "./src/screens/IdeaLabScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { StrategyScreen } from "./src/screens/StrategyScreen";
 import { VideoLabScreen } from "./src/screens/VideoLabScreen";
-import { setApiSessionToken } from "./src/services/api";
+import { createPreviewSession, setApiSessionToken } from "./src/services/api";
 import {
   beginGoogleConnection,
   parseGoogleCallback
@@ -119,11 +119,20 @@ export default function App() {
     }
   };
 
-  const useDeveloperPreview = () => {
-    if (!__DEV__) return;
-    setApiSessionToken(process.env.EXPO_PUBLIC_VIRALY_DEV_TOKEN);
-    setGoogleName("Antoine");
-    setGoogleStatus("connected");
+  const useDeveloperPreview = async () => {
+    setGoogleStatus("connecting");
+    try {
+      const session = await createPreviewSession();
+      setApiSessionToken(session.token);
+      setGoogleName(session.name);
+      setGoogleStatus("connected");
+    } catch (error) {
+      setGoogleStatus("error");
+      Alert.alert(
+        "Accès test indisponible",
+        error instanceof Error ? error.message : "Impossible d'ouvrir la version de test."
+      );
+    }
   };
 
   const finishOnboarding = (profile: CreatorOnboardingProfile) => {
@@ -214,6 +223,7 @@ export default function App() {
                 onComplete={finishOnboarding}
                 onConnectGoogle={connectGoogle}
                 onDeveloperPreview={useDeveloperPreview}
+                previewAvailable
               />
             </View>
           )}

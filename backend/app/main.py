@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import hmac
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta, timezone
+from hashlib import sha256
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -89,7 +90,12 @@ def require_user(
 
 
 def ensure_ai_budget(db: Database, user_id: str) -> None:
-    if db.daily_ai_usage(user_id) >= settings.ai_daily_limit:
+    limit = (
+        settings.preview_ai_daily_limit
+        if user_id.startswith("usr_preview_")
+        else settings.ai_daily_limit
+    )
+    if db.daily_ai_usage(user_id) >= limit:
         raise HTTPException(429, "Limite IA quotidienne atteinte.")
 
 
@@ -108,6 +114,25 @@ def health():
             "fast": settings.fast_model,
         },
     }
+
+
+@app.post("/api/v1/auth/preview")
+def create_preview_session(request: Request, db: Database = Depends(database)):
+    if not settings.preview_access_enabled or not settings.preview_secret:
+        raise HTTPException(503, "La version de test n'est pas activée.")
+
+    day = date.today().isoformat()
+    client_ip = request.client.host if request.client else "unknown"
+    identity = hmac.new(
+        settings.preview_secret.encode(), f"{day}:{client_ip}".encode(), sha256
+    ).hexdigest()
+    token = f"preview_{hmac.new(settings.preview_secret.encode(), identity.encode(), sha256).hexdigest()}"
+    user_id = f"usr_preview_{identity[:32]}"
+    tomorrow = datetime.combine(
+        date.today() + timedelta(days=1), time.min, tzinfo=timezone.utc
+    ).isoformat()
+    db.ensure_preview_session(token, user_id, tomorrow)
+    return {"token": token, "name": "Créateur test", "expiresAt": tomorrow}
 
 
 @app.post("/api/v1/profile/analyze")
