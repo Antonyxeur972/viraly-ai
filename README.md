@@ -66,6 +66,8 @@ npm run start
 
 The backend container can be deployed with `backend/Dockerfile`. In production, leave both development token variables empty and provide sessions through the Google OAuth service.
 
+Production backend: `https://viraly-ai.onrender.com` (`/api/health` reports deployment and AI configuration status).
+
 ## TikTok Integration Notes
 
 The app includes the TikTok client connection flow. Production connection still requires an approved TikTok developer app and a server-side OAuth service; profile screenshots remain the immediate alternative. Access and refresh tokens must stay encrypted on the server.
