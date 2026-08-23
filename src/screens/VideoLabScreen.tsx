@@ -12,6 +12,8 @@ import {
 } from "react-native";
 
 import { ActionCard } from "../components/ActionCard";
+import { GrowthChart, TrafficDonut } from "../components/AnalyticsCharts";
+import { GlassPanel } from "../components/GlassPanel";
 import { ProgressBar } from "../components/ProgressBar";
 import { ScoreDial } from "../components/ScoreDial";
 import { SectionHeader } from "../components/SectionHeader";
@@ -131,7 +133,7 @@ export function VideoLabScreen() {
         </Text>
       </View>
 
-      <View style={styles.performanceCard}>
+      <GlassPanel style={styles.performanceCard}>
         <Text style={styles.performanceTitle}>Performance globale · 7 jours</Text>
         <View style={styles.performanceGrid}>
           {[
@@ -147,14 +149,21 @@ export function VideoLabScreen() {
             </View>
           ))}
         </View>
+        <View style={styles.chartSection}>
+          <View style={styles.chartSectionTop}>
+            <Text style={styles.chartSectionTitle}>Évolution des vues</Text>
+            <Text style={styles.chartSectionMeta}>7 derniers jours</Text>
+          </View>
+          <GrowthChart />
+        </View>
         <View style={styles.trafficLine}>
-          <View style={styles.trafficRing}><Text style={styles.trafficRingText}>48%</Text></View>
+          <TrafficDonut />
           <View style={styles.trafficCopy}>
             <Text style={styles.trafficTitle}>Source principale · Pour toi</Text>
             <Text style={styles.trafficBody}>La découverte progresse, mais les sauvegardes restent le meilleur levier.</Text>
           </View>
         </View>
-      </View>
+      </GlassPanel>
 
       <View style={styles.segmentedControl}>
         {(["video", "carousel"] as const).map((item) => (
@@ -340,10 +349,6 @@ const styles = StyleSheet.create({
     padding: 4
   },
   performanceCard: {
-    backgroundColor: palette.panel,
-    borderColor: palette.line,
-    borderRadius: radius.md,
-    borderWidth: 1,
     gap: spacing.md,
     padding: spacing.lg
   },
@@ -386,18 +391,23 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingTop: spacing.md
   },
-  trafficRing: {
-    alignItems: "center",
-    borderColor: palette.mint,
-    borderRadius: 34,
-    borderWidth: 7,
-    height: 68,
-    justifyContent: "center",
-    width: 68
+  chartSection: {
+    borderTopColor: palette.line,
+    borderTopWidth: 1,
+    paddingTop: spacing.md
   },
-  trafficRingText: {
+  chartSectionTop: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between"
+  },
+  chartSectionTitle: {
     ...typography.h3,
     color: palette.white
+  },
+  chartSectionMeta: {
+    ...typography.caption,
+    color: palette.muted
   },
   trafficCopy: {
     flex: 1,

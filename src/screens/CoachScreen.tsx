@@ -22,11 +22,10 @@ export function CoachScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
-        <Text style={styles.kicker}>Coach</Text>
-        <Text style={styles.title}>Des conseils simples, relies a tes actions.</Text>
+        <Text style={styles.kicker}>COACH IA</Text>
+        <Text style={styles.title}>La prochaine décision.</Text>
         <Text style={styles.subtitle}>
-          Le coach repond aux questions qui ralentissent souvent les createurs,
-          puis transforme la reponse en prochaine action.
+          Des réponses courtes, reliées à tes données et transformées en action.
         </Text>
       </View>
 

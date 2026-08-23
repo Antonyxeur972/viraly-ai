@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Image,
   ImageBackground,
   Linking,
   Platform,
@@ -112,6 +114,23 @@ export default function App() {
         style={styles.background}
       >
         <View style={styles.scrim}>
+          <LinearGradient
+            colors={[
+              "rgba(2,7,5,0.24)",
+              "rgba(2,7,5,0.50)",
+              "rgba(2,7,5,0.92)"
+            ]}
+            locations={[0, 0.42, 1]}
+            pointerEvents="none"
+            style={StyleSheet.absoluteFill}
+          />
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+            <Image
+              resizeMode="cover"
+              source={require("./assets/viraly-mineral-texture.png")}
+              style={styles.screenTexture}
+            />
+          </View>
           <View style={styles.screen}>{screen}</View>
           <BottomTabs
             activeTab={activeTab}
@@ -141,8 +160,11 @@ const styles = StyleSheet.create({
     backgroundColor: palette.ink
   },
   scrim: {
-    backgroundColor: "rgba(0, 10, 8, 0.40)",
     flex: 1
+  },
+  screenTexture: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.07
   },
   screen: {
     flex: 1

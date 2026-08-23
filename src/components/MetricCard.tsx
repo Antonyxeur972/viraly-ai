@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { palette, radius, spacing, typography } from "../theme";
+import { GlassPanel } from "./GlassPanel";
 
 type Props = {
   label: string;
@@ -12,21 +13,17 @@ type Props = {
 
 export function MetricCard({ label, value, delta, accent }: Props) {
   return (
-    <View style={styles.card}>
+    <GlassPanel style={styles.card} textureOpacity={0.1}>
       <View style={[styles.accent, { backgroundColor: accent }]} />
       <Text style={styles.label}>{label}</Text>
       <Text style={styles.value}>{value}</Text>
       <Text style={styles.delta}>{delta}</Text>
-    </View>
+    </GlassPanel>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: palette.panel,
-    borderColor: palette.line,
-    borderRadius: radius.md,
-    borderWidth: 1,
     flexBasis: "47%",
     flexGrow: 1,
     minHeight: 118,
@@ -35,9 +32,9 @@ const styles = StyleSheet.create({
   },
   accent: {
     borderRadius: radius.pill,
-    height: 6,
+    height: 3,
     marginBottom: spacing.md,
-    width: 42
+    width: 30
   },
   label: {
     ...typography.caption,

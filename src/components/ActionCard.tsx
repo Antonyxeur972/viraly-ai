@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { palette, radius, spacing, typography } from "../theme";
 import { IconName } from "../types";
+import { GlassPanel } from "./GlassPanel";
 
 type Props = {
   title: string;
@@ -15,7 +16,7 @@ type Props = {
 
 export function ActionCard({ title, body, accent, icon, meta }: Props) {
   return (
-    <View style={styles.card}>
+    <GlassPanel style={styles.card} textureOpacity={0.09}>
       <View style={[styles.iconWrap, { backgroundColor: accent }]}>
         <Ionicons color={palette.ink} name={icon} size={20} />
       </View>
@@ -26,17 +27,13 @@ export function ActionCard({ title, body, accent, icon, meta }: Props) {
         </View>
         <Text style={styles.body}>{body}</Text>
       </View>
-    </View>
+    </GlassPanel>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
     alignItems: "flex-start",
-    backgroundColor: palette.panel,
-    borderColor: palette.line,
-    borderRadius: radius.md,
-    borderWidth: 1,
     flexDirection: "row",
     gap: spacing.md,
     padding: spacing.md
@@ -65,8 +62,10 @@ const styles = StyleSheet.create({
   },
   meta: {
     ...typography.caption,
-    color: palette.ink,
-    backgroundColor: palette.paper,
+    color: palette.paperMuted,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderColor: palette.line,
+    borderWidth: 1,
     borderRadius: radius.pill,
     overflow: "hidden",
     paddingHorizontal: spacing.sm,

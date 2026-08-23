@@ -12,6 +12,8 @@ import {
 } from "react-native";
 
 import { ActionCard } from "../components/ActionCard";
+import { GrowthChart } from "../components/AnalyticsCharts";
+import { GlassPanel } from "../components/GlassPanel";
 import { MetricCard } from "../components/MetricCard";
 import { ProgressBar } from "../components/ProgressBar";
 import { ScoreDial } from "../components/ScoreDial";
@@ -158,8 +160,8 @@ export function DashboardScreen({
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.title}>Ton contenu prend de la vitesse.</Text>
-        <Text style={styles.subtitle}>Deux vidéos ont généré 68% de ta croissance cette semaine.</Text>
+        <Text style={styles.title}>Ton compte accélère.</Text>
+        <Text style={styles.subtitle}>Deux vidéos portent 68% de ta croissance cette semaine.</Text>
 
         <View style={styles.heroTags}>
           <Tag label={creatorProfile.niche} color={palette.mint} />
@@ -169,7 +171,7 @@ export function DashboardScreen({
       </View>
 
       {!isTikTokConnected ? (
-        <View style={styles.importCard}>
+        <GlassPanel style={styles.importCard}>
           <View style={styles.importHeading}>
             <View style={styles.importIcon}>
               <Ionicons color={palette.ink} name="scan-outline" size={22} />
@@ -237,7 +239,7 @@ export function DashboardScreen({
               ))}
             </View>
           ) : null}
-        </View>
+        </GlassPanel>
       ) : null}
 
       <ScoreDial
@@ -246,7 +248,7 @@ export function DashboardScreen({
         score={82}
       />
 
-      <View style={styles.trendCard}>
+      <GlassPanel style={styles.trendCard}>
         <View style={styles.trendTop}>
           <View>
             <Text style={styles.trendLabel}>Évolution des vues</Text>
@@ -254,15 +256,8 @@ export function DashboardScreen({
           </View>
           <Text style={styles.trendPeriod}>7 derniers jours</Text>
         </View>
-        <View style={styles.miniChart}>
-          {[38, 31, 54, 63, 51, 72, 96].map((height, index) => (
-            <View key={index} style={styles.chartColumn}>
-              <View style={[styles.chartBar, { height: `${height}%` }]} />
-              <Text style={styles.chartDay}>{["L", "M", "M", "J", "V", "S", "D"][index]}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
+        <GrowthChart />
+      </GlassPanel>
 
       <View style={styles.metricStrip}>
         {accountMetrics.map((metric) => (
@@ -271,7 +266,7 @@ export function DashboardScreen({
       </View>
 
       <SectionHeader eyebrow="Potentiel revenus" title="Ce que le compte peut viser" />
-      <View style={styles.revenueHero}>
+      <GlassPanel style={styles.revenueHero}>
         <Text style={styles.revenueRange}>
           {euro(revenueForecast.monthlyLow)} - {euro(revenueForecast.monthlyHigh)} / mois
         </Text>
@@ -290,7 +285,7 @@ export function DashboardScreen({
           ))}
         </View>
         <Text style={styles.disclaimer}>{revenueForecast.disclaimer}</Text>
-      </View>
+      </GlassPanel>
 
       <SectionHeader
         eyebrow="Opportunités"
@@ -327,7 +322,7 @@ export function DashboardScreen({
       />
       <View style={styles.stack}>
         {trendSignals.map((signal) => (
-          <View key={signal.title} style={styles.signalCard}>
+          <GlassPanel key={signal.title} style={styles.signalCard} textureOpacity={0.09}>
             <View style={styles.signalTop}>
               <Text style={styles.signalTitle}>{signal.title}</Text>
               <Text style={styles.confidence}>{signal.confidence}%</Text>
@@ -335,18 +330,18 @@ export function DashboardScreen({
             <ProgressBar color={signal.accent} value={signal.confidence} />
             <Text style={styles.signalInsight}>{signal.insight}</Text>
             <Text style={styles.signalAction}>{signal.action}</Text>
-          </View>
+          </GlassPanel>
         ))}
       </View>
 
       <SectionHeader eyebrow="Video gagnante" title={recentVideos[0].title} />
-      <View style={styles.bestVideo}>
+      <GlassPanel style={styles.bestVideo}>
         <Text style={styles.bestScore}>{bestVideo.score}</Text>
         <View style={styles.bestCopy}>
           <Text style={styles.bestLabel}>{bestVideo.label}</Text>
           <Text style={styles.bestAdvice}>{bestVideo.advice}</Text>
         </View>
-      </View>
+      </GlassPanel>
     </ScrollView>
   );
 }
@@ -417,10 +412,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm
   },
   importCard: {
-    backgroundColor: palette.panel,
-    borderColor: palette.line,
-    borderRadius: radius.md,
-    borderWidth: 1,
     gap: spacing.md,
     padding: spacing.lg
   },
@@ -541,12 +532,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between"
   },
   trendCard: {
-    backgroundColor: palette.panel,
-    borderColor: palette.line,
-    borderRadius: radius.md,
-    borderWidth: 1,
     gap: spacing.md,
-    minHeight: 198,
+    minHeight: 252,
     padding: spacing.lg
   },
   trendTop: {
@@ -576,37 +563,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs
   },
-  miniChart: {
-    alignItems: "flex-end",
-    flexDirection: "row",
-    gap: spacing.sm,
-    height: 105,
-    justifyContent: "space-between"
-  },
-  chartColumn: {
-    alignItems: "center",
-    flex: 1,
-    height: "100%",
-    justifyContent: "flex-end"
-  },
-  chartBar: {
-    backgroundColor: palette.mint,
-    borderRadius: radius.sm,
-    minHeight: 6,
-    opacity: 0.78,
-    width: "48%"
-  },
-  chartDay: {
-    ...typography.caption,
-    color: palette.muted,
-    fontSize: 10,
-    marginTop: 5
-  },
   revenueHero: {
-    backgroundColor: palette.panel,
-    borderColor: palette.line,
-    borderRadius: radius.md,
-    borderWidth: 1,
     gap: spacing.md,
     padding: spacing.lg
   },
@@ -649,10 +606,6 @@ const styles = StyleSheet.create({
     gap: spacing.md
   },
   signalCard: {
-    backgroundColor: palette.panel,
-    borderColor: palette.line,
-    borderRadius: radius.md,
-    borderWidth: 1,
     gap: spacing.sm,
     padding: spacing.md
   },
@@ -681,10 +634,6 @@ const styles = StyleSheet.create({
   },
   bestVideo: {
     alignItems: "center",
-    backgroundColor: palette.panel,
-    borderColor: palette.line,
-    borderRadius: radius.md,
-    borderWidth: 1,
     flexDirection: "row",
     gap: spacing.lg,
     padding: spacing.lg

@@ -20,7 +20,7 @@ const styles = StyleSheet.create({
   track: {
     backgroundColor: palette.line,
     borderRadius: radius.pill,
-    height: 8,
+    height: 5,
     overflow: "hidden",
     width: "100%"
   },

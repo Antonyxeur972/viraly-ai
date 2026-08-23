@@ -38,11 +38,10 @@ export function IdeaLabScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
-        <Text style={styles.kicker}>Idea Lab</Text>
-        <Text style={styles.title}>Score tes idees avant de filmer.</Text>
+        <Text style={styles.kicker}>STUDIO D'IDÉES</Text>
+        <Text style={styles.title}>Filme moins. Vise plus juste.</Text>
         <Text style={styles.subtitle}>
-          L'objectif est simple : eviter de produire une video sans promesse,
-          sans tension ou sans lien clair avec ton audience.
+          Teste la promesse, la tension et le potentiel revenu avant d'enregistrer.
         </Text>
       </View>
 

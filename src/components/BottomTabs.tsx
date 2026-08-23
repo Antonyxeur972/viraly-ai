@@ -1,8 +1,9 @@
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity } from "react-native";
 
 import { palette, radius, spacing, typography } from "../theme";
 import { IconName } from "../types";
+import { GlassPanel } from "./GlassPanel";
 
 export type TabItem<T extends string> = {
   key: T;
@@ -24,7 +25,7 @@ export function BottomTabs<T extends string>({
   renderIcon
 }: Props<T>) {
   return (
-    <View style={styles.wrap}>
+    <GlassPanel style={styles.wrap} textureOpacity={0.08}>
       {items.map((item) => {
         const focused = item.key === activeTab;
         return (
@@ -42,17 +43,13 @@ export function BottomTabs<T extends string>({
           </TouchableOpacity>
         );
       })}
-    </View>
+    </GlassPanel>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
     alignItems: "center",
-    backgroundColor: "rgba(3, 17, 13, 0.96)",
-    borderColor: palette.line,
-    borderRadius: radius.lg,
-    borderWidth: 1,
     flexDirection: "row",
     gap: spacing.xs,
     justifyContent: "space-between",

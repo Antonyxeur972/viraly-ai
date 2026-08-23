@@ -10,7 +10,7 @@ type Props = {
 
 export function Tag({ label, color = palette.paper }: Props) {
   return (
-    <Text style={[styles.tag, { backgroundColor: color }]}>
+    <Text style={[styles.tag, { borderColor: color, color }]}>
       {label}
     </Text>
   );
@@ -19,8 +19,9 @@ export function Tag({ label, color = palette.paper }: Props) {
 const styles = StyleSheet.create({
   tag: {
     ...typography.caption,
+    backgroundColor: "rgba(5,10,8,0.62)",
+    borderWidth: 1,
     borderRadius: radius.pill,
-    color: palette.ink,
     overflow: "hidden",
     paddingHorizontal: spacing.sm,
     paddingVertical: 4

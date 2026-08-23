@@ -32,11 +32,10 @@ export function StrategyScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
-        <Text style={styles.kicker}>Plan de croissance</Text>
-        <Text style={styles.title}>Choisis une niche, puis tiens un cycle.</Text>
+        <Text style={styles.kicker}>PLAN D'ACTION</Text>
+        <Text style={styles.title}>Une cadence qui tient.</Text>
         <Text style={styles.subtitle}>
-          La croissance vient d'une boucle : idee forte, format repete, mesure,
-          recyclage, puis monetisation quand le signal est clair.
+          Une idée forte, un format répété, une mesure claire. Puis on amplifie.
         </Text>
       </View>
 
