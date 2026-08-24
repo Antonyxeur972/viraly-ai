@@ -97,6 +97,17 @@ export default function App() {
     try {
       const callback = await beginGoogleConnection();
       if (!callback.connected || !callback.code) {
+        if (callback.error?.toLowerCase().includes("google")) {
+          const session = await createPreviewSession();
+          setApiSessionToken(session.token);
+          setGoogleName(session.name);
+          setGoogleStatus("connected");
+          Alert.alert(
+            "Accès test activé",
+            "Google n'est pas encore finalisé côté OAuth. Tu peux utiliser VIRALY AI avec l'accès test."
+          );
+          return;
+        }
         throw new Error(callback.error || "La connexion Google a échoué.");
       }
       const session = await exchangeGoogleCode(callback.code);

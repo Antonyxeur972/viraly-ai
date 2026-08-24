@@ -219,8 +219,61 @@ def test_google_auth_reports_missing_configuration(client, monkeypatch):
     response = client.get(
         "/api/v1/auth/google/start",
         params={"return_to": "viralyai://auth/google"},
+        follow_redirects=False,
     )
-    assert response.status_code == 503
+    assert response.status_code == 302
+    assert "Google+n%27est+pas+encore+activ%C3%A9" in response.headers["location"]
+
+
+def test_profile_analysis_falls_back_when_ai_is_unavailable(client, auth_headers):
+    from app.ai import AIEngine
+    from app.config import Settings
+    from app.main import app
+
+    original = app.state.ai
+    app.state.ai = AIEngine(Settings(openai_api_key=""))
+    try:
+        response = client.post(
+            "/api/v1/profile/analyze",
+            headers=auth_headers,
+            data={"source": "tiktok_profile_screenshot"},
+            files={"screenshot": ("profile.jpg", b"fake-image", "image/jpeg")},
+        )
+    finally:
+        app.state.ai = original
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source"] == "fallback_rules"
+    assert payload["analysisId"].startswith("ana_")
+    assert payload["authenticatedTikTokData"] is False
+
+
+def test_carousel_analysis_falls_back_when_ai_is_unavailable(client, auth_headers):
+    from app.ai import AIEngine
+    from app.config import Settings
+    from app.main import app
+
+    original = app.state.ai
+    app.state.ai = AIEngine(Settings(openai_api_key=""))
+    try:
+        response = client.post(
+            "/api/v1/content/analyze",
+            headers=auth_headers,
+            data={"type": "carousel", "goal": "revenue"},
+            files=[
+                ("assets[]", ("slide-1.jpg", b"fake-image-1", "image/jpeg")),
+                ("assets[]", ("slide-2.jpg", b"fake-image-2", "image/jpeg")),
+            ],
+        )
+    finally:
+        app.state.ai = original
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source"] == "fallback_rules"
+    assert len(payload["dimensions"]) >= 4
+    assert payload["analysisId"].startswith("ana_")
 
 
 def test_google_state_and_one_time_session_exchange(client, monkeypatch):

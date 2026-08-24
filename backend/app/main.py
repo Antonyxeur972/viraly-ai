@@ -169,6 +169,111 @@ def onboarding_fallback(profile: CreatorProfile) -> dict[str, Any]:
     }
 
 
+def profile_fallback(source: str) -> dict[str, Any]:
+    return {
+        "score": 54,
+        "confidence": "faible",
+        "summary": (
+            "Le moteur visuel complet est indisponible, donc ce bilan reste prudent. "
+            "VIRALY AI peut quand même te donner un plan de correction à partir d'une capture de profil."
+        ),
+        "visibleSignals": [
+            "Capture importée depuis la galerie",
+            "Données TikTok non authentifiées",
+            f"Source déclarée: {source}",
+        ],
+        "priorities": [
+            "Rendre la bio lisible en une promesse claire: audience, problème, résultat.",
+            "Uniformiser les trois dernières couvertures pour qu'elles vendent la même transformation.",
+            "Ajouter une action mesurable: commentaire, sauvegarde, ressource ou message privé.",
+        ],
+        "metrics": {
+            "followers": None,
+            "likes": None,
+            "videos": None,
+            "bio": None,
+            "handle": None,
+        },
+        "accountPositioning": (
+            "Positionnement à valider: choisis une seule audience prioritaire et répète la promesse "
+            "sur 5 publications avant de changer d'angle."
+        ),
+        "revenueReadiness": (
+            "Préparation revenu moyenne: commence par une offre légère ou une ressource gratuite "
+            "liée au problème principal pour mesurer l'intention."
+        ),
+        "nextAction": (
+            "Publie une série de 3 contenus: problème fréquent, preuve courte, solution actionnable."
+        ),
+        "source": "fallback_rules",
+    }
+
+
+def content_fallback(content_type: str, asset_count: int, transcript: str | None) -> dict[str, Any]:
+    is_carousel = content_type == "carousel"
+    format_label = "carrousel" if is_carousel else "vidéo"
+    score = 58 + min(asset_count, 5) * 3
+    if transcript:
+        score += 5
+    score = min(score, 76)
+    return {
+        "score": score,
+        "summary": (
+            f"Analyse de secours du {format_label}: le moteur visuel complet est indisponible, "
+            "donc les conseils se concentrent sur la structure, la rétention et le chemin revenu."
+        ),
+        "revenueCta": (
+            "Commente 'PLAN' si tu veux la checklist, puis enregistre ce contenu pour l'appliquer."
+        ),
+        "improvements": [
+            "Renforcer la première seconde ou la première slide avec une promesse mesurable.",
+            "Montrer plus tôt la preuve: résultat, exemple, avant/après ou erreur concrète.",
+            "Terminer par une action liée au revenu: ressource, diagnostic, produit ou message privé.",
+        ],
+        "dimensions": [
+            {
+                "name": "Hook",
+                "score": max(score - 8, 0),
+                "evidence": "Le fichier est prêt pour analyse, mais les détails visuels fins ne sont pas disponibles.",
+                "action": "Ouvre avec une tension claire: erreur, gain, coût caché ou résultat attendu.",
+            },
+            {
+                "name": "Clarté",
+                "score": score,
+                "evidence": f"{asset_count} média(s) fourni(s), ce qui permet de structurer une séquence.",
+                "action": "Garde une idée par scène ou slide, avec un texte court et lisible.",
+            },
+            {
+                "name": "Rétention",
+                "score": max(score - 4, 0),
+                "evidence": "La rétention réelle devra être validée après publication.",
+                "action": "Ajoute une micro-promesse au milieu: 'le point 3 change tout'.",
+            },
+            {
+                "name": "Revenu",
+                "score": max(score - 10, 0),
+                "evidence": "Le lien entre contenu et conversion doit être explicite.",
+                "action": "Relie le sujet à une offre simple: checklist, audit, affiliation ou produit utile.",
+            },
+        ],
+        "revisedHook": (
+            "Tu fais probablement cette erreur sans le voir: voici comment la corriger en moins de 30 secondes."
+        ),
+        "storyboard": [
+            "0-2s: nommer le problème ou l'erreur avec un résultat concret.",
+            "2-8s: montrer l'exemple ou la situation avant correction.",
+            "8-18s: donner les étapes dans l'ordre, sans détour.",
+            "18-25s: montrer le bénéfice attendu et inviter à sauvegarder.",
+        ],
+        "revenuePotential": {
+            "level": "moyen",
+            "path": "Transformer le contenu en entrée vers une ressource, un diagnostic ou une offre affiliée.",
+            "basis": "Estimation prudente basée sur la structure fournie, pas sur des métriques TikTok réelles.",
+        },
+        "source": "fallback_rules",
+    }
+
+
 def google_configured() -> bool:
     return bool(
         settings.google_client_id
@@ -243,10 +348,13 @@ def health():
 
 @app.get("/api/v1/auth/google/start")
 def start_google_auth(return_to: str = Query(...)):
-    if not google_configured():
-        raise HTTPException(503, "La connexion Google n'est pas activée.")
     if not allowed_google_return_url(return_to):
         raise HTTPException(400, "Adresse de retour Google non autorisée.")
+    if not google_configured():
+        return app_redirect(
+            return_to,
+            error="Google n'est pas encore activé. Accès test disponible.",
+        )
     params = {
         "client_id": settings.google_client_id,
         "redirect_uri": settings.google_callback_url,
@@ -354,26 +462,30 @@ async def analyze_profile(
         screenshot, min(settings.max_upload_bytes, 15 * 1024 * 1024)
     )
     ensure_ai_budget(db, user_id)
-    report = await ai.generate_json(
-        model=settings.visual_model,
-        feature="profile_analysis",
-        effort="low",
-        schema=PROFILE_SCHEMA,
-        prompt=(
-            "Analyse cette capture de profil TikTok. Extrais uniquement ce qui est réellement visible. "
-            "Évalue le positionnement, la cohérence des couvertures, la promesse de bio, le chemin de "
-            "conversion et la préparation à la monétisation. Les compteurs illisibles doivent être null. "
-            f"Source déclarée: {source}."
-        ),
-        media=[
-            image_item(
-                data,
-                screenshot.content_type or "image/jpeg",
-                detail="original",
-            )
-        ],
-    )
-    db.record_ai_usage(user_id, "profile-analysis", settings.visual_model)
+    try:
+        report = await ai.generate_json(
+            model=settings.visual_model,
+            feature="profile_analysis",
+            effort="low",
+            schema=PROFILE_SCHEMA,
+            prompt=(
+                "Analyse cette capture de profil TikTok. Extrais uniquement ce qui est réellement visible. "
+                "Évalue le positionnement, la cohérence des couvertures, la promesse de bio, le chemin de "
+                "conversion et la préparation à la monétisation. Les compteurs illisibles doivent être null. "
+                f"Source déclarée: {source}."
+            ),
+            media=[
+                image_item(
+                    data,
+                    screenshot.content_type or "image/jpeg",
+                    detail="original",
+                )
+            ],
+        )
+        report["source"] = "openai"
+        db.record_ai_usage(user_id, "profile-analysis", settings.visual_model)
+    except AIUnavailableError:
+        report = profile_fallback(source)
     report["analysisId"] = db.save_analysis(user_id, "profile", report)
     report["authenticatedTikTokData"] = False
     return report
@@ -431,15 +543,19 @@ async def analyze_content(
     )
     if transcript:
         prompt += f" Transcription audio automatique: {transcript[:10000]}"
-    report = await ai.generate_json(
-        model=settings.visual_model,
-        feature="content_analysis",
-        effort="medium",
-        schema=CONTENT_SCHEMA,
-        prompt=prompt,
-        media=media,
-    )
-    db.record_ai_usage(user_id, "content-analysis", settings.visual_model)
+    try:
+        report = await ai.generate_json(
+            model=settings.visual_model,
+            feature="content_analysis",
+            effort="medium",
+            schema=CONTENT_SCHEMA,
+            prompt=prompt,
+            media=media,
+        )
+        report["source"] = "openai"
+        db.record_ai_usage(user_id, "content-analysis", settings.visual_model)
+    except AIUnavailableError:
+        report = content_fallback(type, len(assets), transcript)
     report["analysisId"] = db.save_analysis(user_id, "content", report)
     report["transcriptAvailable"] = bool(transcript)
     return report
