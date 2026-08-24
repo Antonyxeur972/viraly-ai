@@ -15,8 +15,6 @@ import {
   getStrategy,
   updateCalendarEvent
 } from "../services/ai";
-import { syncEventsToDeviceCalendar } from "../services/deviceCalendar";
-import { schedulePostNotifications } from "../services/postNotifications";
 import { ProfileAnalysisReport } from "../services/profileAnalysis";
 import { palette, radius, spacing, typography } from "../theme";
 import { CreatorOnboardingProfile } from "../types";
@@ -125,6 +123,7 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
     if (!events.length || isSyncing) return;
     setIsSyncing(true);
     try {
+      const { syncEventsToDeviceCalendar } = await import("../services/deviceCalendar");
       const result = await syncEventsToDeviceCalendar(events);
       Alert.alert(
         "Calendrier synchronisé",
@@ -141,6 +140,7 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
     if (!events.length || isScheduling) return;
     setIsScheduling(true);
     try {
+      const { schedulePostNotifications } = await import("../services/postNotifications");
       const result = await schedulePostNotifications(events);
       Alert.alert(
         "Notifications activées",

@@ -820,6 +820,34 @@ async def analyze_profile(
     return report
 
 
+@app.get("/api/v1/creator/profile")
+def get_creator_profile(
+    user_id: str = Depends(require_user),
+    db: Database = Depends(database),
+):
+    return {"profile": db.get_creator_profile(user_id)}
+
+
+@app.put("/api/v1/creator/profile")
+def save_creator_profile(
+    profile: CreatorProfile,
+    user_id: str = Depends(require_user),
+    db: Database = Depends(database),
+):
+    payload = profile.model_dump()
+    db.save_creator_profile(user_id, payload)
+    return {"profile": payload}
+
+
+@app.delete("/api/v1/creator/profile", status_code=204)
+def delete_creator_profile(
+    user_id: str = Depends(require_user),
+    db: Database = Depends(database),
+):
+    db.delete_creator_profile(user_id)
+    return None
+
+
 @app.post("/api/v1/content/analyze")
 async def analyze_content(
     type: Annotated[str, Form()],

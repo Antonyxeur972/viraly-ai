@@ -67,6 +67,12 @@ class Database:
                     payload TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS creator_profiles (
+                    user_id TEXT PRIMARY KEY,
+                    payload TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY(user_id) REFERENCES users(id)
+                );
                 CREATE TABLE IF NOT EXISTS calendar_events (
                     id TEXT PRIMARY KEY,
                     user_id TEXT NOT NULL,
@@ -247,6 +253,25 @@ class Database:
             "SELECT payload FROM strategies WHERE user_id = ?", (user_id,)
         ).fetchone()
         return json.loads(row["payload"]) if row else None
+
+    def save_creator_profile(self, user_id: str, payload: dict[str, Any]) -> None:
+        with self.lock, self.connection:
+            self.connection.execute(
+                "INSERT OR REPLACE INTO creator_profiles(user_id, payload, updated_at) VALUES (?, ?, ?)",
+                (user_id, json.dumps(payload), now_iso()),
+            )
+
+    def get_creator_profile(self, user_id: str) -> dict[str, Any] | None:
+        row = self.connection.execute(
+            "SELECT payload FROM creator_profiles WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        return json.loads(row["payload"]) if row else None
+
+    def delete_creator_profile(self, user_id: str) -> None:
+        with self.lock, self.connection:
+            self.connection.execute(
+                "DELETE FROM creator_profiles WHERE user_id = ?", (user_id,)
+            )
 
     def list_events(self, user_id: str, start: str | None, end: str | None) -> list[dict[str, Any]]:
         query = "SELECT * FROM calendar_events WHERE user_id = ?"

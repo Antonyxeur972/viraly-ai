@@ -1,5 +1,3 @@
-import * as SecureStore from "expo-secure-store";
-
 import type { CreatorOnboardingProfile } from "../types";
 
 const SESSION_TOKEN_KEY = "viraly_session_token";
@@ -7,6 +5,7 @@ const CREATOR_PROFILE_KEY = "viraly_creator_profile";
 
 let sessionToken: string | null =
   process.env.EXPO_PUBLIC_VIRALY_DEV_TOKEN?.trim() || null;
+let memoryCreatorProfile: CreatorOnboardingProfile | null = null;
 
 const PRODUCTION_API_URL = "https://viraly-ai.onrender.com";
 
@@ -17,39 +16,82 @@ export function getApiBaseUrl() {
   );
 }
 
+async function getSecureStore() {
+  try {
+    return await import("expo-secure-store");
+  } catch {
+    return null;
+  }
+}
+
 export async function loadApiSessionToken() {
-  const stored = await SecureStore.getItemAsync(SESSION_TOKEN_KEY);
+  const secureStore = await getSecureStore();
+  const stored = secureStore ? await secureStore.getItemAsync(SESSION_TOKEN_KEY) : null;
   sessionToken = stored?.trim() || process.env.EXPO_PUBLIC_VIRALY_DEV_TOKEN?.trim() || null;
   return sessionToken;
 }
 
 export function setApiSessionToken(token?: string | null) {
   sessionToken = token?.trim() || null;
-  if (sessionToken) {
-    SecureStore.setItemAsync(SESSION_TOKEN_KEY, sessionToken).catch(() => {});
-  } else {
-    SecureStore.deleteItemAsync(SESSION_TOKEN_KEY).catch(() => {});
-  }
+  getSecureStore()
+    .then((secureStore) => {
+      if (!secureStore) return;
+      if (sessionToken) {
+        secureStore.setItemAsync(SESSION_TOKEN_KEY, sessionToken).catch(() => {});
+      } else {
+        secureStore.deleteItemAsync(SESSION_TOKEN_KEY).catch(() => {});
+      }
+    })
+    .catch(() => {});
 }
 
 export async function loadCreatorProfile() {
-  const stored = await SecureStore.getItemAsync(CREATOR_PROFILE_KEY);
-  if (!stored) return null;
+  if (sessionToken) {
+    try {
+      const response = await apiRequest<{ profile: CreatorOnboardingProfile | null }>("/api/v1/creator/profile");
+      if (response.profile) {
+        memoryCreatorProfile = response.profile;
+        return response.profile;
+      }
+    } catch {
+      // Fall back to local storage when the backend session is not ready.
+    }
+  }
+
+  const secureStore = await getSecureStore();
+  const stored = secureStore ? await secureStore.getItemAsync(CREATOR_PROFILE_KEY) : null;
+  if (!stored) return memoryCreatorProfile;
 
   try {
-    return JSON.parse(stored) as CreatorOnboardingProfile;
+    memoryCreatorProfile = JSON.parse(stored) as CreatorOnboardingProfile;
+    return memoryCreatorProfile;
   } catch {
-    await SecureStore.deleteItemAsync(CREATOR_PROFILE_KEY);
+    if (secureStore) await secureStore.deleteItemAsync(CREATOR_PROFILE_KEY);
     return null;
   }
 }
 
 export async function saveCreatorProfile(profile: CreatorOnboardingProfile) {
-  await SecureStore.setItemAsync(CREATOR_PROFILE_KEY, JSON.stringify(profile));
+  memoryCreatorProfile = profile;
+  const secureStore = await getSecureStore();
+  if (secureStore) {
+    await secureStore.setItemAsync(CREATOR_PROFILE_KEY, JSON.stringify(profile));
+  }
+  if (sessionToken) {
+    await apiRequest("/api/v1/creator/profile", {
+      method: "PUT",
+      body: JSON.stringify(profile)
+    });
+  }
 }
 
 export async function clearCreatorProfile() {
-  await SecureStore.deleteItemAsync(CREATOR_PROFILE_KEY);
+  memoryCreatorProfile = null;
+  const secureStore = await getSecureStore();
+  if (secureStore) await secureStore.deleteItemAsync(CREATOR_PROFILE_KEY);
+  if (sessionToken) {
+    await apiRequest("/api/v1/creator/profile", { method: "DELETE" });
+  }
 }
 
 export async function createPreviewSession(): Promise<{ token: string; name: string }> {

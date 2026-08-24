@@ -45,6 +45,36 @@ def test_calendar_crud_is_persistent(client, auth_headers):
     )
 
 
+def test_creator_profile_is_persistent(client, auth_headers):
+    profile = {
+        "goal": "revenue",
+        "niche": "clear",
+        "nicheTopic": "coaching TikTok local",
+        "followers": "100-1000",
+        "cadence": "3-4",
+        "format": "carousel",
+        "time": "3-5h",
+        "monetization": "service",
+    }
+
+    saved = client.put(
+        "/api/v1/creator/profile", headers=auth_headers, json=profile
+    )
+    assert saved.status_code == 200
+    assert saved.json()["profile"]["nicheTopic"] == "coaching TikTok local"
+
+    loaded = client.get("/api/v1/creator/profile", headers=auth_headers)
+    assert loaded.status_code == 200
+    assert loaded.json()["profile"]["format"] == "carousel"
+
+    deleted = client.delete("/api/v1/creator/profile", headers=auth_headers)
+    assert deleted.status_code == 204
+
+    empty = client.get("/api/v1/creator/profile", headers=auth_headers)
+    assert empty.status_code == 200
+    assert empty.json()["profile"] is None
+
+
 def test_idea_analysis_falls_back_without_key(client, auth_headers):
     response = client.post(
         "/api/v1/ideas/analyze",
