@@ -1,3 +1,7 @@
+import * as SecureStore from "expo-secure-store";
+
+const SESSION_TOKEN_KEY = "viraly_session_token";
+
 let sessionToken: string | null =
   process.env.EXPO_PUBLIC_VIRALY_DEV_TOKEN?.trim() || null;
 
@@ -10,8 +14,19 @@ export function getApiBaseUrl() {
   );
 }
 
+export async function loadApiSessionToken() {
+  const stored = await SecureStore.getItemAsync(SESSION_TOKEN_KEY);
+  sessionToken = stored?.trim() || process.env.EXPO_PUBLIC_VIRALY_DEV_TOKEN?.trim() || null;
+  return sessionToken;
+}
+
 export function setApiSessionToken(token?: string | null) {
   sessionToken = token?.trim() || null;
+  if (sessionToken) {
+    SecureStore.setItemAsync(SESSION_TOKEN_KEY, sessionToken).catch(() => {});
+  } else {
+    SecureStore.deleteItemAsync(SESSION_TOKEN_KEY).catch(() => {});
+  }
 }
 
 export async function createPreviewSession(): Promise<{ token: string; name: string }> {

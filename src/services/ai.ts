@@ -46,20 +46,12 @@ export type StrategyReport = {
   }>;
   weeklyCycle: string[];
   storyPlan: string[];
-  livePlan: string[];
   revenuePaths: Array<{
     name: string;
     nextAction: string;
     contentDirection: string;
     range: string;
     basis: string;
-  }>;
-  eligibility: Array<{
-    feature: string;
-    status: string;
-    requirement: string;
-    nextAction: string;
-    caveat: string;
   }>;
 };
 

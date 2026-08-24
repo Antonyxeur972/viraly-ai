@@ -331,7 +331,8 @@ def test_strategy_falls_back_when_ai_is_unavailable(client, auth_headers):
     payload = response.json()
     assert payload["source"] == "fallback_rules"
     assert len(payload["niches"]) >= 2
-    assert len(payload["eligibility"]) == 3
+    assert "eligibility" not in payload
+    assert "livePlan" not in payload
 
 
 def test_custom_niche_personalizes_strategy_fallback(client, auth_headers):

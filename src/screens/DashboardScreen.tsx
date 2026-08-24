@@ -47,8 +47,7 @@ export function DashboardScreen({
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      aspect: [9, 16],
+      allowsEditing: false,
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 1
     });
@@ -114,7 +113,7 @@ export function DashboardScreen({
             <View style={styles.importIcon}><Ionicons color={palette.ink} name="scan-outline" size={22} /></View>
             <View style={styles.importCopy}>
               <Text style={styles.importTitle}>Analyser la page d'accueil</Text>
-              <Text style={styles.importBody}>La bio, les compteurs et les couvertures doivent rester visibles.</Text>
+              <Text style={styles.importBody}>Utilise une capture plein écran iPhone TikTok : bio, compteurs et vidéos visibles.</Text>
             </View>
           </View>
           {screenshot ? <Image source={{ uri: screenshot.uri }} style={styles.preview} /> : null}

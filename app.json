@@ -13,6 +13,7 @@
       "infoPlist": {
         "NSCalendarsFullAccessUsageDescription": "VIRALY AI synchronise ton plan de publication avec le calendrier de ton téléphone.",
         "NSCalendarsUsageDescription": "VIRALY AI synchronise ton plan de publication avec le calendrier de ton téléphone.",
+        "NSUserNotificationUsageDescription": "VIRALY AI t'envoie un rappel quand ton audience est susceptible d'être plus réceptive.",
         "NSPhotoLibraryUsageDescription": "VIRALY AI analyse les captures de profil, videos et carrousels choisis depuis votre galerie pour proposer des conseils de croissance TikTok."
       }
     },
@@ -40,7 +41,15 @@
         {
           "calendarPermission": "VIRALY AI synchronise ton plan de publication avec le calendrier de ton téléphone."
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#45F2A4",
+          "defaultChannel": "rappels-publication"
+        }
+      ],
+      "expo-secure-store"
     ],
     "extra": {
       "tiktokRedirectUri": "viralyai://auth/tiktok",

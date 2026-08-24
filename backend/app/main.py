@@ -424,29 +424,29 @@ def strategy_fallback(profile: CreatorProfile, account_context: dict[str, Any] |
     has_context = bool(account_context)
     return {
         "summary": (
-            "Plan de secours calculé sans quota IA externe. Il donne une direction actionnable, "
-            "à valider avec les métriques réelles des 14 prochains jours."
+            f"Direction retenue: devenir le compte qui simplifie {niche} avec des preuves courtes, "
+            "des checklists sauvegardables et une ressource claire à demander en commentaire."
         ),
         "niches": [
             {
-                "name": f"{niche} : problème précis + preuve courte",
+                "name": f"Stratégie principale: {niche} en 30 secondes",
                 "audience": f"Audience intéressée par {niche} et qui veut un résultat mesurable rapidement.",
-                "edge": f"Utiliser ton format principal ({format_name}) pour prouver une correction liée à {niche} en moins de 30 secondes.",
-                "revenueAngle": f"Entrée naturelle vers {revenue}.",
+                "edge": f"Prendre parti: arrêter les conseils vagues et montrer une correction {niche} immédiatement visible.",
+                "revenueAngle": f"Chaque post finit vers {revenue} avec un mot-clé à commenter.",
                 "score": 78 if has_context else 70,
             },
             {
-                "name": "Série éducative sauvegardable",
-                "audience": "Audience qui cherche des étapes claires avant d'acheter ou de demander de l'aide.",
-                "edge": "Transformer chaque contenu en mini-checklist avec une promesse très lisible.",
-                "revenueAngle": "Créer une ressource gratuite puis proposer l'étape payante.",
+                "name": "Pilier 1: erreurs fréquentes",
+                "audience": f"Débutants ou curieux qui consomment déjà du contenu {niche}.",
+                "edge": "Tu nommes une erreur précise, puis tu montres le bon geste.",
+                "revenueAngle": "Le CTA propose la checklist complète.",
                 "score": 74,
             },
             {
-                "name": "Analyse de cas réel",
-                "audience": "Personnes qui veulent comprendre quoi changer sur leur propre situation.",
-                "edge": "Prouver ton niveau par diagnostic, pas par théorie.",
-                "revenueAngle": "Convertir vers audit, accompagnement ou recommandation produit.",
+                "name": "Pilier 2: analyses de cas",
+                "audience": "Personnes qui veulent se reconnaître dans un exemple concret.",
+                "edge": "Tu montres un cas avant/après ou une comparaison simple.",
+                "revenueAngle": "Convertir vers diagnostic, ressource ou recommandation utile.",
                 "score": 72,
             },
         ],
@@ -484,11 +484,6 @@ def strategy_fallback(profile: CreatorProfile, account_context: dict[str, Any] |
             "Question-réponse sur l'objection qui revient.",
             "Rappel vers la ressource ou l'action principale.",
         ],
-        "livePlan": [
-            "LIVE 25 minutes seulement si un sujet a déjà généré commentaires ou sauvegardes.",
-            "Structure: diagnostic rapide, 3 corrections, appel à l'action final.",
-            "Recycler les questions du LIVE en 3 contenus courts.",
-        ],
         "revenuePaths": [
             {
                 "name": revenue.title(),
@@ -503,29 +498,6 @@ def strategy_fallback(profile: CreatorProfile, account_context: dict[str, Any] |
                 "contentDirection": "Utiliser tutoriels, preuves et comparatifs pour filtrer les bons prospects.",
                 "range": "Variable selon clics et offre",
                 "basis": "Le trafic dépendra du taux de clic, de la confiance et de la clarté du CTA.",
-            },
-        ],
-        "eligibility": [
-            {
-                "feature": "Lien en bio",
-                "status": "À vérifier",
-                "requirement": "Les critères varient selon pays, type de compte et politiques TikTok.",
-                "nextAction": "Préparer une ressource claire et vérifier l'option directement dans TikTok.",
-                "caveat": "VIRALY AI ne garantit pas l'éligibilité sans données TikTok authentifiées.",
-            },
-            {
-                "feature": "LIVE",
-                "status": "À vérifier",
-                "requirement": "TikTok applique des critères d'âge, de compte et parfois d'audience.",
-                "nextAction": "Construire une série de contenus avant de programmer un LIVE test.",
-                "caveat": "Les seuils peuvent changer selon région et état du compte.",
-            },
-            {
-                "feature": "TikTok Shop",
-                "status": "À vérifier",
-                "requirement": "Disponibilité variable selon pays, catégorie, âge et conformité du compte.",
-                "nextAction": "Tester d'abord des contenus démonstration et objections produit.",
-                "caveat": "Ne pas promettre de revenu avant validation de l'accès Shop.",
             },
         ],
         "source": "fallback_rules",
@@ -545,7 +517,8 @@ def calendar_fallback(
         "multiple": 7,
     }.get(profile.cadence, 5)
     total = min(days, cadence_count)
-    types = ["video", "story", "carousel", "research", "video", "live", "story"]
+    types = ["video", "story", "carousel", "research", "video", "carousel", "story"]
+    niche = niche_label(profile)
     events = []
     for index in range(total):
         event_date = start + timedelta(days=index)
@@ -556,15 +529,15 @@ def calendar_fallback(
                 "time": default_times[index % len(default_times)],
                 "type": event_type,
                 "title": [
-                    "Publier une correction concrète",
-                    "Story sondage objection",
-                    "Carrousel checklist sauvegardable",
-                    "Recherche questions audience",
-                    "Vidéo preuve ou cas réel",
-                    "LIVE diagnostic court",
-                    "Story rappel ressource",
+                    f"Erreur {niche} que tout le monde répète",
+                    f"Sondage: le blocage numéro 1 en {niche}",
+                    f"Checklist {niche} à sauvegarder",
+                    f"Recherche: 5 questions clients en {niche}",
+                    f"Avant/après concret en {niche}",
+                    f"Carrousel: méthode simple {niche}",
+                    f"Story rappel: ressource {niche}",
                 ][index % 7],
-                "hook": f"En {niche_label(profile)}, tu peux corriger ça aujourd'hui avec une seule décision.",
+                "hook": f"En {niche}, tu peux corriger ça aujourd'hui avec une seule décision.",
                 "cta": f"Commente PLAN ou passe à l'étape liée à {monetization_label(profile)}.",
             }
         )
@@ -1080,12 +1053,14 @@ async def generate_strategy(
                 effort="medium",
                 schema=STRATEGY_SCHEMA,
                 prompt=(
-                    f"Crée une stratégie TikTok personnalisée. Profil: {compact_context(request.profile.model_dump())}. "
-                    f"Analyse de compte disponible: {compact_context(request.account_context)}. "
-                    f"Fuseau: {request.timezone}. Les créneaux sont des hypothèses à tester 14 jours, pas des vérités. "
-                    "Pour lien bio, LIVE et Shop, indique que les critères varient selon pays, âge, état et type de compte. "
-                    "Les fourchettes de revenu doivent être indicatives, modestes et accompagnées de leur base de calcul."
-                ),
+            f"Crée une stratégie TikTok personnalisée. Profil: {compact_context(request.profile.model_dump())}. "
+            f"Analyse de compte disponible: {compact_context(request.account_context)}. "
+            f"Fuseau: {request.timezone}. Les créneaux sont des hypothèses à tester 14 jours, pas des vérités. "
+            "Prends parti pour une stratégie claire au lieu de lister des options génériques. "
+            "Donne des idées de posts concrètes, cohérentes avec la niche et directement publiables. "
+            "Ne parle pas d'éligibilité, de LIVE ou de TikTok Shop. "
+            "Les fourchettes de revenu doivent être indicatives, modestes et accompagnées de leur base de calcul."
+        ),
             )
             strategy["source"] = "openai"
             db.record_ai_usage(user_id, "strategy", settings.strategy_model)
@@ -1164,10 +1139,11 @@ async def generate_calendar(
                 prompt=(
                     f"Génère un calendrier du {start.isoformat()} au {end.isoformat()} inclus. "
                     f"Profil: {compact_context(request.profile.model_dump())}. "
-                    f"Stratégie validée: {compact_context(request.strategy)}. "
-                    "Respecte strictement la cadence et le temps disponible. Répartis recherche, vidéos, carrousels, "
-                    "stories et LIVE seulement quand cohérent. Chaque événement doit avoir un hook et un CTA concret."
-                ),
+            f"Stratégie validée: {compact_context(request.strategy)}. "
+            "Respecte strictement la cadence et le temps disponible. Répartis recherche, vidéos, carrousels, "
+            "et stories seulement quand cohérent. Chaque événement doit être une idée de post spécifique "
+            "avec un hook et un CTA concret."
+        ),
             )
             result["source"] = "openai"
             db.record_ai_usage(user_id, "calendar", settings.fast_model)

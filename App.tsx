@@ -20,7 +20,7 @@ import { IdeaLabScreen } from "./src/screens/IdeaLabScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { StrategyScreen } from "./src/screens/StrategyScreen";
 import { VideoLabScreen } from "./src/screens/VideoLabScreen";
-import { createPreviewSession, setApiSessionToken } from "./src/services/api";
+import { createPreviewSession, loadApiSessionToken, setApiSessionToken } from "./src/services/api";
 import {
   beginGoogleConnection,
   exchangeGoogleCode,
@@ -57,6 +57,15 @@ export default function App() {
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [creatorSetup, setCreatorSetup] = useState<CreatorOnboardingProfile | null>(null);
   const [accountContext, setAccountContext] = useState<ProfileAnalysisReport | null>(null);
+
+  useEffect(() => {
+    loadApiSessionToken().then((token) => {
+      if (token && googleStatus !== "connected") {
+        setGoogleName("Créateur");
+        setGoogleStatus("connected");
+      }
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handleUrl = (url: string) => {

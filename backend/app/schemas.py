@@ -215,7 +215,7 @@ COACH_SCHEMA = {
 STRATEGY_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["summary", "niches", "postingSlots", "weeklyCycle", "storyPlan", "livePlan", "revenuePaths", "eligibility"],
+    "required": ["summary", "niches", "postingSlots", "weeklyCycle", "storyPlan", "revenuePaths"],
     "properties": {
         "summary": {"type": "string"},
         "niches": {
@@ -243,7 +243,6 @@ STRATEGY_SCHEMA = {
         },
         "weeklyCycle": {"type": "array", "items": {"type": "string"}, "minItems": 4, "maxItems": 7},
         "storyPlan": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 6},
-        "livePlan": {"type": "array", "items": {"type": "string"}, "minItems": 2, "maxItems": 5},
         "revenuePaths": {
             "type": "array", "minItems": 2, "maxItems": 4,
             "items": {
@@ -253,18 +252,6 @@ STRATEGY_SCHEMA = {
                     "name": {"type": "string"}, "nextAction": {"type": "string"},
                     "contentDirection": {"type": "string"}, "range": {"type": "string"},
                     "basis": {"type": "string"},
-                },
-            },
-        },
-        "eligibility": {
-            "type": "array", "minItems": 3, "maxItems": 3,
-            "items": {
-                "type": "object", "additionalProperties": False,
-                "required": ["feature", "status", "requirement", "nextAction", "caveat"],
-                "properties": {
-                    "feature": {"type": "string"}, "status": {"type": "string"},
-                    "requirement": {"type": "string"}, "nextAction": {"type": "string"},
-                    "caveat": {"type": "string"},
                 },
             },
         },

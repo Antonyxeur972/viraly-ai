@@ -4,7 +4,6 @@ import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View 
 
 import { ProgressBar } from "../components/ProgressBar";
 import { SectionHeader } from "../components/SectionHeader";
-import { Tag } from "../components/Tag";
 import {
   CalendarEvent,
   StrategyReport,
@@ -17,6 +16,7 @@ import {
   updateCalendarEvent
 } from "../services/ai";
 import { syncEventsToDeviceCalendar } from "../services/deviceCalendar";
+import { schedulePostNotifications } from "../services/postNotifications";
 import { ProfileAnalysisReport } from "../services/profileAnalysis";
 import { palette, radius, spacing, typography } from "../theme";
 import { CreatorOnboardingProfile } from "../types";
@@ -33,6 +33,7 @@ export function StrategyScreen({ profile, accountContext }: Props) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState<"strategy" | "calendar" | "event" | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isScheduling, setIsScheduling] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDate, setNewDate] = useState(today());
@@ -135,6 +136,22 @@ export function StrategyScreen({ profile, accountContext }: Props) {
     }
   };
 
+  const scheduleNotifications = async () => {
+    if (!events.length || isScheduling) return;
+    setIsScheduling(true);
+    try {
+      const result = await schedulePostNotifications(events);
+      Alert.alert(
+        "Notifications activées",
+        `${result.scheduled} rappel${result.scheduled > 1 ? "s" : ""} programmé${result.scheduled > 1 ? "s" : ""} aux moments les plus réceptifs du plan.`
+      );
+    } catch (error) {
+      Alert.alert("Notifications", error instanceof Error ? error.message : "Activation impossible.");
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
@@ -148,80 +165,19 @@ export function StrategyScreen({ profile, accountContext }: Props) {
         <Text style={styles.primaryText}>{loading === "strategy" ? "Construction du plan..." : strategy ? "Actualiser la stratégie IA" : "Générer ma stratégie IA"}</Text>
       </TouchableOpacity>
 
-      {strategy ? (
-        <>
-          <SectionHeader eyebrow="Positionnement" title="Niches comparées" />
-          <View style={styles.stack}>
-            {strategy.niches.map((niche) => (
-              <View key={niche.name} style={styles.card}>
-                <View style={styles.cardTop}>
-                  <View style={styles.flex}><Text style={styles.cardTitle}>{niche.name}</Text><Text style={styles.meta}>{niche.audience}</Text></View>
-                  <Text style={styles.score}>{niche.score}</Text>
-                </View>
-                <ProgressBar color={palette.mint} value={niche.score} />
-                <Text style={styles.body}>Différence : {niche.edge}</Text>
-                <Text style={styles.accentText}>Revenu : {niche.revenueAngle}</Text>
-              </View>
-            ))}
-          </View>
-
-          <SectionHeader eyebrow="Test 14 jours" title="Créneaux à mesurer" />
-          <View style={styles.stack}>
-            {strategy.postingSlots.map((slot) => (
-              <View key={`${slot.day}-${slot.time}`} style={styles.slotCard}>
-                <View style={styles.timeBlock}><Text style={styles.time}>{slot.time}</Text><Text style={styles.day}>{slot.day}</Text></View>
-                <View style={styles.flex}><Text style={styles.body}>{slot.reason}</Text><Text style={styles.meta}>{slot.testProtocol}</Text></View>
-              </View>
-            ))}
-          </View>
-
-          <SectionHeader eyebrow="Cycle" title="Système hebdomadaire" />
-          <View style={styles.listPanel}>
-            {strategy.weeklyCycle.map((step, index) => (
-              <View key={`${step}-${index}`} style={styles.listLine}><Text style={styles.listIndex}>0{index + 1}</Text><Text style={styles.listText}>{step}</Text></View>
-            ))}
-          </View>
-
-          <View style={styles.twoColumn}>
-            <View style={styles.columnCard}><Text style={styles.columnLabel}>STORIES</Text>{strategy.storyPlan.map((item) => <Text key={item} style={styles.columnText}>• {item}</Text>)}</View>
-            <View style={styles.columnCard}><Text style={styles.columnLabel}>LIVE</Text>{strategy.livePlan.map((item) => <Text key={item} style={styles.columnText}>• {item}</Text>)}</View>
-          </View>
-
-          <SectionHeader eyebrow="Éligibilité" title="Bio, LIVE et Shop" />
-          <View style={styles.stack}>
-            {strategy.eligibility.map((item) => (
-              <View key={item.feature} style={styles.card}>
-                <View style={styles.cardTop}><Text style={styles.cardTitle}>{item.feature}</Text><Tag label={item.status} color={palette.lemon} /></View>
-                <Text style={styles.body}>{item.requirement}</Text>
-                <Text style={styles.accentText}>{item.nextAction}</Text>
-                <Text style={styles.caveat}>{item.caveat}</Text>
-              </View>
-            ))}
-          </View>
-
-          <SectionHeader eyebrow="Revenus" title="Pistes reliées au contenu" />
-          <View style={styles.stack}>
-            {strategy.revenuePaths.map((path) => (
-              <View key={path.name} style={styles.card}>
-                <View style={styles.cardTop}><Text style={styles.cardTitle}>{path.name}</Text><Text style={styles.range}>{path.range}</Text></View>
-                <Text style={styles.body}>{path.contentDirection}</Text>
-                <Text style={styles.accentText}>{path.nextAction}</Text>
-                <Text style={styles.caveat}>{path.basis}</Text>
-              </View>
-            ))}
-          </View>
-        </>
-      ) : null}
-
-      <SectionHeader eyebrow="Calendrier" title="Publications sauvegardées" action={`${events.length} tâches`} />
+      <SectionHeader eyebrow="Calendrier" title="Idées de posts à publier" action={`${events.length} tâches`} />
       <View style={styles.calendarActions}>
         <TouchableOpacity disabled={!strategy || loading !== null} onPress={buildCalendar} style={[styles.outlineButton, !strategy && styles.disabled]}>
           <Ionicons color={palette.mint} name="calendar-outline" size={18} />
           <Text style={styles.outlineText}>{loading === "calendar" ? "Planification..." : "Générer 7 jours"}</Text>
         </TouchableOpacity>
-        <TouchableOpacity disabled={!events.length || isSyncing} onPress={syncCalendar} style={[styles.outlineButton, !events.length && styles.disabled]}>
+        <TouchableOpacity disabled={!events.length || isScheduling} onPress={scheduleNotifications} style={[styles.iconTextButton, !events.length && styles.disabled]}>
+          <Ionicons color={palette.lemon} name="notifications-outline" size={18} />
+          <Text style={styles.notifyText}>{isScheduling ? "..." : "Rappels"}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity disabled={!events.length || isSyncing} onPress={syncCalendar} style={[styles.iconTextButton, !events.length && styles.disabled]}>
           <Ionicons color={palette.sky} name="sync-outline" size={18} />
-          <Text style={[styles.outlineText, styles.syncText]}>{isSyncing ? "Synchro..." : "Synchroniser"}</Text>
+          <Text style={styles.syncText}>{isSyncing ? "..." : "Sync"}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setShowAdd((value) => !value)} style={styles.iconButton}>
           <Ionicons color={palette.white} name={showAdd ? "close" : "add"} size={22} />
@@ -257,8 +213,59 @@ export function StrategyScreen({ profile, accountContext }: Props) {
           ))}
         </View>
       ) : (
-        <Text style={styles.empty}>Le calendrier est vide. Génère une semaine depuis la stratégie ou ajoute une publication.</Text>
+        <Text style={styles.empty}>Génère une stratégie puis crée 7 jours de posts adaptés à ta niche.</Text>
       )}
+
+      {strategy ? (
+        <>
+          <SectionHeader eyebrow="Décision" title="Stratégie recommandée" />
+          <View style={styles.stack}>
+            {strategy.niches.map((niche) => (
+              <View key={niche.name} style={styles.card}>
+                <View style={styles.cardTop}>
+                  <View style={styles.flex}><Text style={styles.cardTitle}>{niche.name}</Text><Text style={styles.meta}>{niche.audience}</Text></View>
+                  <Text style={styles.score}>{niche.score}</Text>
+                </View>
+                <ProgressBar color={palette.mint} value={niche.score} />
+                <Text style={styles.body}>Différence : {niche.edge}</Text>
+                <Text style={styles.accentText}>Revenu : {niche.revenueAngle}</Text>
+              </View>
+            ))}
+          </View>
+
+          <SectionHeader eyebrow="Test 14 jours" title="Créneaux à mesurer" />
+          <View style={styles.stack}>
+            {strategy.postingSlots.map((slot) => (
+              <View key={`${slot.day}-${slot.time}`} style={styles.slotCard}>
+                <View style={styles.timeBlock}><Text style={styles.time}>{slot.time}</Text><Text style={styles.day}>{slot.day}</Text></View>
+                <View style={styles.flex}><Text style={styles.body}>{slot.reason}</Text><Text style={styles.meta}>{slot.testProtocol}</Text></View>
+              </View>
+            ))}
+          </View>
+
+          <SectionHeader eyebrow="Cycle" title="Système hebdomadaire" />
+          <View style={styles.listPanel}>
+            {strategy.weeklyCycle.map((step, index) => (
+              <View key={`${step}-${index}`} style={styles.listLine}><Text style={styles.listIndex}>0{index + 1}</Text><Text style={styles.listText}>{step}</Text></View>
+            ))}
+          </View>
+
+          <View style={styles.columnCard}><Text style={styles.columnLabel}>STORIES</Text>{strategy.storyPlan.map((item) => <Text key={item} style={styles.columnText}>• {item}</Text>)}</View>
+
+          <SectionHeader eyebrow="Revenus" title="Pistes reliées au contenu" />
+          <View style={styles.stack}>
+            {strategy.revenuePaths.map((path) => (
+              <View key={path.name} style={styles.card}>
+                <View style={styles.cardTop}><Text style={styles.cardTitle}>{path.name}</Text><Text style={styles.range}>{path.range}</Text></View>
+                <Text style={styles.body}>{path.contentDirection}</Text>
+                <Text style={styles.accentText}>{path.nextAction}</Text>
+                <Text style={styles.caveat}>{path.basis}</Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
+
     </ScrollView>
   );
 }
@@ -297,6 +304,8 @@ const styles = StyleSheet.create({
   calendarActions: { flexDirection: "row", gap: spacing.sm },
   outlineButton: { alignItems: "center", borderColor: palette.mint, borderRadius: radius.sm, borderWidth: 1, flex: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 46 },
   outlineText: { ...typography.caption, color: palette.mint },
+  iconTextButton: { alignItems: "center", borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, gap: 2, justifyContent: "center", minHeight: 46, paddingHorizontal: spacing.sm },
+  notifyText: { color: palette.lemon, fontSize: 11, fontWeight: "800" },
   syncText: { color: palette.sky },
   iconButton: { alignItems: "center", borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, height: 46, justifyContent: "center", width: 46 },
   disabled: { opacity: 0.4 },
