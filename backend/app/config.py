@@ -17,6 +17,7 @@ class Settings:
         os.getenv("VIRALY_DATABASE_PATH", ROOT_DIR / "data" / "viraly.db")
     )
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "").strip()
+    anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "").strip()
     cors_origins: tuple[str, ...] = tuple(
         item.strip()
         for item in os.getenv(
@@ -51,6 +52,9 @@ class Settings:
     visual_model: str = os.getenv("VIRALY_VISUAL_MODEL", "gpt-5.6-sol")
     strategy_model: str = os.getenv("VIRALY_STRATEGY_MODEL", "gpt-5.6-terra")
     fast_model: str = os.getenv("VIRALY_FAST_MODEL", "gpt-5.6-luna")
+    anthropic_model: str = os.getenv(
+        "VIRALY_ANTHROPIC_MODEL", "claude-sonnet-4-5-20250929"
+    )
     transcribe_model: str = os.getenv(
         "VIRALY_TRANSCRIBE_MODEL", "gpt-4o-mini-transcribe"
     )

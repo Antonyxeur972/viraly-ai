@@ -3,6 +3,7 @@ def test_health_reports_ai_state(client):
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert "aiConfigured" in response.json()
+    assert "anthropic" in response.json()["aiProviders"]
 
 
 def test_calendar_crud_is_persistent(client, auth_headers):
@@ -129,6 +130,53 @@ def test_ai_authentication_error_is_sanitized(client):
         assert "secret details" not in str(error)
     else:
         raise AssertionError("AIUnavailableError attendue")
+
+
+def test_anthropic_vision_provider_returns_validated_json():
+    from app.ai import AIEngine
+    from app.config import Settings
+
+    class TextBlock:
+        type = "text"
+        text = '{"score":82,"summary":"Lecture réelle"}'
+
+    class FakeMessages:
+        async def create(self, **kwargs):
+            assert kwargs["model"] == "claude-sonnet-4-5-20250929"
+            assert kwargs["messages"][0]["content"][0]["type"] == "image"
+            return type("Response", (), {"content": [TextBlock()]})()
+
+    engine = AIEngine(Settings(openai_api_key="", anthropic_api_key="test-anthropic"))
+    engine.anthropic_client = type("Client", (), {"messages": FakeMessages()})()
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["score", "summary"],
+        "properties": {
+            "score": {"type": "integer"},
+            "summary": {"type": "string"},
+        },
+    }
+
+    import asyncio
+
+    result = asyncio.run(
+        engine.generate_json(
+            model="gpt-test",
+            feature="vision_test",
+            prompt="Analyse",
+            schema=schema,
+            media=[
+                {
+                    "type": "input_image",
+                    "image_url": "data:image/jpeg;base64,aW1hZ2U=",
+                    "detail": "high",
+                }
+            ],
+        )
+    )
+    assert result["score"] == 82
+    assert result["_model"].startswith("claude-sonnet")
 
 
 def test_onboarding_uses_structured_ai_and_persists_result(client, auth_headers):
@@ -295,7 +343,7 @@ def test_profile_analysis_reports_when_ai_is_unavailable(client, auth_headers):
 
     assert response.status_code == 503
     payload = response.json()
-    assert payload["code"] == "unavailable"
+    assert payload["code"] == "not_configured"
 
 
 def test_carousel_analysis_reports_when_ai_is_unavailable(client, auth_headers):
@@ -320,7 +368,7 @@ def test_carousel_analysis_reports_when_ai_is_unavailable(client, auth_headers):
 
     assert response.status_code == 503
     payload = response.json()
-    assert payload["code"] == "unavailable"
+    assert payload["code"] == "not_configured"
 
 
 def test_video_analysis_is_temporarily_disabled(client, auth_headers):

@@ -619,11 +619,13 @@ def health():
     return {
         "status": "ok",
         "aiConfigured": ai_engine().configured,
+        "aiProviders": ai_engine().providers,
         "googleConfigured": google_configured(),
         "models": {
             "visual": settings.visual_model,
             "strategy": settings.strategy_model,
             "fast": settings.fast_model,
+            "visionFallback": settings.anthropic_model,
         },
     }
 
