@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { palette, radius, spacing, typography } from "../theme";
 import { IconName } from "../types";
@@ -36,7 +36,9 @@ export function BottomTabs<T extends string>({
             onPress={() => onChange(item.key)}
             style={[styles.tab, focused && styles.tabActive]}
           >
-            {renderIcon(item, focused)}
+            <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+              {renderIcon(item, focused)}
+            </View>
             <Text style={[styles.label, focused && styles.labelActive]}>
               {item.label}
             </Text>
@@ -53,24 +55,35 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.xs,
     justifyContent: "space-between",
-    marginBottom: spacing.sm,
-    marginHorizontal: spacing.sm,
-    paddingBottom: spacing.sm,
+    borderColor: "rgba(181,255,63,0.20)",
+    marginBottom: spacing.xs,
+    marginHorizontal: spacing.xs,
+    paddingBottom: spacing.xs,
     paddingHorizontal: spacing.sm,
-    paddingTop: spacing.sm
+    paddingTop: spacing.xs
   },
   tab: {
     alignItems: "center",
-    borderRadius: radius.md,
-    gap: 3,
-    minHeight: 54,
+    borderRadius: radius.sm,
+    gap: 2,
+    minHeight: 58,
     justifyContent: "center",
     paddingHorizontal: spacing.sm,
     flex: 1,
     maxWidth: 76
   },
   tabActive: {
-    backgroundColor: "rgba(53, 230, 154, 0.14)"
+    backgroundColor: "rgba(167,245,66,0.07)"
+  },
+  iconWrap: {
+    alignItems: "center",
+    borderRadius: radius.pill,
+    height: 31,
+    justifyContent: "center",
+    width: 42
+  },
+  iconWrapActive: {
+    backgroundColor: palette.mint
   },
   label: {
     ...typography.caption,
@@ -78,6 +91,6 @@ const styles = StyleSheet.create({
     fontSize: 11
   },
   labelActive: {
-    color: palette.mint
+    color: palette.white
   }
 });

@@ -23,18 +23,19 @@ export function SectionHeader({ eyebrow, title, action }: Props) {
 
 const styles = StyleSheet.create({
   wrap: {
-    alignItems: "flex-end",
+    alignItems: "center",
     flexDirection: "row",
     gap: spacing.md,
     justifyContent: "space-between"
   },
   copy: {
     flex: 1,
-    gap: 2
+    gap: 4
   },
   eyebrow: {
     ...typography.caption,
-    color: palette.mint
+    color: palette.mint,
+    textTransform: "uppercase"
   },
   title: {
     ...typography.h2,
@@ -42,6 +43,6 @@ const styles = StyleSheet.create({
   },
   action: {
     ...typography.caption,
-    color: palette.lemon
+    color: palette.paperMuted
   }
 });

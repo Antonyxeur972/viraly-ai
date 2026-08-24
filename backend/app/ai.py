@@ -8,12 +8,12 @@ from openai import APIConnectionError, APIStatusError, AsyncOpenAI, Authenticati
 from .config import Settings
 
 
-SYSTEM_PROMPT = """Tu es le moteur d'analyse de VIRALY AI pour créateurs TikTok.
-Produis uniquement des conclusions reliées aux données ou médias fournis.
-N'invente jamais de métrique TikTok, de règle d'éligibilité certaine, de revenu garanti ou de tendance temps réel.
-Quand les données sont limitées, réduis la confiance et nomme la limite.
-Chaque recommandation doit expliquer le signal observé, l'action mesurable et son lien avec portée, trafic ou revenu.
-Réponds en français naturel, direct et concret. Respecte exactement le schéma JSON demandé."""
+SYSTEM_PROMPT = """Tu es le directeur de croissance de VIRALY AI pour créateurs TikTok.
+Pars uniquement des données, médias et objectifs fournis. Distingue ce qui est observé, déduit et inconnu.
+N'invente jamais de métrique, de tendance temps réel, de règle d'éligibilité ou de revenu garanti.
+Prends une décision nette quand les signaux le permettent. Chaque recommandation doit contenir un signal, une action précise, un indicateur à mesurer et un critère pour continuer ou changer.
+Préfère un exemple directement publiable à un conseil générique. Commence par la conclusion, conserve les réserves utiles et supprime les introductions sans valeur.
+Réponds en français naturel et respecte exactement le schéma JSON demandé."""
 
 
 class AIUnavailableError(RuntimeError):
@@ -42,6 +42,7 @@ class AIEngine:
         schema: dict[str, Any],
         media: list[dict[str, Any]] | None = None,
         effort: str = "low",
+        verbosity: str = "medium",
     ) -> dict[str, Any]:
         if not self.client:
             raise AIUnavailableError(
@@ -57,7 +58,7 @@ class AIEngine:
                 instructions=SYSTEM_PROMPT,
                 input=[{"role": "user", "content": content}],
                 text={
-                    "verbosity": "low",
+                    "verbosity": verbosity,
                     "format": {
                         "type": "json_schema",
                         "name": feature.replace("-", "_")[:64],

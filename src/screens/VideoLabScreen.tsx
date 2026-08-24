@@ -60,14 +60,18 @@ export function VideoLabScreen() {
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <Text style={styles.kicker}>LABORATOIRE VISUEL</Text>
-        <Text style={styles.title}>Analyse photo et carrousel.</Text>
-        <Text style={styles.subtitle}>L'IA lit les images TikTok dans l'ordre et transforme chaque correction en action. La vidéo est retirée pour garder l'app rapide.</Text>
+        <Text style={styles.kicker}>AUDIT DE CONTENU</Text>
+        <Text style={styles.title}>Passe chaque slide au crible.</Text>
+        <Text style={styles.subtitle}>L'IA vérifie la couverture, la progression, la preuve et la conversion dans l'ordre réel du carrousel.</Text>
       </View>
 
       <View style={styles.modeCard}>
-        <Ionicons color={palette.ink} name="images-outline" size={18} />
-        <Text style={styles.modeText}>Carrousel photo actif</Text>
+        <Ionicons color={palette.mint} name="images-outline" size={18} />
+        <View style={styles.modeCopy}>
+          <Text style={styles.modeText}>Carrousel photo</Text>
+          <Text style={styles.modeMeta}>1 à 10 images · ordre conservé</Text>
+        </View>
+        <View style={styles.activeDot} />
       </View>
 
       <TouchableOpacity onPress={pickContent} style={styles.uploadButton}>
@@ -92,17 +96,17 @@ export function VideoLabScreen() {
 
       {assets.length ? (
         <TouchableOpacity disabled={isAnalyzing} onPress={analyze} style={styles.analyzeButton}>
-          <Ionicons color={palette.ink} name="sparkles-outline" size={19} />
-          <Text style={styles.analyzeText}>{isAnalyzing ? "Lecture des images..." : "Lancer l'analyse IA"}</Text>
+          <Ionicons color={palette.ink} name="sparkles" size={19} />
+          <Text style={styles.analyzeText}>{isAnalyzing ? "Analyse slide par slide..." : "Lancer l'audit IA"}</Text>
         </TouchableOpacity>
       ) : null}
 
       {report ? (
         <>
-          <ScoreDial caption={report.summary} color={palette.mint} label="Potentiel observé" score={report.score} />
+          <ScoreDial caption={report.summary} color={palette.mint} label="Force du carrousel" score={report.score} />
 
           <GlassPanel style={styles.hookPanel}>
-            <Text style={styles.panelLabel}>HOOK RÉVISÉ</Text>
+            <Text style={styles.panelLabel}>COUVERTURE RECOMMANDÉE</Text>
             <Text style={styles.hookText}>{report.revisedHook}</Text>
             <View style={styles.divider} />
             <Text style={styles.panelLabel}>CHEMIN REVENU · {report.revenuePotential.level.toUpperCase()}</Text>
@@ -143,7 +147,10 @@ export function VideoLabScreen() {
       ) : (
         <View style={styles.emptyCard}>
           <Ionicons color={palette.mint} name="scan-circle-outline" size={25} />
-          <Text style={styles.emptyText}>Aucun score avant l'analyse réelle du contenu.</Text>
+          <View style={styles.emptyCopy}>
+            <Text style={styles.emptyTitle}>Dépose un carrousel à analyser</Text>
+            <Text style={styles.emptyText}>Aucun score de démonstration : le verdict apparaît uniquement après lecture de tes images.</Text>
+          </View>
         </View>
       )}
     </ScrollView>
@@ -151,32 +158,35 @@ export function VideoLabScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { gap: spacing.xl, padding: spacing.lg, paddingBottom: spacing.xxl },
+  content: { gap: spacing.xl, padding: spacing.lg, paddingBottom: spacing.xxl, paddingTop: spacing.lg },
   header: { gap: spacing.sm },
   kicker: { ...typography.caption, color: palette.mint },
   title: { ...typography.title, color: palette.white },
   subtitle: { ...typography.body, color: palette.paperMuted },
-  modeCard: { alignItems: "center", alignSelf: "flex-start", backgroundColor: palette.mint, borderRadius: radius.sm, flexDirection: "row", gap: spacing.sm, minHeight: 42, paddingHorizontal: spacing.md },
-  modeText: { ...typography.caption, color: palette.ink },
-  uploadButton: { alignItems: "center", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, minHeight: 78, padding: spacing.md },
-  uploadIcon: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.sm, height: 46, justifyContent: "center", width: 46 },
+  modeCard: { alignItems: "center", backgroundColor: "rgba(3,15,10,0.62)", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, minHeight: 52, paddingHorizontal: spacing.md },
+  modeCopy: { flex: 1, gap: 1 },
+  modeText: { ...typography.caption, color: palette.white },
+  modeMeta: { color: palette.muted, fontSize: 10, lineHeight: 14 },
+  activeDot: { backgroundColor: palette.mint, borderRadius: radius.pill, height: 8, width: 8 },
+  uploadButton: { alignItems: "center", backgroundColor: palette.panel, borderColor: palette.lineStrong, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, minHeight: 88, padding: spacing.lg },
+  uploadIcon: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, height: 48, justifyContent: "center", width: 48 },
   uploadCopy: { flex: 1, gap: 4 },
   uploadTitle: { ...typography.h3, color: palette.white },
   uploadMeta: { ...typography.caption, color: palette.muted },
   previewRail: { marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg },
   previewItem: { marginRight: spacing.sm, position: "relative" },
-  previewImage: { borderRadius: radius.sm, height: 130, width: 92 },
+  previewImage: { borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, height: 146, width: 103 },
   previewIndex: { backgroundColor: palette.ink, borderRadius: radius.pill, color: palette.white, fontSize: 11, fontWeight: "800", paddingHorizontal: 7, paddingVertical: 3, position: "absolute", right: 5, top: 5 },
-  analyzeButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.sm, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 50, paddingHorizontal: spacing.md },
+  analyzeButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 52, paddingHorizontal: spacing.lg },
   analyzeText: { ...typography.caption, color: palette.ink },
-  hookPanel: { gap: spacing.sm, padding: spacing.lg },
+  hookPanel: { borderColor: palette.lineStrong, gap: spacing.md, padding: spacing.xl },
   panelLabel: { ...typography.caption, color: palette.mint },
   hookText: { ...typography.h3, color: palette.white },
   panelText: { ...typography.body, color: palette.white },
   basisText: { ...typography.caption, color: palette.muted },
   divider: { backgroundColor: palette.line, height: 1, marginVertical: spacing.xs },
   stack: { gap: spacing.sm },
-  dimensionCard: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, gap: spacing.sm, padding: spacing.md },
+  dimensionCard: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, gap: spacing.md, padding: spacing.lg },
   dimensionTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   dimensionName: { ...typography.h3, color: palette.white },
   dimensionScore: { color: palette.mint, fontSize: 22, fontWeight: "900" },
@@ -188,5 +198,7 @@ const styles = StyleSheet.create({
   storyText: { ...typography.body, color: palette.white, flex: 1 },
   ctaPanel: { gap: spacing.sm, padding: spacing.lg },
   emptyCard: { alignItems: "center", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, padding: spacing.lg },
+  emptyCopy: { flex: 1, gap: 4 },
+  emptyTitle: { ...typography.h3, color: palette.white },
   emptyText: { ...typography.body, color: palette.paperMuted, flex: 1 }
 });

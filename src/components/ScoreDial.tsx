@@ -49,8 +49,8 @@ const styles = StyleSheet.create({
   wrap: {
     alignItems: "center",
     flexDirection: "row",
-    gap: spacing.lg,
-    padding: spacing.lg
+    gap: spacing.xl,
+    padding: spacing.xl
   },
   ring: {
     alignItems: "center",
@@ -61,9 +61,9 @@ const styles = StyleSheet.create({
   },
   score: {
     color: palette.white,
-    fontSize: 38,
-    fontWeight: "900",
-    lineHeight: 42
+    fontSize: 42,
+    fontWeight: "800",
+    lineHeight: 45
   },
   max: {
     ...typography.caption,

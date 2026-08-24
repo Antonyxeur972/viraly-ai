@@ -31,7 +31,7 @@ class Settings:
     ).lower() in {"1", "true", "yes"}
     preview_secret: str = os.getenv("VIRALY_PREVIEW_SECRET", "").strip()
     preview_ai_daily_limit: int = int(
-        os.getenv("VIRALY_PREVIEW_AI_DAILY_LIMIT", "5")
+        os.getenv("VIRALY_PREVIEW_AI_DAILY_LIMIT", "30")
     )
     google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "").strip()
     google_client_secret: str = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()

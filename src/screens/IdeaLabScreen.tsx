@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
+import { GlassPanel } from "../components/GlassPanel";
 import { ProgressBar } from "../components/ProgressBar";
 import { SectionHeader } from "../components/SectionHeader";
 import { Tag } from "../components/Tag";
@@ -25,6 +26,8 @@ export function IdeaLabScreen({ profile, accountContext }: Props) {
   const [report, setReport] = useState<IdeaAnalysisReport | null>(null);
   const [ideas, setIdeas] = useState<GeneratedIdea[]>([]);
   const [loading, setLoading] = useState<"analysis" | "ideas" | null>(null);
+
+  const niche = profile.nicheTopic || profile.niche || "niche à préciser";
 
   const runAnalysis = async () => {
     if (idea.trim().length < 5) return;
@@ -52,61 +55,82 @@ export function IdeaLabScreen({ profile, accountContext }: Props) {
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <Text style={styles.kicker}>STUDIO D'IDÉES</Text>
-        <Text style={styles.title}>Teste avant de filmer.</Text>
-        <Text style={styles.subtitle}>L'analyse utilise ton objectif, ta niche, ta capacité et le dernier diagnostic du compte.</Text>
+        <Text style={styles.kicker}>STUDIO CRÉATIF</Text>
+        <Text style={styles.title}>Valide l'idée avant de filmer.</Text>
+        <Text style={styles.subtitle}>VIRALY cherche une promesse claire, une tension utile et un chemin logique vers ton objectif.</Text>
       </View>
 
-      <View style={styles.inputCard}>
-        <Text style={styles.inputLabel}>IDÉE À TESTER</Text>
+      <View style={styles.contextStrip}>
+        <View style={styles.contextItem}><Ionicons color={palette.mint} name="locate-outline" size={16} /><Text numberOfLines={1} style={styles.contextText}>{niche}</Text></View>
+        <View style={styles.contextDivider} />
+        <View style={styles.contextItem}><Ionicons color={accountContext ? palette.mint : palette.muted} name={accountContext ? "checkmark-circle" : "cloud-offline-outline"} size={16} /><Text style={styles.contextText}>{accountContext ? "Profil analysé" : "Sans données compte"}</Text></View>
+      </View>
+
+      <GlassPanel style={styles.inputCard} textureOpacity={0.18}>
+        <View style={styles.inputTop}>
+          <Text style={styles.inputLabel}>IDÉE À TESTER</Text>
+          <Text style={styles.scoreValue}>{report ? report.score : "--"}<Text style={styles.scoreMax}> / 100</Text></Text>
+        </View>
         <TextInput
           multiline
           onChangeText={(value) => { setIdea(value); setReport(null); }}
-          placeholder="Ex : 3 erreurs qui bloquent tes vues TikTok"
+          placeholder="Ex : 3 erreurs qui font perdre des clients aux coiffeurs indépendants"
           placeholderTextColor={palette.muted}
           style={styles.input}
           value={idea}
         />
-        <View style={styles.scoreRow}>
-          <View>
-            <Text style={styles.scoreLabel}>Score IA</Text>
-            <Text style={styles.scoreValue}>{report ? `${report.score}/100` : "--"}</Text>
-          </View>
-          <TouchableOpacity disabled={idea.trim().length < 5 || loading !== null} onPress={runAnalysis} style={[styles.primaryButton, idea.trim().length < 5 && styles.disabled]}>
-            <Ionicons color={palette.ink} name="sparkles-outline" size={18} />
-            <Text style={styles.primaryText}>{loading === "analysis" ? "Analyse..." : "Analyser"}</Text>
-          </TouchableOpacity>
-        </View>
-        <ProgressBar color={report && report.score >= 70 ? palette.mint : palette.lemon} value={report?.score || 0} />
-      </View>
+        <ProgressBar color={palette.mint} value={report?.score || 0} />
+        <TouchableOpacity disabled={idea.trim().length < 5 || loading !== null} onPress={runAnalysis} style={[styles.primaryButton, (idea.trim().length < 5 || loading !== null) && styles.disabled]}>
+          <Ionicons color={palette.ink} name="sparkles" size={18} />
+          <Text style={styles.primaryText}>{loading === "analysis" ? "Lecture de la promesse et du potentiel..." : "Analyser cette idée"}</Text>
+        </TouchableOpacity>
+      </GlassPanel>
 
       {report ? (
         <>
-          <SectionHeader eyebrow="Version optimisée" title="Plan directement filmable" />
-          <View style={styles.scriptCard}>
-            <Text style={styles.scriptLabel}>HOOK PROPOSÉ</Text>
+          <SectionHeader eyebrow="Verdict IA" title="Version directement filmable" />
+          <GlassPanel style={styles.scriptCard} textureOpacity={0.15}>
+            <Text style={styles.scriptLabel}>HOOK À L'ÉCRAN</Text>
             <Text style={styles.scriptTitle}>{report.optimizedHook}</Text>
             <Text style={styles.summary}>{report.summary}</Text>
             <View style={styles.divider} />
             {report.scriptSteps.map((step, index) => (
               <View key={`${step}-${index}`} style={styles.step}>
-                <Text style={styles.stepIndex}>0{index + 1}</Text>
+                <View style={styles.stepBadge}><Text style={styles.stepIndex}>{index + 1}</Text></View>
                 <Text style={styles.stepText}>{step}</Text>
               </View>
             ))}
+          </GlassPanel>
+
+          <View style={styles.twoColumn}>
+            <View style={styles.promiseCard}>
+              <Text style={styles.promiseLabel}>PROMESSE</Text>
+              <Text style={styles.promiseText}>{report.audiencePromise}</Text>
+            </View>
+            <View style={styles.revenueCard}>
+              <Text style={styles.promiseLabel}>CONVERSION</Text>
+              <Text style={styles.promiseText}>{report.revenuePath}</Text>
+            </View>
           </View>
-          <View style={styles.promiseCard}>
-            <Text style={styles.promiseLabel}>PROMESSE AUDIENCE</Text>
-            <Text style={styles.promiseText}>{report.audiencePromise}</Text>
-            <Text style={styles.revenueText}>Revenu : {report.revenuePath}</Text>
-          </View>
+
+          {report.risks.length ? (
+            <GlassPanel style={styles.riskPanel} textureOpacity={0.06}>
+              <Text style={styles.riskLabel}>À CORRIGER AVANT TOURNAGE</Text>
+              {report.risks.map((risk, index) => (
+                <View key={`${risk}-${index}`} style={styles.riskLine}>
+                  <Ionicons color={palette.paperMuted} name="alert-circle-outline" size={18} />
+                  <Text style={styles.riskText}>{risk}</Text>
+                </View>
+              ))}
+            </GlassPanel>
+          ) : null}
         </>
       ) : null}
 
-      <SectionHeader eyebrow="Cette semaine" title="Idées personnalisées" />
-      <TouchableOpacity disabled={loading !== null} onPress={runGeneration} style={styles.generateButton}>
-        <Ionicons color={palette.mint} name="refresh-outline" size={19} />
-        <Text style={styles.generateText}>{loading === "ideas" ? "Création en cours..." : ideas.length ? "Regénérer 4 idées" : "Générer 4 idées avec l'IA"}</Text>
+      <SectionHeader eyebrow="Sélection de la semaine" title="Idées personnalisées" />
+      <TouchableOpacity disabled={loading !== null} onPress={runGeneration} style={[styles.generateButton, loading !== null && styles.disabled]}>
+        <Ionicons color={palette.mint} name={ideas.length ? "refresh" : "sparkles-outline"} size={19} />
+        <Text style={styles.generateText}>{loading === "ideas" ? "Construction de 4 angles distincts..." : ideas.length ? "Créer 4 nouveaux angles" : "Générer 4 idées avec l'IA"}</Text>
       </TouchableOpacity>
 
       {ideas.length ? (
@@ -114,67 +138,85 @@ export function IdeaLabScreen({ profile, accountContext }: Props) {
           {ideas.map((item, index) => (
             <TouchableOpacity key={`${item.title}-${index}`} onPress={() => { setIdea(item.title); setReport(null); }} style={styles.ideaCard}>
               <View style={styles.ideaTop}>
-                <View style={styles.rank}><Text style={styles.rankText}>{index + 1}</Text></View>
+                <View style={styles.rank}><Text style={styles.rankText}>0{index + 1}</Text></View>
                 <View style={styles.ideaCopy}>
+                  <Text style={styles.ideaFormat}>{item.format.toUpperCase()}</Text>
                   <Text style={styles.ideaTitle}>{item.title}</Text>
-                  <Text style={styles.ideaFormat}>{item.format}</Text>
                 </View>
-                <Text style={styles.ideaScore}>{item.score}</Text>
+                <View style={styles.scorePill}><Text style={styles.ideaScore}>{item.score}</Text></View>
               </View>
               <Text style={styles.ideaPromise}>{item.promise}</Text>
               <View style={styles.tags}>
-                <Tag label={`effort ${item.effort}`} color={palette.sky} />
+                <Tag label={`effort ${item.effort}`} color={palette.paperMuted} />
                 <Tag label={item.revenuePath} color={palette.mint} />
               </View>
+              <View style={styles.useLine}><Text style={styles.useText}>Développer cette idée</Text><Ionicons color={palette.mint} name="arrow-forward" size={16} /></View>
             </TouchableOpacity>
           ))}
         </View>
       ) : (
-        <Text style={styles.empty}>Aucune idée générique préchargée : lance une génération liée à ton profil.</Text>
+        <GlassPanel style={styles.emptyPanel} textureOpacity={0.08}>
+          <Ionicons color={palette.mint} name="bulb-outline" size={22} />
+          <Text style={styles.empty}>La génération part de ta niche, de ta cadence et du diagnostic de ton profil.</Text>
+        </GlassPanel>
       )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { gap: spacing.xl, padding: spacing.lg, paddingBottom: spacing.xxl },
+  content: { gap: spacing.xl, padding: spacing.lg, paddingBottom: spacing.xxl, paddingTop: spacing.lg },
   header: { gap: spacing.sm },
-  kicker: { ...typography.caption, color: palette.lemon },
-  title: { ...typography.title, color: palette.white },
+  kicker: { ...typography.caption, color: palette.mint },
+  title: { ...typography.title, color: palette.white, maxWidth: 360 },
   subtitle: { ...typography.body, color: palette.paperMuted },
-  inputCard: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, gap: spacing.md, padding: spacing.lg },
+  contextStrip: { alignItems: "center", backgroundColor: "rgba(3,15,10,0.62)", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  contextItem: { alignItems: "center", flex: 1, flexDirection: "row", gap: spacing.xs, minWidth: 0 },
+  contextText: { ...typography.caption, color: palette.paperMuted, flexShrink: 1 },
+  contextDivider: { backgroundColor: palette.line, height: 20, width: 1 },
+  inputCard: { gap: spacing.md, padding: spacing.lg },
+  inputTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   inputLabel: { ...typography.caption, color: palette.mint },
-  input: { ...typography.body, backgroundColor: palette.graphite, borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, color: palette.white, minHeight: 96, padding: spacing.md, textAlignVertical: "top" },
-  scoreRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
-  scoreLabel: { ...typography.caption, color: palette.muted },
-  scoreValue: { color: palette.white, fontSize: 26, fontWeight: "900" },
-  primaryButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.sm, flexDirection: "row", gap: spacing.xs, minHeight: 44, paddingHorizontal: spacing.md },
-  primaryText: { ...typography.caption, color: palette.ink },
-  disabled: { opacity: 0.45 },
-  scriptCard: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, gap: spacing.md, padding: spacing.lg },
+  scoreValue: { color: palette.white, fontSize: 26, fontWeight: "800" },
+  scoreMax: { color: palette.muted, fontSize: 12, fontWeight: "600" },
+  input: { ...typography.body, backgroundColor: palette.graphite, borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, color: palette.white, minHeight: 118, padding: spacing.md, textAlignVertical: "top" },
+  primaryButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 52, paddingHorizontal: spacing.lg },
+  primaryText: { ...typography.caption, color: palette.ink, textAlign: "center" },
+  disabled: { opacity: 0.42 },
+  scriptCard: { gap: spacing.md, padding: spacing.xl },
   scriptLabel: { ...typography.caption, color: palette.mint },
   scriptTitle: { ...typography.h2, color: palette.white },
   summary: { ...typography.body, color: palette.paperMuted },
   divider: { backgroundColor: palette.line, height: 1 },
   step: { alignItems: "flex-start", flexDirection: "row", gap: spacing.md },
-  stepIndex: { ...typography.caption, color: palette.lemon },
+  stepBadge: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, height: 28, justifyContent: "center", width: 28 },
+  stepIndex: { color: palette.ink, fontSize: 11, fontWeight: "800" },
   stepText: { ...typography.body, color: palette.white, flex: 1 },
-  promiseCard: { backgroundColor: palette.panelSoft, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, gap: spacing.sm, padding: spacing.lg },
-  promiseLabel: { ...typography.caption, color: palette.sky },
-  promiseText: { ...typography.h3, color: palette.white },
-  revenueText: { ...typography.caption, color: palette.mint },
-  generateButton: { alignItems: "center", borderColor: palette.mint, borderRadius: radius.sm, borderWidth: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 48 },
-  generateText: { ...typography.caption, color: palette.mint },
+  twoColumn: { flexDirection: "row", gap: spacing.sm },
+  promiseCard: { backgroundColor: palette.panelSoft, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flex: 1, gap: spacing.sm, minWidth: 0, padding: spacing.md },
+  revenueCard: { backgroundColor: "rgba(28,55,38,0.70)", borderColor: palette.lineStrong, borderRadius: radius.md, borderWidth: 1, flex: 1, gap: spacing.sm, minWidth: 0, padding: spacing.md },
+  promiseLabel: { ...typography.caption, color: palette.mint },
+  promiseText: { color: palette.white, fontSize: 13, fontWeight: "600", lineHeight: 19 },
+  riskPanel: { gap: spacing.md, padding: spacing.lg },
+  riskLabel: { ...typography.caption, color: palette.paperMuted },
+  riskLine: { alignItems: "flex-start", flexDirection: "row", gap: spacing.sm },
+  riskText: { ...typography.body, color: palette.paperMuted, flex: 1 },
+  generateButton: { alignItems: "center", borderColor: palette.lineStrong, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 50 },
+  generateText: { ...typography.caption, color: palette.mint, textAlign: "center" },
   stack: { gap: spacing.md },
-  ideaCard: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, gap: spacing.md, padding: spacing.md },
-  ideaTop: { alignItems: "center", flexDirection: "row", gap: spacing.md },
-  rank: { alignItems: "center", backgroundColor: palette.lemon, borderRadius: radius.sm, height: 36, justifyContent: "center", width: 36 },
-  rankText: { color: palette.ink, fontWeight: "900" },
+  ideaCard: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, gap: spacing.md, padding: spacing.lg },
+  ideaTop: { alignItems: "flex-start", flexDirection: "row", gap: spacing.md },
+  rank: { alignItems: "center", borderColor: palette.lineStrong, borderRadius: radius.pill, borderWidth: 1, height: 38, justifyContent: "center", width: 38 },
+  rankText: { color: palette.mint, fontSize: 11, fontWeight: "800" },
   ideaCopy: { flex: 1, gap: 3 },
   ideaTitle: { ...typography.h3, color: palette.white },
-  ideaFormat: { ...typography.caption, color: palette.muted },
-  ideaScore: { color: palette.mint, fontSize: 22, fontWeight: "900" },
+  ideaFormat: { ...typography.caption, color: palette.muted, fontSize: 10 },
+  scorePill: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, height: 38, justifyContent: "center", width: 38 },
+  ideaScore: { color: palette.ink, fontSize: 14, fontWeight: "800" },
   ideaPromise: { ...typography.body, color: palette.paperMuted },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  empty: { ...typography.body, color: palette.muted, textAlign: "center" }
+  useLine: { alignItems: "center", borderTopColor: palette.line, borderTopWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingTop: spacing.sm },
+  useText: { ...typography.caption, color: palette.mint },
+  emptyPanel: { alignItems: "center", flexDirection: "row", gap: spacing.md, padding: spacing.lg },
+  empty: { ...typography.body, color: palette.paperMuted, flex: 1 }
 });

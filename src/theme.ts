@@ -1,20 +1,21 @@
 export const palette = {
-  ink: "#06110E",
-  graphite: "rgba(8, 13, 12, 0.95)",
-  panel: "rgba(7, 13, 11, 0.80)",
-  panelSoft: "rgba(16, 23, 20, 0.68)",
-  line: "rgba(255, 255, 255, 0.12)",
-  paper: "#F1F5F2",
-  paperMuted: "rgba(245, 248, 246, 0.72)",
+  ink: "#04120B",
+  graphite: "rgba(3, 15, 10, 0.96)",
+  panel: "rgba(5, 23, 15, 0.82)",
+  panelSoft: "rgba(10, 31, 21, 0.70)",
+  line: "rgba(181, 255, 63, 0.16)",
+  lineStrong: "rgba(181, 255, 63, 0.40)",
+  paper: "#F4F7F4",
+  paperMuted: "rgba(255, 255, 255, 0.72)",
   white: "#FFFFFF",
-  muted: "rgba(245, 248, 246, 0.46)",
-  mint: "#45F2A4",
-  mintDark: "#0B6246",
-  coral: "#8E9B95",
-  lemon: "#DDE6E1",
-  sky: "#70A58F",
-  violet: "#667A71",
-  green: "#45F2A4"
+  muted: "rgba(255, 255, 255, 0.42)",
+  mint: "#A7F542",
+  mintDark: "#2E771B",
+  coral: "#C9D2CD",
+  lemon: "#E7EEE9",
+  sky: "#8FB8A8",
+  violet: "#7C9489",
+  green: "#A7F542"
 };
 
 export const shadow = {
@@ -26,11 +27,11 @@ export const shadow = {
     shadowRadius: 8
   },
   md: {
-    elevation: 8,
+    elevation: 10,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.42,
-    shadowRadius: 18
+    shadowOpacity: 0.48,
+    shadowRadius: 22
   }
 };
 
@@ -45,40 +46,40 @@ export const spacing = {
 
 export const radius = {
   sm: 8,
-  md: 10,
-  lg: 14,
+  md: 8,
+  lg: 8,
   pill: 999
 };
 
 export const typography = {
   title: {
-    fontSize: 32,
-    lineHeight: 36,
-    fontWeight: "900" as const,
+    fontSize: 34,
+    lineHeight: 39,
+    fontWeight: "800" as const,
     letterSpacing: 0
   },
   h2: {
-    fontSize: 22,
-    lineHeight: 27,
-    fontWeight: "900" as const,
+    fontSize: 24,
+    lineHeight: 29,
+    fontWeight: "800" as const,
     letterSpacing: 0
   },
   h3: {
-    fontSize: 17,
-    lineHeight: 22,
-    fontWeight: "800" as const,
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: "700" as const,
     letterSpacing: 0
   },
   body: {
     fontSize: 15,
-    lineHeight: 21,
-    fontWeight: "600" as const,
+    lineHeight: 22,
+    fontWeight: "500" as const,
     letterSpacing: 0
   },
   caption: {
     fontSize: 12,
-    lineHeight: 16,
-    fontWeight: "800" as const,
+    lineHeight: 17,
+    fontWeight: "700" as const,
     letterSpacing: 0
   }
 };

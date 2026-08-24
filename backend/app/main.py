@@ -155,7 +155,7 @@ def monetization_label(profile: CreatorProfile) -> str:
         "affiliate": "affiliation",
         "service": "service ou diagnostic",
         "product": "produit digital",
-        "shop": "TikTok Shop",
+        "partnerships": "partenariats de marque",
     }.get(profile.monetization, "première offre simple")
 
 
@@ -195,7 +195,7 @@ def onboarding_fallback(profile: CreatorProfile) -> dict[str, Any]:
         "affiliate": "Commence par une ressource affiliée directement liée au problème traité.",
         "service": "Propose un diagnostic court pour valider la demande avant une offre complète.",
         "product": "Transforme la question la plus fréquente en ressource numérique minimale.",
-        "shop": "Teste des démonstrations produit centrées sur l'usage, la preuve et l'objection.",
+        "partnerships": "Crée trois contenus de preuve qui montrent aux marques ton angle et la réaction recherchée.",
     }.get(profile.monetization, "Valide une première piste de revenu avec une action mesurable.")
 
     return {
@@ -222,8 +222,8 @@ def profile_fallback(source: str) -> dict[str, Any]:
         "score": 54,
         "confidence": "faible",
         "summary": (
-            "Le moteur visuel complet est indisponible, donc ce bilan reste prudent. "
-            "VIRALY AI peut quand même te donner un plan de correction à partir d'une capture de profil."
+            "Lecture visuelle limitée pour cette session. Ce bilan prudent se concentre sur les fondations "
+            "qui peuvent être corrigées sans inventer de métriques."
         ),
         "visibleSignals": [
             "Capture importée depuis la galerie",
@@ -267,8 +267,8 @@ def content_fallback(content_type: str, asset_count: int, transcript: str | None
     return {
         "score": score,
         "summary": (
-            f"Analyse de secours du {format_label}: le moteur visuel complet est indisponible, "
-            "donc les conseils se concentrent sur la structure, la rétention et le chemin revenu."
+            f"Audit structurel du {format_label}: la lecture visuelle détaillée n'est pas disponible pour cette session. "
+            "Le verdict se concentre donc sur la séquence, la clarté et le chemin de conversion."
         ),
         "revenueCta": (
             "Commente 'PLAN' si tu veux la checklist, puis enregistre ce contenu pour l'appliquer."
@@ -328,7 +328,7 @@ def idea_fallback(idea: str, profile: CreatorProfile) -> dict[str, Any]:
     return {
         "score": 68 if profile.niche in {"clear", "broad"} else 58,
         "summary": (
-            f"Analyse de secours pour {niche}: l'idée est exploitable si elle promet un résultat précis "
+            f"Premier filtre stratégique pour {niche}: l'idée est exploitable si elle promet un résultat précis "
             "et prouve vite pourquoi le spectateur doit rester."
         ),
         "optimizedHook": f"Tu veux vraiment réussir ça ? Voici l'erreur cachée derrière: {clean_idea[:90]}",
@@ -401,7 +401,7 @@ def coach_fallback(request: CoachRequest) -> dict[str, Any]:
     return {
         "answer": answer,
         "why": (
-            f"Réponse de secours basée sur ta niche ({niche}), ton objectif {profile.goal}, "
+            f"Décision construite à partir de ta niche ({niche}), de ton objectif {profile.goal}, "
             f"format {preferred_format(profile)}, monétisation {monetization_label(profile)}."
         ),
         "actions": [
@@ -790,12 +790,15 @@ async def analyze_profile(
             report = await ai.generate_json(
                 model=settings.visual_model,
                 feature="profile_analysis",
-                effort="low",
+                effort="medium",
+                verbosity="medium",
                 schema=PROFILE_SCHEMA,
                 prompt=(
-                    "Analyse cette capture de profil TikTok. Extrais uniquement ce qui est réellement visible. "
-                    "Évalue le positionnement, la cohérence des couvertures, la promesse de bio, le chemin de "
-                    "conversion et la préparation à la monétisation. Les compteurs illisibles doivent être null. "
+                    "Analyse cette capture de profil TikTok comme un audit de conversion. Extrais uniquement ce qui est lisible. "
+                    "Identifie les preuves visibles dans la bio, les compteurs et les couvertures. Formule la promesse comprise "
+                    "par un nouveau visiteur en cinq secondes, puis repère la rupture principale entre découverte, confiance et action. "
+                    "Classe les corrections par impact et effort, et propose une action exécutable aujourd'hui avec un résultat observable. "
+                    "Les compteurs illisibles doivent être null. Ne déduis aucune performance vidéo depuis les miniatures. "
                     f"Source déclarée: {source}."
                 ),
                 media=[
@@ -879,10 +882,12 @@ async def analyze_content(
         )
 
     prompt = (
-        f"Analyse ce {type} TikTok pour l'objectif {goal}. Les images sont ordonnées. "
-        "Évalue hook/couverture, clarté, progression, rétention probable, preuve, partage, sauvegarde "
-        "et conversion. Un score doit être justifié par des éléments visibles; ne prétends pas connaître "
-        "la rétention réelle avant publication. Propose une version révisée et un CTA lié au revenu."
+        f"Audite ce {type} TikTok pour l'objectif {goal}. Les images sont ordonnées comme elles seront publiées. "
+        "Pour chaque dimension, cite un élément visible précis puis donne une seule correction prioritaire. "
+        "Vérifie la couverture, la compréhension sans contexte, la progression slide par slide, la preuve, "
+        "la valeur de sauvegarde ou partage et la continuité vers le CTA. Le score mesure la qualité observable, "
+        "jamais la rétention réelle avant publication. Réécris la couverture, ordonne un storyboard publiable "
+        "et termine par un CTA cohérent avec l'objectif sans promesse de revenu."
     )
     if transcript:
         prompt += f" Transcription audio automatique: {transcript[:10000]}"
@@ -893,6 +898,7 @@ async def analyze_content(
                 model=settings.visual_model,
                 feature="content_analysis",
                 effort="medium",
+                verbosity="medium",
                 schema=CONTENT_SCHEMA,
                 prompt=prompt,
                 media=media,
@@ -922,13 +928,15 @@ async def analyze_idea(
                 model=settings.strategy_model,
                 feature="idea_analysis",
                 effort="low",
+                verbosity="medium",
                 schema=IDEA_SCHEMA,
                 prompt=(
                     f"Analyse cette idée avant tournage: {request.idea}\n"
                     f"Profil créateur: {compact_context(request.profile.model_dump())}\n"
                     f"Contexte compte: {compact_context(request.account_context)}\n"
-                    "Le score mesure précision de promesse, tension, valeur partageable, adéquation audience, "
-                    "faisabilité et lien revenu. Donne un hook et un script directement filmables."
+                    "Évalue la précision de la promesse, la tension, l'utilité partageable, l'adéquation audience, "
+                    "la faisabilité et le lien revenu. Identifie le principal risque d'indifférence. "
+                    "Donne un hook de douze mots maximum et un script directement filmable, avec une fonction claire pour chaque étape."
                 ),
             )
             report["source"] = "openai"
@@ -954,13 +962,15 @@ async def analyze_onboarding(
             report = await ai.generate_json(
                 model=settings.strategy_model,
                 feature="onboarding_report",
-                effort="low",
+                effort="medium",
+                verbosity="medium",
                 schema=ONBOARDING_SCHEMA,
                 prompt=(
                     f"Établis le premier bilan de ce créateur: {compact_context(profile.model_dump())}. "
                     "Le score mesure uniquement la préparation opérationnelle déclarée, pas le potentiel viral garanti. "
-                    "Respecte exactement sa cadence et son temps disponible. Donne trois priorités, un cycle réaliste, "
-                    "une première semaine et une direction de revenu cohérente."
+                    "Respecte exactement sa cadence, son format naturel et son temps disponible. Prends parti pour un système simple. "
+                    "Donne trois priorités ordonnées, un cycle réaliste, une première semaine concrète et une direction de revenu "
+                    "qui correspond au niveau actuel du compte."
                 ),
             )
             report["source"] = "openai"
@@ -987,13 +997,15 @@ async def generate_ideas(
                 model=settings.strategy_model,
                 feature="idea_generation",
                 effort="low",
+                verbosity="low",
                 schema=IDEAS_SCHEMA,
                 prompt=(
                     f"Génère exactement {request.count} idées distinctes et réalisables. "
                     f"Profil: {compact_context(request.profile.model_dump())}. "
                     f"Contexte compte: {compact_context(request.account_context)}. "
-                    "Aucune tendance temps réel ne doit être inventée. Chaque idée doit avoir une promesse, "
-                    "un format, un effort réaliste et un chemin de monétisation cohérent."
+                    "Aucune tendance temps réel ne doit être inventée. Répartis les idées entre preuve, erreur, méthode et objection; "
+                    "aucune ne doit reformuler la précédente. Le titre doit pouvoir servir de texte d'ouverture à l'écran. "
+                    "Chaque idée doit avoir une promesse spécifique, un format, un effort réaliste et un chemin de monétisation cohérent."
                 ),
             )
             report["source"] = "openai"
@@ -1016,22 +1028,29 @@ async def coach(
     report = None
     if has_ai_budget(db, user_id):
         try:
+            coach_model = (
+                settings.strategy_model
+                if request.account_context and len(request.question.strip()) >= 80
+                else settings.fast_model
+            )
             report = await ai.generate_json(
-                model=settings.fast_model,
+                model=coach_model,
                 feature="coach_answer",
-                effort="low",
+                effort="medium" if coach_model == settings.strategy_model else "low",
+                verbosity="medium",
                 schema=COACH_SCHEMA,
                 prompt=(
                     f"Question: {request.question}\n"
                     f"Profil: {compact_context(request.profile.model_dump())}\n"
                     f"Compte: {compact_context(request.account_context)}\n"
                     f"Stratégie: {compact_context(request.strategy_context)}\n"
-                    "Réponds sans présenter les conseils génériques comme des vérités algorithmiques. "
-                    "Quand les données manquent, propose un protocole de test mesurable."
+                    "Réponds d'abord par une décision nette adaptée à ce profil. Justifie-la par les données disponibles. "
+                    "Transforme-la en une à quatre actions réalisables cette semaine. Quand une donnée manque, "
+                    "propose un test A/B qui ne change qu'une variable, avec métrique et règle de décision."
                 ),
             )
             report["source"] = "openai"
-            db.record_ai_usage(user_id, "coach", settings.fast_model)
+            db.record_ai_usage(user_id, "coach", coach_model)
         except AIUnavailableError:
             report = None
     if report is None:
@@ -1064,14 +1083,17 @@ async def generate_strategy(
             strategy = await ai.generate_json(
                 model=settings.strategy_model,
                 feature="creator_strategy",
-                effort="medium",
+                effort="high",
+                verbosity="medium",
                 schema=STRATEGY_SCHEMA,
                 prompt=(
             f"Crée une stratégie TikTok personnalisée. Profil: {compact_context(request.profile.model_dump())}. "
             f"Analyse de compte disponible: {compact_context(request.account_context)}. "
             f"Fuseau: {request.timezone}. Les créneaux sont des hypothèses à tester 14 jours, pas des vérités. "
-            "Prends parti pour une stratégie claire au lieu de lister des options génériques. "
-            "Donne des idées de posts concrètes, cohérentes avec la niche et directement publiables. "
+            "Prends parti pour une stratégie principale et fais des autres niches des piliers secondaires, pas des alternatives. "
+            "La synthèse doit nommer l'audience, le problème récurrent, la promesse éditoriale et le mécanisme de conversion. "
+            "Donne des idées de posts spécifiques à cette niche, avec une preuve ou un exemple attendu, jamais des titres génériques. "
+            "Chaque créneau doit inclure un protocole 14 jours où une seule variable change et une règle de décision. "
             "Ne parle pas d'éligibilité, de LIVE ou de TikTok Shop. "
             "Les fourchettes de revenu doivent être indicatives, modestes et accompagnées de leur base de calcul."
         ),
@@ -1149,14 +1171,16 @@ async def generate_calendar(
                 model=settings.fast_model,
                 feature="content_calendar",
                 effort="low",
+                verbosity="low",
                 schema=CALENDAR_SCHEMA,
                 prompt=(
                     f"Génère un calendrier du {start.isoformat()} au {end.isoformat()} inclus. "
                     f"Profil: {compact_context(request.profile.model_dump())}. "
             f"Stratégie validée: {compact_context(request.strategy)}. "
             "Respecte strictement la cadence et le temps disponible. Répartis recherche, vidéos, carrousels, "
-            "et stories seulement quand cohérent. Chaque événement doit être une idée de post spécifique "
-            "avec un hook et un CTA concret."
+            "et stories seulement quand cohérent. Aucun titre générique: chaque événement doit viser une question, "
+            "une erreur ou une objection précise de la niche. Fournis un hook prononçable ou affichable et un CTA concret. "
+            "Le calendrier doit alterner acquisition, confiance et conversion sans dépasser la cadence déclarée."
         ),
             )
             result["source"] = "openai"

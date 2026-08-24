@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 import { ProgressBar } from "../components/ProgressBar";
+import { GlassPanel } from "../components/GlassPanel";
 import { SectionHeader } from "../components/SectionHeader";
 import {
   CalendarEvent,
@@ -167,9 +168,15 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <Text style={styles.kicker}>PLAN ET CALENDRIER</Text>
-        <Text style={styles.title}>Une stratégie qui devient des dates.</Text>
-        <Text style={styles.subtitle}>{strategy?.summary || "Génère d'abord un plan relié au diagnostic, puis transforme-le en semaine de publication."}</Text>
+        <Text style={styles.kicker}>PLAN DE CROISSANCE</Text>
+        <Text style={styles.title}>Ta stratégie devient un rythme.</Text>
+        <Text style={styles.subtitle}>{strategy?.summary || "Choisis une direction claire, puis transforme-la en publications datées et mesurables."}</Text>
+      </View>
+
+      <View style={styles.contextStrip}>
+        <View style={styles.contextItem}><Ionicons color={palette.mint} name="locate-outline" size={16} /><Text numberOfLines={1} style={styles.contextText}>{profile.nicheTopic || profile.niche}</Text></View>
+        <View style={styles.contextDivider} />
+        <View style={styles.contextItem}><Ionicons color={accountContext ? palette.mint : palette.muted} name={accountContext ? "checkmark-circle" : "analytics-outline"} size={16} /><Text style={styles.contextText}>{accountContext ? "Diagnostic chargé" : "Profil déclaratif"}</Text></View>
       </View>
 
       <TouchableOpacity onPress={confirmProfileReset} style={styles.resetButton}>
@@ -182,7 +189,7 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
         <Text style={styles.primaryText}>{loading === "strategy" ? "Construction du plan..." : strategy ? "Actualiser la stratégie IA" : "Générer ma stratégie IA"}</Text>
       </TouchableOpacity>
 
-      <SectionHeader eyebrow="Calendrier" title="Idées de posts à publier" action={`${events.length} tâches`} />
+      <SectionHeader eyebrow="Cette semaine" title="Calendrier éditorial" action={`${events.length} publication${events.length > 1 ? "s" : ""}`} />
       <View style={styles.calendarActions}>
         <TouchableOpacity disabled={!strategy || loading !== null} onPress={buildCalendar} style={[styles.outlineButton, !strategy && styles.disabled]}>
           <Ionicons color={palette.mint} name="calendar-outline" size={18} />
@@ -230,17 +237,20 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
           ))}
         </View>
       ) : (
-        <Text style={styles.empty}>Génère une stratégie puis crée 7 jours de posts adaptés à ta niche.</Text>
+        <GlassPanel style={styles.emptyPanel} textureOpacity={0.08}>
+          <Ionicons color={palette.mint} name="calendar-clear-outline" size={24} />
+          <View style={styles.emptyCopy}><Text style={styles.emptyTitle}>Ta semaine est encore libre</Text><Text style={styles.empty}>Génère la stratégie, puis VIRALY répartira les idées selon ta cadence et tes créneaux de test.</Text></View>
+        </GlassPanel>
       )}
 
       {strategy ? (
         <>
           <SectionHeader eyebrow="Décision" title="Stratégie recommandée" />
           <View style={styles.stack}>
-            {strategy.niches.map((niche) => (
-              <View key={niche.name} style={styles.card}>
+            {strategy.niches.map((niche, index) => (
+              <View key={niche.name} style={[styles.card, index === 0 && styles.cardPrimary]}>
                 <View style={styles.cardTop}>
-                  <View style={styles.flex}><Text style={styles.cardTitle}>{niche.name}</Text><Text style={styles.meta}>{niche.audience}</Text></View>
+                  <View style={styles.flex}>{index === 0 ? <Text style={styles.primaryLabel}>AXE PRINCIPAL</Text> : null}<Text style={styles.cardTitle}>{niche.name}</Text><Text style={styles.meta}>{niche.audience}</Text></View>
                   <Text style={styles.score}>{niche.score}</Text>
                 </View>
                 <ProgressBar color={palette.mint} value={niche.score} />
@@ -288,25 +298,31 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
 }
 
 const styles = StyleSheet.create({
-  content: { gap: spacing.xl, padding: spacing.lg, paddingBottom: spacing.xxl },
+  content: { gap: spacing.xl, padding: spacing.lg, paddingBottom: spacing.xxl, paddingTop: spacing.lg },
   header: { gap: spacing.sm },
   kicker: { ...typography.caption, color: palette.sky },
   title: { ...typography.title, color: palette.white },
   subtitle: { ...typography.body, color: palette.paperMuted },
-  resetButton: { alignItems: "center", alignSelf: "flex-start", borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, flexDirection: "row", gap: spacing.sm, minHeight: 42, paddingHorizontal: spacing.md },
+  contextStrip: { alignItems: "center", backgroundColor: "rgba(3,15,10,0.62)", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  contextItem: { alignItems: "center", flex: 1, flexDirection: "row", gap: spacing.xs, minWidth: 0 },
+  contextText: { ...typography.caption, color: palette.paperMuted, flexShrink: 1 },
+  contextDivider: { backgroundColor: palette.line, height: 20, width: 1 },
+  resetButton: { alignItems: "center", alignSelf: "flex-start", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, minHeight: 42, paddingHorizontal: spacing.md },
   resetText: { ...typography.caption, color: palette.sky },
-  primaryButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.sm, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 50, paddingHorizontal: spacing.md },
+  primaryButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 52, paddingHorizontal: spacing.lg },
   primaryText: { ...typography.caption, color: palette.ink },
   stack: { gap: spacing.md },
-  card: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, gap: spacing.sm, padding: spacing.md },
+  card: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, gap: spacing.md, padding: spacing.lg },
+  cardPrimary: { borderColor: palette.lineStrong },
+  primaryLabel: { ...typography.caption, color: palette.mint, marginBottom: 3 },
   cardTop: { alignItems: "flex-start", flexDirection: "row", gap: spacing.md, justifyContent: "space-between" },
   cardTitle: { ...typography.h3, color: palette.white, flex: 1 },
-  score: { color: palette.mint, fontSize: 25, fontWeight: "900" },
+  score: { color: palette.mint, fontSize: 25, fontWeight: "800" },
   meta: { ...typography.caption, color: palette.muted },
   body: { ...typography.body, color: palette.paperMuted },
   accentText: { ...typography.caption, color: palette.mint },
   caveat: { color: palette.muted, fontSize: 11, lineHeight: 16 },
-  slotCard: { alignItems: "flex-start", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, padding: spacing.md },
+  slotCard: { alignItems: "flex-start", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, padding: spacing.lg },
   timeBlock: { alignItems: "center", backgroundColor: palette.graphite, borderRadius: radius.sm, gap: 2, minWidth: 68, padding: spacing.sm },
   time: { ...typography.h3, color: palette.mint },
   day: { color: palette.muted, fontSize: 10, textTransform: "uppercase" },
@@ -321,20 +337,20 @@ const styles = StyleSheet.create({
   columnText: { color: palette.paperMuted, fontSize: 12, lineHeight: 17 },
   range: { ...typography.caption, color: palette.lemon },
   calendarActions: { flexDirection: "row", gap: spacing.sm },
-  outlineButton: { alignItems: "center", borderColor: palette.mint, borderRadius: radius.sm, borderWidth: 1, flex: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 46 },
+  outlineButton: { alignItems: "center", borderColor: palette.lineStrong, borderRadius: radius.pill, borderWidth: 1, flex: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 48 },
   outlineText: { ...typography.caption, color: palette.mint },
-  iconTextButton: { alignItems: "center", borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, gap: 2, justifyContent: "center", minHeight: 46, paddingHorizontal: spacing.sm },
+  iconTextButton: { alignItems: "center", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, gap: 2, justifyContent: "center", minHeight: 48, paddingHorizontal: spacing.sm },
   notifyText: { color: palette.lemon, fontSize: 11, fontWeight: "800" },
   syncText: { color: palette.sky },
-  iconButton: { alignItems: "center", borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, height: 46, justifyContent: "center", width: 46 },
+  iconButton: { alignItems: "center", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, height: 48, justifyContent: "center", width: 48 },
   disabled: { opacity: 0.4 },
   addPanel: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, gap: spacing.sm, padding: spacing.md },
   input: { ...typography.body, backgroundColor: palette.graphite, borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, color: palette.white, minHeight: 44, paddingHorizontal: spacing.md },
   inputRow: { flexDirection: "row", gap: spacing.sm },
   timeInput: { width: 92 },
-  addButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.sm, justifyContent: "center", minHeight: 44 },
+  addButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, justifyContent: "center", minHeight: 48 },
   addText: { ...typography.caption, color: palette.ink },
-  eventCard: { alignItems: "flex-start", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, padding: spacing.md },
+  eventCard: { alignItems: "flex-start", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, padding: spacing.lg },
   eventDone: { opacity: 0.62 },
   checkButton: { alignItems: "center", borderColor: palette.mint, borderRadius: radius.sm, borderWidth: 1, height: 38, justifyContent: "center", width: 38 },
   checkDone: { backgroundColor: palette.mint },
@@ -343,5 +359,8 @@ const styles = StyleSheet.create({
   eventHook: { ...typography.body, color: palette.paperMuted, marginTop: 4 },
   eventCta: { color: palette.lemon, fontSize: 11, lineHeight: 16, marginTop: 4 },
   deleteButton: { alignItems: "center", height: 36, justifyContent: "center", width: 30 },
-  empty: { ...typography.body, color: palette.muted, textAlign: "center" }
+  emptyPanel: { alignItems: "center", flexDirection: "row", gap: spacing.md, padding: spacing.lg },
+  emptyCopy: { flex: 1, gap: 4 },
+  emptyTitle: { ...typography.h3, color: palette.white },
+  empty: { ...typography.body, color: palette.paperMuted }
 });

@@ -252,11 +252,11 @@ export default function App() {
         <View style={styles.scrim}>
           <LinearGradient
             colors={[
-              "rgba(2,7,5,0.24)",
-              "rgba(2,7,5,0.50)",
-              "rgba(2,7,5,0.92)"
+              "rgba(1,10,7,0.18)",
+              "rgba(2,15,10,0.38)",
+              "rgba(2,12,8,0.94)"
             ]}
-            locations={[0, 0.42, 1]}
+            locations={[0, 0.48, 1]}
             pointerEvents="none"
             style={StyleSheet.absoluteFill}
           />
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   },
   screenTexture: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.07
+    opacity: 0.10
   },
   screen: {
     flex: 1,

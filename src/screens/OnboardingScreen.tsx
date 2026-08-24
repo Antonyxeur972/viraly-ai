@@ -131,7 +131,7 @@ const questions: Question[] = [
       { id: "affiliate", label: "Affiliation", detail: "Recommander des outils ou produits cohérents.", icon: "link-outline" },
       { id: "service", label: "Service ou coaching", detail: "Transformer l'expertise en offre.", icon: "chatbubbles-outline" },
       { id: "product", label: "Produit digital", detail: "Vendre template, guide ou formation.", icon: "cube-outline" },
-      { id: "shop", label: "TikTok Shop", detail: "Créer du contenu qui démontre et convertit.", icon: "storefront-outline" }
+      { id: "partnerships", label: "Partenariats de marque", detail: "Créer des contenus sponsorisés cohérents avec l'audience.", icon: "ribbon-outline" }
     ]
   }
 ];
@@ -201,22 +201,22 @@ export function OnboardingScreen({
       <ScrollView contentContainerStyle={styles.authContent} showsVerticalScrollIndicator={false}>
         <View style={styles.authHero}>
           <Text style={styles.brand}>VIRALY <Text style={styles.brandAccent}>AI</Text></Text>
-          <Text style={styles.authTitle}>Construisons ton point de départ.</Text>
-          <Text style={styles.authBody}>Connecte ton compte Google pour conserver ton diagnostic, ou ouvre la version de test immédiatement.</Text>
+          <Text style={styles.authTitle}>Ton studio de croissance commence ici.</Text>
+          <Text style={styles.authBody}>Connecte Google pour retrouver ton diagnostic, ta niche et ton calendrier sur chaque session.</Text>
         </View>
         <GlassPanel style={styles.authPanel}>
           <View style={styles.authMark}>
-            <Ionicons color={palette.white} name="logo-google" size={28} />
+            <Ionicons color={palette.ink} name="logo-google" size={28} />
           </View>
-          <Text style={styles.authPanelTitle}>Ton espace créateur</Text>
-          <Text style={styles.authPanelBody}>La connexion TikTok viendra ensuite. Google sert uniquement à sécuriser ton espace VIRALY AI.</Text>
+          <Text style={styles.authPanelTitle}>Un espace créateur personnel</Text>
+          <Text style={styles.authPanelBody}>Tes réponses, ton diagnostic et ton plan restent liés à ton espace VIRALY AI.</Text>
           <TouchableOpacity disabled={googleStatus === "connecting"} onPress={onConnectGoogle} style={styles.googleButton}>
             <Ionicons color={palette.ink} name="logo-google" size={20} />
             <Text style={styles.googleButtonText}>{googleStatus === "connecting" ? "Connexion..." : "Continuer avec Google"}</Text>
           </TouchableOpacity>
           {previewAvailable ? (
             <TouchableOpacity disabled={googleStatus === "connecting"} onPress={onDeveloperPreview} style={styles.previewButton}>
-              <Text style={styles.previewText}>{googleStatus === "connecting" ? "Ouverture..." : "Accéder à la version de test"}</Text>
+              <Text style={styles.previewText}>{googleStatus === "connecting" ? "Ouverture..." : "Découvrir sans connexion"}</Text>
             </TouchableOpacity>
           ) : null}
         </GlassPanel>
@@ -343,20 +343,20 @@ export function OnboardingScreen({
 }
 
 const styles = StyleSheet.create({
-  authContent: { flexGrow: 1, justifyContent: "space-between", padding: spacing.lg, paddingBottom: spacing.xxl, paddingTop: 70 },
+  authContent: { flexGrow: 1, justifyContent: "space-between", padding: spacing.lg, paddingBottom: spacing.xxl, paddingTop: 72 },
   authHero: { gap: spacing.md },
-  brand: { color: palette.white, fontSize: 20, fontWeight: "900" },
+  brand: { color: palette.white, fontSize: 25, fontWeight: "800" },
   brandAccent: { color: palette.mint },
-  authTitle: { color: palette.white, fontSize: 38, fontWeight: "900", lineHeight: 41, maxWidth: 340 },
+  authTitle: { color: palette.white, fontSize: 39, fontWeight: "800", lineHeight: 43, maxWidth: 360 },
   authBody: { ...typography.body, color: palette.paperMuted, maxWidth: 360 },
-  authPanel: { alignItems: "center", gap: spacing.md, padding: spacing.xl },
-  authMark: { alignItems: "center", backgroundColor: "rgba(255,255,255,0.08)", borderColor: palette.line, borderRadius: 28, borderWidth: 1, height: 56, justifyContent: "center", width: 56 },
+  authPanel: { alignItems: "center", borderColor: palette.lineStrong, gap: spacing.md, padding: spacing.xl },
+  authMark: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, height: 58, justifyContent: "center", width: 58 },
   authPanelTitle: { ...typography.h2, color: palette.white },
   authPanelBody: { ...typography.body, color: palette.paperMuted, textAlign: "center" },
-  googleButton: { alignItems: "center", backgroundColor: palette.paper, borderRadius: radius.md, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 54, width: "100%" },
+  googleButton: { alignItems: "center", backgroundColor: palette.paper, borderRadius: radius.pill, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 54, width: "100%" },
   googleButtonText: { ...typography.body, color: palette.ink, fontWeight: "900" },
-  previewButton: { padding: spacing.sm },
-  previewText: { ...typography.caption, color: palette.muted },
+  previewButton: { borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
+  previewText: { ...typography.caption, color: palette.paperMuted },
   privacy: { ...typography.caption, color: palette.muted, textAlign: "center" },
   content: { gap: spacing.xl, padding: spacing.lg, paddingBottom: spacing.xxl, paddingTop: spacing.xl },
   progressTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
@@ -367,9 +367,9 @@ const styles = StyleSheet.create({
   title: { ...typography.title, color: palette.white },
   subtitle: { ...typography.body, color: palette.paperMuted },
   options: { gap: spacing.sm },
-  option: { alignItems: "center", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, minHeight: 82, padding: spacing.md },
-  optionActive: { backgroundColor: "rgba(69,242,164,0.10)", borderColor: palette.mint },
-  optionIcon: { alignItems: "center", backgroundColor: "rgba(255,255,255,0.06)", borderRadius: radius.sm, height: 42, justifyContent: "center", width: 42 },
+  option: { alignItems: "center", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, minHeight: 88, padding: spacing.md },
+  optionActive: { backgroundColor: "rgba(167,245,66,0.08)", borderColor: palette.lineStrong },
+  optionIcon: { alignItems: "center", backgroundColor: "rgba(255,255,255,0.06)", borderRadius: radius.pill, height: 44, justifyContent: "center", width: 44 },
   optionIconActive: { backgroundColor: palette.mint },
   optionCopy: { flex: 1, gap: 3 },
   optionLabel: { ...typography.h3, color: palette.white },
@@ -380,9 +380,9 @@ const styles = StyleSheet.create({
   analysisError: { alignItems: "flex-start", borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.sm, padding: spacing.md },
   analysisErrorText: { ...typography.caption, color: palette.paperMuted, flex: 1 },
   navigation: { flexDirection: "row", gap: spacing.sm },
-  backButton: { alignItems: "center", borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, height: 54, justifyContent: "center", width: 54 },
+  backButton: { alignItems: "center", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, height: 54, justifyContent: "center", width: 54 },
   backPlaceholder: { width: 54 },
-  continueButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.md, flex: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 54 },
+  continueButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, flex: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 54 },
   continueDisabled: { opacity: 0.28 },
   continueText: { ...typography.body, color: palette.ink, fontWeight: "900" },
   reportPanel: { gap: spacing.md, padding: spacing.lg },
@@ -404,6 +404,6 @@ const styles = StyleSheet.create({
   cycleBody: { ...typography.body, color: palette.paperMuted },
   revenueLine: { alignItems: "flex-start", borderTopColor: palette.line, borderTopWidth: 1, flexDirection: "row", gap: spacing.sm, paddingTop: spacing.md },
   revenueText: { ...typography.body, color: palette.paperMuted, flex: 1 },
-  primaryButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.md, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 56 },
+  primaryButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 56 },
   primaryButtonText: { ...typography.body, color: palette.ink, fontWeight: "900" }
 });

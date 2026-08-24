@@ -1,4 +1,5 @@
 import type { CreatorOnboardingProfile } from "../types";
+import { Platform } from "react-native";
 
 const SESSION_TOKEN_KEY = "viraly_session_token";
 const CREATOR_PROFILE_KEY = "viraly_creator_profile";
@@ -21,6 +22,7 @@ export function getApiSessionToken() {
 }
 
 async function getSecureStore() {
+  if (Platform.OS === "web") return null;
   try {
     return await import("expo-secure-store");
   } catch {
@@ -28,15 +30,27 @@ async function getSecureStore() {
   }
 }
 
+function getWebItem(key: string) {
+  if (Platform.OS !== "web" || typeof window === "undefined") return null;
+  return window.localStorage.getItem(key);
+}
+
+function setWebItem(key: string, value?: string | null) {
+  if (Platform.OS !== "web" || typeof window === "undefined") return;
+  if (value) window.localStorage.setItem(key, value);
+  else window.localStorage.removeItem(key);
+}
+
 export async function loadApiSessionToken() {
   const secureStore = await getSecureStore();
-  const stored = secureStore ? await secureStore.getItemAsync(SESSION_TOKEN_KEY) : null;
+  const stored = secureStore ? await secureStore.getItemAsync(SESSION_TOKEN_KEY) : getWebItem(SESSION_TOKEN_KEY);
   sessionToken = stored?.trim() || process.env.EXPO_PUBLIC_VIRALY_DEV_TOKEN?.trim() || null;
   return sessionToken;
 }
 
 export function setApiSessionToken(token?: string | null) {
   sessionToken = token?.trim() || null;
+  setWebItem(SESSION_TOKEN_KEY, sessionToken);
   getSecureStore()
     .then((secureStore) => {
       if (!secureStore) return;
@@ -63,7 +77,7 @@ export async function loadCreatorProfile() {
   }
 
   const secureStore = await getSecureStore();
-  const stored = secureStore ? await secureStore.getItemAsync(CREATOR_PROFILE_KEY) : null;
+  const stored = secureStore ? await secureStore.getItemAsync(CREATOR_PROFILE_KEY) : getWebItem(CREATOR_PROFILE_KEY);
   if (!stored) return memoryCreatorProfile;
 
   try {
@@ -71,6 +85,7 @@ export async function loadCreatorProfile() {
     return memoryCreatorProfile;
   } catch {
     if (secureStore) await secureStore.deleteItemAsync(CREATOR_PROFILE_KEY);
+    setWebItem(CREATOR_PROFILE_KEY, null);
     return null;
   }
 }
@@ -81,6 +96,7 @@ export async function saveCreatorProfile(profile: CreatorOnboardingProfile) {
   if (secureStore) {
     await secureStore.setItemAsync(CREATOR_PROFILE_KEY, JSON.stringify(profile));
   }
+  setWebItem(CREATOR_PROFILE_KEY, JSON.stringify(profile));
   if (sessionToken) {
     await apiRequest("/api/v1/creator/profile", {
       method: "PUT",
@@ -93,6 +109,7 @@ export async function clearCreatorProfile() {
   memoryCreatorProfile = null;
   const secureStore = await getSecureStore();
   if (secureStore) await secureStore.deleteItemAsync(CREATOR_PROFILE_KEY);
+  setWebItem(CREATOR_PROFILE_KEY, null);
   if (sessionToken) {
     await apiRequest("/api/v1/creator/profile", { method: "DELETE" });
   }
