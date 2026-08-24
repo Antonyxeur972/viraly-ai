@@ -1,6 +1,9 @@
 import * as SecureStore from "expo-secure-store";
 
+import type { CreatorOnboardingProfile } from "../types";
+
 const SESSION_TOKEN_KEY = "viraly_session_token";
+const CREATOR_PROFILE_KEY = "viraly_creator_profile";
 
 let sessionToken: string | null =
   process.env.EXPO_PUBLIC_VIRALY_DEV_TOKEN?.trim() || null;
@@ -27,6 +30,26 @@ export function setApiSessionToken(token?: string | null) {
   } else {
     SecureStore.deleteItemAsync(SESSION_TOKEN_KEY).catch(() => {});
   }
+}
+
+export async function loadCreatorProfile() {
+  const stored = await SecureStore.getItemAsync(CREATOR_PROFILE_KEY);
+  if (!stored) return null;
+
+  try {
+    return JSON.parse(stored) as CreatorOnboardingProfile;
+  } catch {
+    await SecureStore.deleteItemAsync(CREATOR_PROFILE_KEY);
+    return null;
+  }
+}
+
+export async function saveCreatorProfile(profile: CreatorOnboardingProfile) {
+  await SecureStore.setItemAsync(CREATOR_PROFILE_KEY, JSON.stringify(profile));
+}
+
+export async function clearCreatorProfile() {
+  await SecureStore.deleteItemAsync(CREATOR_PROFILE_KEY);
 }
 
 export async function createPreviewSession(): Promise<{ token: string; name: string }> {
@@ -65,6 +88,9 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
       message = payload.detail || message;
     } catch {
       // Keep the status-based error when the backend did not return JSON.
+    }
+    if (response.status === 401) {
+      setApiSessionToken(null);
     }
     throw new Error(message);
   }

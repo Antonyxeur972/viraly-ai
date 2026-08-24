@@ -7,7 +7,6 @@ import secrets
 import time as unix_time
 from datetime import date, datetime, time, timedelta, timezone
 from hashlib import sha256
-from pathlib import Path
 from typing import Annotated, Any
 from urllib.parse import urlencode
 
@@ -22,7 +21,7 @@ from starlette.concurrency import run_in_threadpool
 from .ai import AIEngine, AIUnavailableError
 from .config import settings
 from .database import Database
-from .media import extract_video_assets, image_item, read_upload
+from .media import image_item, read_upload
 from .schemas import (
     CALENDAR_SCHEMA,
     COACH_SCHEMA,
@@ -830,39 +829,29 @@ async def analyze_content(
     db: Database = Depends(database),
     ai: AIEngine = Depends(ai_engine),
 ):
-    if type not in {"video", "carousel"}:
+    if type == "video":
+        raise HTTPException(
+            422,
+            "Analyse vidéo désactivée temporairement pour garder VIRALY AI rapide. Utilise l'analyse photo ou carrousel.",
+        )
+    if type != "carousel":
         raise HTTPException(422, "Type de contenu invalide.")
     if not assets or len(assets) > 10:
         raise HTTPException(422, "Sélectionne entre 1 et 10 médias.")
 
     media: list[dict[str, Any]] = []
     transcript: str | None = None
-    if type == "video":
-        upload = assets[0]
-        if not (upload.content_type or "").startswith("video/"):
-            raise HTTPException(415, "Le média sélectionné doit être une vidéo.")
-        data = await read_upload(upload, settings.max_upload_bytes)
-        frames, audio_path = extract_video_assets(
-            data, Path(upload.filename or "video.mp4").suffix
+    for upload in assets:
+        if not (upload.content_type or "").startswith("image/"):
+            raise HTTPException(
+                415, "Un carrousel doit contenir uniquement des images."
+            )
+        data = await read_upload(
+            upload, min(settings.max_upload_bytes, 15 * 1024 * 1024)
         )
-        media = [image_item(frame, "image/jpeg", detail="high") for frame in frames]
-        if audio_path:
-            try:
-                transcript = await ai.transcribe(audio_path)
-            finally:
-                Path(audio_path).unlink(missing_ok=True)
-    else:
-        for upload in assets:
-            if not (upload.content_type or "").startswith("image/"):
-                raise HTTPException(
-                    415, "Un carrousel doit contenir uniquement des images."
-                )
-            data = await read_upload(
-                upload, min(settings.max_upload_bytes, 15 * 1024 * 1024)
-            )
-            media.append(
-                image_item(data, upload.content_type or "image/jpeg", detail="high")
-            )
+        media.append(
+            image_item(data, upload.content_type or "image/jpeg", detail="high")
+        )
 
     prompt = (
         f"Analyse ce {type} TikTok pour l'objectif {goal}. Les images sont ordonnées. "

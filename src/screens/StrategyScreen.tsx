@@ -24,11 +24,12 @@ import { CreatorOnboardingProfile } from "../types";
 type Props = {
   profile: CreatorOnboardingProfile;
   accountContext: ProfileAnalysisReport | null;
+  onResetCreatorProfile: () => void;
 };
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export function StrategyScreen({ profile, accountContext }: Props) {
+export function StrategyScreen({ profile, accountContext, onResetCreatorProfile }: Props) {
   const [strategy, setStrategy] = useState<StrategyReport | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState<"strategy" | "calendar" | "event" | null>(null);
@@ -152,6 +153,17 @@ export function StrategyScreen({ profile, accountContext }: Props) {
     }
   };
 
+  const confirmProfileReset = () => {
+    Alert.alert(
+      "Nouvelle niche ?",
+      "Tu gardes ta connexion, mais VIRALY AI relance les questions de départ pour reconstruire un plan propre.",
+      [
+        { text: "Annuler", style: "cancel" },
+        { text: "Recommencer", style: "destructive", onPress: onResetCreatorProfile }
+      ]
+    );
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
@@ -159,6 +171,11 @@ export function StrategyScreen({ profile, accountContext }: Props) {
         <Text style={styles.title}>Une stratégie qui devient des dates.</Text>
         <Text style={styles.subtitle}>{strategy?.summary || "Génère d'abord un plan relié au diagnostic, puis transforme-le en semaine de publication."}</Text>
       </View>
+
+      <TouchableOpacity onPress={confirmProfileReset} style={styles.resetButton}>
+        <Ionicons color={palette.sky} name="refresh-outline" size={18} />
+        <Text style={styles.resetText}>Nouveau compte / nouvelle niche</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity disabled={loading !== null} onPress={buildStrategy} style={styles.primaryButton}>
         <Ionicons color={palette.ink} name="sparkles-outline" size={19} />
@@ -276,6 +293,8 @@ const styles = StyleSheet.create({
   kicker: { ...typography.caption, color: palette.sky },
   title: { ...typography.title, color: palette.white },
   subtitle: { ...typography.body, color: palette.paperMuted },
+  resetButton: { alignItems: "center", alignSelf: "flex-start", borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, flexDirection: "row", gap: spacing.sm, minHeight: 42, paddingHorizontal: spacing.md },
+  resetText: { ...typography.caption, color: palette.sky },
   primaryButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.sm, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 50, paddingHorizontal: spacing.md },
   primaryText: { ...typography.caption, color: palette.ink },
   stack: { gap: spacing.md },

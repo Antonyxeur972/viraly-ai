@@ -282,6 +282,18 @@ def test_carousel_analysis_falls_back_when_ai_is_unavailable(client, auth_header
     assert payload["analysisId"].startswith("ana_")
 
 
+def test_video_analysis_is_temporarily_disabled(client, auth_headers):
+    response = client.post(
+        "/api/v1/content/analyze",
+        headers=auth_headers,
+        data={"type": "video", "goal": "revenue"},
+        files={"assets[]": ("clip.mp4", b"fake-video", "video/mp4")},
+    )
+
+    assert response.status_code == 422
+    assert "désactivée" in response.json()["detail"]
+
+
 def test_coach_falls_back_when_ai_is_unavailable(client, auth_headers):
     response = client.post(
         "/api/v1/coach",

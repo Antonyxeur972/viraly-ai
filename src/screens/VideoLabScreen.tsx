@@ -22,16 +22,9 @@ import {
 import { palette, radius, spacing, typography } from "../theme";
 
 export function VideoLabScreen() {
-  const [mode, setMode] = useState<"video" | "carousel">("video");
   const [assets, setAssets] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [report, setReport] = useState<ContentAnalysisReport | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-  const selectMode = (next: "video" | "carousel") => {
-    setMode(next);
-    setAssets([]);
-    setReport(null);
-  };
 
   const pickContent = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -41,9 +34,9 @@ export function VideoLabScreen() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: false,
-      allowsMultipleSelection: mode === "carousel",
-      mediaTypes: mode === "video" ? ImagePicker.MediaTypeOptions.Videos : ImagePicker.MediaTypeOptions.Images,
-      selectionLimit: mode === "carousel" ? 10 : 1,
+      allowsMultipleSelection: true,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      selectionLimit: 10,
       quality: 1
     });
     if (!result.canceled) {
@@ -56,7 +49,7 @@ export function VideoLabScreen() {
     if (!assets.length) return;
     setIsAnalyzing(true);
     try {
-      setReport(await requestContentAnalysis(mode, assets));
+      setReport(await requestContentAnalysis("carousel", assets));
     } catch (error) {
       Alert.alert("Analyse du contenu", error instanceof Error ? error.message : "Analyse impossible.");
     } finally {
@@ -68,29 +61,25 @@ export function VideoLabScreen() {
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Text style={styles.kicker}>LABORATOIRE VISUEL</Text>
-        <Text style={styles.title}>Analyse avant publication.</Text>
-        <Text style={styles.subtitle}>L'IA lit les images, extrait des scènes de la vidéo et relie chaque correction à une action.</Text>
+        <Text style={styles.title}>Analyse photo et carrousel.</Text>
+        <Text style={styles.subtitle}>L'IA lit les images TikTok dans l'ordre et transforme chaque correction en action. La vidéo est retirée pour garder l'app rapide.</Text>
       </View>
 
-      <View style={styles.segmentedControl}>
-        {(["video", "carousel"] as const).map((item) => (
-          <TouchableOpacity key={item} onPress={() => selectMode(item)} style={[styles.segment, mode === item && styles.segmentActive]}>
-            <Ionicons color={mode === item ? palette.ink : palette.paperMuted} name={item === "video" ? "videocam-outline" : "images-outline"} size={18} />
-            <Text style={[styles.segmentText, mode === item && styles.segmentTextActive]}>{item === "video" ? "Vidéo" : "Carrousel"}</Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.modeCard}>
+        <Ionicons color={palette.ink} name="images-outline" size={18} />
+        <Text style={styles.modeText}>Carrousel photo actif</Text>
       </View>
 
       <TouchableOpacity onPress={pickContent} style={styles.uploadButton}>
         <View style={styles.uploadIcon}><Ionicons color={palette.ink} name="cloud-upload-outline" size={24} /></View>
         <View style={styles.uploadCopy}>
-          <Text style={styles.uploadTitle}>{assets.length ? `${assets.length} média${assets.length > 1 ? "s" : ""} prêt${assets.length > 1 ? "s" : ""}` : "Choisir depuis la galerie"}</Text>
-          <Text style={styles.uploadMeta}>{assets[0]?.fileName || (mode === "video" ? "MP4 ou MOV" : "Jusqu'à 10 images ordonnées")}</Text>
+          <Text style={styles.uploadTitle}>{assets.length ? `${assets.length} image${assets.length > 1 ? "s" : ""} prête${assets.length > 1 ? "s" : ""}` : "Choisir des photos TikTok"}</Text>
+          <Text style={styles.uploadMeta}>{assets[0]?.fileName || "Jusqu'à 10 images ordonnées"}</Text>
         </View>
         <Ionicons color={palette.muted} name="chevron-forward" size={20} />
       </TouchableOpacity>
 
-      {mode === "carousel" && assets.length ? (
+      {assets.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.previewRail}>
           {assets.map((asset, index) => (
             <View key={`${asset.uri}-${index}`} style={styles.previewItem}>
@@ -104,7 +93,7 @@ export function VideoLabScreen() {
       {assets.length ? (
         <TouchableOpacity disabled={isAnalyzing} onPress={analyze} style={styles.analyzeButton}>
           <Ionicons color={palette.ink} name="sparkles-outline" size={19} />
-          <Text style={styles.analyzeText}>{isAnalyzing ? "Lecture des scènes..." : "Lancer l'analyse IA"}</Text>
+          <Text style={styles.analyzeText}>{isAnalyzing ? "Lecture des images..." : "Lancer l'analyse IA"}</Text>
         </TouchableOpacity>
       ) : null}
 
@@ -167,11 +156,8 @@ const styles = StyleSheet.create({
   kicker: { ...typography.caption, color: palette.mint },
   title: { ...typography.title, color: palette.white },
   subtitle: { ...typography.body, color: palette.paperMuted },
-  segmentedControl: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", padding: 4 },
-  segment: { alignItems: "center", borderRadius: radius.sm, flex: 1, flexDirection: "row", gap: spacing.xs, justifyContent: "center", minHeight: 42 },
-  segmentActive: { backgroundColor: palette.mint },
-  segmentText: { ...typography.caption, color: palette.paperMuted },
-  segmentTextActive: { color: palette.ink },
+  modeCard: { alignItems: "center", alignSelf: "flex-start", backgroundColor: palette.mint, borderRadius: radius.sm, flexDirection: "row", gap: spacing.sm, minHeight: 42, paddingHorizontal: spacing.md },
+  modeText: { ...typography.caption, color: palette.ink },
   uploadButton: { alignItems: "center", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, minHeight: 78, padding: spacing.md },
   uploadIcon: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.sm, height: 46, justifyContent: "center", width: 46 },
   uploadCopy: { flex: 1, gap: 4 },

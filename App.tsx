@@ -20,7 +20,14 @@ import { IdeaLabScreen } from "./src/screens/IdeaLabScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { StrategyScreen } from "./src/screens/StrategyScreen";
 import { VideoLabScreen } from "./src/screens/VideoLabScreen";
-import { createPreviewSession, loadApiSessionToken, setApiSessionToken } from "./src/services/api";
+import {
+  clearCreatorProfile,
+  createPreviewSession,
+  loadApiSessionToken,
+  loadCreatorProfile,
+  saveCreatorProfile,
+  setApiSessionToken
+} from "./src/services/api";
 import {
   beginGoogleConnection,
   exchangeGoogleCode,
@@ -59,10 +66,14 @@ export default function App() {
   const [accountContext, setAccountContext] = useState<ProfileAnalysisReport | null>(null);
 
   useEffect(() => {
-    loadApiSessionToken().then((token) => {
+    Promise.all([loadApiSessionToken(), loadCreatorProfile()]).then(([token, storedProfile]) => {
       if (token && googleStatus !== "connected") {
         setGoogleName("Créateur");
         setGoogleStatus("connected");
+      }
+      if (token && storedProfile) {
+        setCreatorSetup(storedProfile);
+        setOnboardingComplete(true);
       }
     }).catch(() => {});
   }, []);
@@ -101,6 +112,18 @@ export default function App() {
     }
   };
 
+  const activateApiSession = async (token: string, name: string) => {
+    setApiSessionToken(token);
+    setGoogleName(name);
+    setGoogleStatus("connected");
+
+    const storedProfile = await loadCreatorProfile();
+    if (storedProfile) {
+      setCreatorSetup(storedProfile);
+      setOnboardingComplete(true);
+    }
+  };
+
   const connectGoogle = async () => {
     setGoogleStatus("connecting");
 
@@ -108,17 +131,13 @@ export default function App() {
       const callback = await beginGoogleConnection();
       if (callback.connected && callback.sessionId) {
         const session = await exchangeManagedSession(callback.sessionId);
-        setApiSessionToken(session.token);
-        setGoogleName(session.name);
-        setGoogleStatus("connected");
+        await activateApiSession(session.token, session.name);
         return;
       }
       if (!callback.connected || !callback.code) {
         if (callback.error?.toLowerCase().includes("google")) {
           const session = await createPreviewSession();
-          setApiSessionToken(session.token);
-          setGoogleName(session.name);
-          setGoogleStatus("connected");
+          await activateApiSession(session.token, session.name);
           Alert.alert(
             "Accès test activé",
             "Google n'est pas encore finalisé côté OAuth. Tu peux utiliser VIRALY AI avec l'accès test."
@@ -128,9 +147,7 @@ export default function App() {
         throw new Error(callback.error || "La connexion Google a échoué.");
       }
       const session = await exchangeGoogleCode(callback.code);
-      setApiSessionToken(session.token);
-      setGoogleName(session.name);
-      setGoogleStatus("connected");
+      await activateApiSession(session.token, session.name);
     } catch (error) {
       setGoogleStatus("error");
       Alert.alert(
@@ -144,9 +161,7 @@ export default function App() {
     setGoogleStatus("connecting");
     try {
       const session = await createPreviewSession();
-      setApiSessionToken(session.token);
-      setGoogleName(session.name);
-      setGoogleStatus("connected");
+      await activateApiSession(session.token, session.name);
     } catch (error) {
       setGoogleStatus("error");
       Alert.alert(
@@ -159,6 +174,15 @@ export default function App() {
   const finishOnboarding = (profile: CreatorOnboardingProfile) => {
     setCreatorSetup(profile);
     setOnboardingComplete(true);
+    saveCreatorProfile(profile).catch(() => {});
+  };
+
+  const resetCreatorProfile = async () => {
+    await clearCreatorProfile();
+    setCreatorSetup(null);
+    setAccountContext(null);
+    setOnboardingComplete(false);
+    setActiveTab("dashboard");
   };
 
   const changeTab = (tab: TabKey) => {
@@ -178,7 +202,13 @@ export default function App() {
       case "ideas":
         return <IdeaLabScreen accountContext={accountContext} profile={creatorSetup} />;
       case "strategy":
-        return <StrategyScreen accountContext={accountContext} profile={creatorSetup} />;
+        return (
+          <StrategyScreen
+            accountContext={accountContext}
+            onResetCreatorProfile={resetCreatorProfile}
+            profile={creatorSetup}
+          />
+        );
       case "coach":
         return <CoachScreen accountContext={accountContext} profile={creatorSetup} />;
       case "dashboard":

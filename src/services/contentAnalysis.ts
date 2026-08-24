@@ -25,7 +25,7 @@ export type ContentAnalysisReport = {
 };
 
 export async function requestContentAnalysis(
-  type: "video" | "carousel",
+  type: "carousel",
   assets: ImagePickerAsset[]
 ): Promise<ContentAnalysisReport> {
   const body = new FormData();
@@ -35,7 +35,7 @@ export async function requestContentAnalysis(
     body.append("assets[]", {
       uri: asset.uri,
       name: asset.fileName || `${type}-${index + 1}`,
-      type: asset.mimeType || (type === "video" ? "video/mp4" : "image/jpeg")
+      type: asset.mimeType || "image/jpeg"
     } as unknown as Blob);
   });
 
