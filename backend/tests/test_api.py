@@ -45,7 +45,7 @@ def test_calendar_crud_is_persistent(client, auth_headers):
     )
 
 
-def test_ai_endpoint_never_returns_fake_data_without_key(client, auth_headers):
+def test_idea_analysis_falls_back_without_key(client, auth_headers):
     response = client.post(
         "/api/v1/ideas/analyze",
         headers=auth_headers,
@@ -62,8 +62,9 @@ def test_ai_endpoint_never_returns_fake_data_without_key(client, auth_headers):
             },
         },
     )
-    assert response.status_code == 503
-    assert response.json()["code"] == "ai_not_configured"
+    assert response.status_code == 200
+    assert response.json()["source"] == "fallback_rules"
+    assert response.json()["analysisId"].startswith("ana_")
 
 
 def test_ai_authentication_error_is_sanitized(client):
@@ -279,6 +280,58 @@ def test_carousel_analysis_falls_back_when_ai_is_unavailable(client, auth_header
     assert payload["source"] == "fallback_rules"
     assert len(payload["dimensions"]) >= 4
     assert payload["analysisId"].startswith("ana_")
+
+
+def test_coach_falls_back_when_ai_is_unavailable(client, auth_headers):
+    response = client.post(
+        "/api/v1/coach",
+        headers=auth_headers,
+        json={
+            "question": "Quelle heure pour poster ?",
+            "profile": {
+                "goal": "revenue",
+                "niche": "clear",
+                "followers": "100-1000",
+                "cadence": "3-4",
+                "format": "camera",
+                "time": "3-5h",
+                "monetization": "service",
+            },
+            "account_context": None,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source"] == "fallback_rules"
+    assert payload["actions"]
+    assert payload["calendarSuggestion"]
+
+
+def test_strategy_falls_back_when_ai_is_unavailable(client, auth_headers):
+    response = client.post(
+        "/api/v1/strategy/generate",
+        headers=auth_headers,
+        json={
+            "profile": {
+                "goal": "revenue",
+                "niche": "clear",
+                "followers": "100-1000",
+                "cadence": "3-4",
+                "format": "camera",
+                "time": "3-5h",
+                "monetization": "service",
+            },
+            "account_context": None,
+            "timezone": "Europe/Paris",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source"] == "fallback_rules"
+    assert len(payload["niches"]) >= 2
+    assert len(payload["eligibility"]) == 3
 
 
 def test_google_state_and_one_time_session_exchange(client, monkeypatch):

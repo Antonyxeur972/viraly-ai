@@ -108,8 +108,35 @@ def ensure_ai_budget(db: Database, user_id: str) -> None:
         raise HTTPException(429, "Limite IA quotidienne atteinte.")
 
 
+def has_ai_budget(db: Database, user_id: str) -> bool:
+    limit = (
+        settings.preview_ai_daily_limit
+        if user_id.startswith("usr_preview_")
+        else settings.ai_daily_limit
+    )
+    return db.daily_ai_usage(user_id) < limit
+
+
 def compact_context(value: Any) -> str:
     return json.dumps(value or {}, ensure_ascii=False, separators=(",", ":"))[:12000]
+
+
+def preferred_format(profile: CreatorProfile) -> str:
+    return {
+        "camera": "vidéo face caméra",
+        "voice": "vidéo voix off",
+        "carousel": "carrousel",
+        "mixed": "format mixte",
+    }.get(profile.format, "format mixte")
+
+
+def monetization_label(profile: CreatorProfile) -> str:
+    return {
+        "affiliate": "affiliation",
+        "service": "service ou diagnostic",
+        "product": "produit digital",
+        "shop": "TikTok Shop",
+    }.get(profile.monetization, "première offre simple")
 
 
 def onboarding_fallback(profile: CreatorProfile) -> dict[str, Any]:
@@ -272,6 +299,250 @@ def content_fallback(content_type: str, asset_count: int, transcript: str | None
         },
         "source": "fallback_rules",
     }
+
+
+def idea_fallback(idea: str, profile: CreatorProfile) -> dict[str, Any]:
+    clean_idea = idea.strip()
+    return {
+        "score": 68 if profile.niche in {"clear", "broad"} else 58,
+        "summary": (
+            "Analyse de secours: l'idée est exploitable si elle promet un résultat précis "
+            "et prouve vite pourquoi le spectateur doit rester."
+        ),
+        "optimizedHook": f"Tu veux vraiment réussir ça ? Voici l'erreur cachée derrière: {clean_idea[:90]}",
+        "scriptSteps": [
+            "Nommer le problème en une phrase très directe.",
+            "Montrer un exemple concret ou une preuve visible.",
+            "Donner trois étapes applicables sans jargon.",
+            f"Finir par une action liée à {monetization_label(profile)}.",
+        ],
+        "audiencePromise": "Le spectateur repart avec une décision ou une correction immédiate.",
+        "revenuePath": (
+            f"Relier l'idée à {monetization_label(profile)} via une ressource, un diagnostic ou un produit utile."
+        ),
+        "risks": [
+            "Promesse trop large si l'audience n'est pas nommée.",
+            "CTA faible si aucune prochaine étape n'est proposée.",
+        ],
+        "source": "fallback_rules",
+    }
+
+
+def ideas_fallback(profile: CreatorProfile, count: int) -> dict[str, Any]:
+    format_name = preferred_format(profile)
+    revenue = monetization_label(profile)
+    base = [
+        ("3 erreurs qui bloquent tes résultats", "Corriger les erreurs invisibles que ton audience répète."),
+        ("Avant/après d'une décision simple", "Montrer le gain concret d'une meilleure méthode."),
+        ("La checklist à appliquer aujourd'hui", "Transformer un sujet flou en étapes sauvegardables."),
+        ("Ce que personne ne te dit avant de commencer", "Créer de la tension avec une vérité utile."),
+        ("J'analyse un cas réel en 60 secondes", "Prouver ton expertise sur un exemple compréhensible."),
+        ("Le plan 7 jours pour progresser", "Créer une série facile à suivre et à convertir."),
+        ("Stoppe cette habitude si tu veux avancer", "Utiliser une objection forte pour déclencher l'attention."),
+        ("La méthode courte pour obtenir un premier signal", "Réduire la friction et inviter à tester."),
+    ]
+    return {
+        "ideas": [
+            {
+                "title": title,
+                "format": format_name,
+                "promise": promise,
+                "score": min(86, 64 + index * 3),
+                "revenuePath": f"CTA vers {revenue}: commentaire mot-clé, lien bio ou message privé.",
+                "effort": "faible" if index < 2 else "moyen",
+            }
+            for index, (title, promise) in enumerate(base[:count])
+        ],
+        "source": "fallback_rules",
+    }
+
+
+def coach_fallback(request: CoachRequest) -> dict[str, Any]:
+    question = request.question.lower()
+    profile = request.profile
+    if "heure" in question or "poster" in question:
+        answer = "Teste 2 créneaux fixes pendant 14 jours: 12h15 et 19h30, puis garde celui qui gagne en sauvegardes et commentaires."
+        calendar = "Ajoute deux publications cette semaine: mardi 19h30 et jeudi 12h15."
+    elif "live" in question:
+        answer = "Prépare les LIVE comme un rendez-vous de conversion: un sujet précis, 3 preuves, 1 offre ou ressource en fin de session."
+        calendar = "Place un LIVE court de 25 minutes après une publication forte."
+    elif "story" in question:
+        answer = "Utilise les stories pour chauffer l'audience: coulisses, sondage, preuve, puis rappel vers le contenu principal."
+        calendar = "Ajoute 3 stories les jours sans publication."
+    else:
+        answer = (
+            "Priorité: clarifie la promesse, publie avec un rythme stable, puis relie chaque contenu à une action mesurable."
+        )
+        calendar = "Planifie une publication de preuve et une publication tutoriel cette semaine."
+    return {
+        "answer": answer,
+        "why": (
+            f"Réponse de secours basée sur ton profil: objectif {profile.goal}, "
+            f"format {preferred_format(profile)}, monétisation {monetization_label(profile)}."
+        ),
+        "actions": [
+            "Choisir un seul indicateur principal pour 7 jours.",
+            "Publier une série de 3 contenus sur le même problème.",
+            "Changer seulement le hook entre deux tests.",
+            "Relier le CTA à une action mesurable: sauvegarde, commentaire, clic ou message.",
+        ],
+        "calendarSuggestion": calendar,
+        "confidence": "moyenne",
+        "source": "fallback_rules",
+    }
+
+
+def strategy_fallback(profile: CreatorProfile, account_context: dict[str, Any] | None) -> dict[str, Any]:
+    revenue = monetization_label(profile)
+    format_name = preferred_format(profile)
+    has_context = bool(account_context)
+    return {
+        "summary": (
+            "Plan de secours calculé sans quota IA externe. Il donne une direction actionnable, "
+            "à valider avec les métriques réelles des 14 prochains jours."
+        ),
+        "niches": [
+            {
+                "name": "Problème précis + preuve courte",
+                "audience": "Créateurs ou prospects qui veulent un résultat mesurable rapidement.",
+                "edge": f"Utiliser ton format principal ({format_name}) pour prouver une correction en moins de 30 secondes.",
+                "revenueAngle": f"Entrée naturelle vers {revenue}.",
+                "score": 78 if has_context else 70,
+            },
+            {
+                "name": "Série éducative sauvegardable",
+                "audience": "Audience qui cherche des étapes claires avant d'acheter ou de demander de l'aide.",
+                "edge": "Transformer chaque contenu en mini-checklist avec une promesse très lisible.",
+                "revenueAngle": "Créer une ressource gratuite puis proposer l'étape payante.",
+                "score": 74,
+            },
+            {
+                "name": "Analyse de cas réel",
+                "audience": "Personnes qui veulent comprendre quoi changer sur leur propre situation.",
+                "edge": "Prouver ton niveau par diagnostic, pas par théorie.",
+                "revenueAngle": "Convertir vers audit, accompagnement ou recommandation produit.",
+                "score": 72,
+            },
+        ],
+        "postingSlots": [
+            {
+                "day": "Mardi",
+                "time": "19:30",
+                "reason": "Créneau de test après journée, souvent plus propice aux commentaires.",
+                "testProtocol": "Comparer commentaires/sauvegardes à 24h avec le jeudi midi.",
+            },
+            {
+                "day": "Jeudi",
+                "time": "12:15",
+                "reason": "Créneau court pour tester un contenu utile et sauvegardable.",
+                "testProtocol": "Garder le même sujet, changer seulement le hook.",
+            },
+            {
+                "day": "Dimanche",
+                "time": "18:00",
+                "reason": "Bon moment pour contenu bilan, plan ou préparation de semaine.",
+                "testProtocol": "Mesurer partages et clics vers l'action proposée.",
+            },
+        ],
+        "weeklyCycle": [
+            "Jour 1: rechercher 5 questions récurrentes et choisir une promesse.",
+            "Jour 2: publier un contenu problème + correction.",
+            "Jour 3: poster 2 stories pour sonder l'objection principale.",
+            "Jour 4: publier une preuve ou analyse de cas.",
+            "Jour 6: publier un carrousel checklist ou une vidéo plan d'action.",
+            "Jour 7: lire les métriques et recycler le meilleur angle.",
+        ],
+        "storyPlan": [
+            "Sondage simple avant publication.",
+            "Coulisse ou preuve après publication.",
+            "Question-réponse sur l'objection qui revient.",
+            "Rappel vers la ressource ou l'action principale.",
+        ],
+        "livePlan": [
+            "LIVE 25 minutes seulement si un sujet a déjà généré commentaires ou sauvegardes.",
+            "Structure: diagnostic rapide, 3 corrections, appel à l'action final.",
+            "Recycler les questions du LIVE en 3 contenus courts.",
+        ],
+        "revenuePaths": [
+            {
+                "name": revenue.title(),
+                "nextAction": "Créer une action simple: commentaire mot-clé, message privé ou ressource.",
+                "contentDirection": "Publier des contenus qui exposent le problème puis montrent la correction.",
+                "range": "0-300 €/mois au départ",
+                "basis": "Fourchette prudente pour un compte en validation, sans métriques TikTok authentifiées.",
+            },
+            {
+                "name": "Trafic qualifié",
+                "nextAction": "Préparer une page ou ressource liée à la bio dès que l'option est disponible.",
+                "contentDirection": "Utiliser tutoriels, preuves et comparatifs pour filtrer les bons prospects.",
+                "range": "Variable selon clics et offre",
+                "basis": "Le trafic dépendra du taux de clic, de la confiance et de la clarté du CTA.",
+            },
+        ],
+        "eligibility": [
+            {
+                "feature": "Lien en bio",
+                "status": "À vérifier",
+                "requirement": "Les critères varient selon pays, type de compte et politiques TikTok.",
+                "nextAction": "Préparer une ressource claire et vérifier l'option directement dans TikTok.",
+                "caveat": "VIRALY AI ne garantit pas l'éligibilité sans données TikTok authentifiées.",
+            },
+            {
+                "feature": "LIVE",
+                "status": "À vérifier",
+                "requirement": "TikTok applique des critères d'âge, de compte et parfois d'audience.",
+                "nextAction": "Construire une série de contenus avant de programmer un LIVE test.",
+                "caveat": "Les seuils peuvent changer selon région et état du compte.",
+            },
+            {
+                "feature": "TikTok Shop",
+                "status": "À vérifier",
+                "requirement": "Disponibilité variable selon pays, catégorie, âge et conformité du compte.",
+                "nextAction": "Tester d'abord des contenus démonstration et objections produit.",
+                "caveat": "Ne pas promettre de revenu avant validation de l'accès Shop.",
+            },
+        ],
+        "source": "fallback_rules",
+    }
+
+
+def calendar_fallback(
+    profile: CreatorProfile, strategy: dict[str, Any], start: date, days: int
+) -> dict[str, Any]:
+    slots = strategy.get("postingSlots") or []
+    slot_times = [slot.get("time", "19:00") for slot in slots if isinstance(slot, dict)]
+    default_times = slot_times or ["19:30", "12:15", "18:00"]
+    cadence_count = {
+        "1-2": 3,
+        "3-4": 5,
+        "5-7": 7,
+        "multiple": 7,
+    }.get(profile.cadence, 5)
+    total = min(days, cadence_count)
+    types = ["video", "story", "carousel", "research", "video", "live", "story"]
+    events = []
+    for index in range(total):
+        event_date = start + timedelta(days=index)
+        event_type = types[index % len(types)]
+        events.append(
+            {
+                "date": event_date.isoformat(),
+                "time": default_times[index % len(default_times)],
+                "type": event_type,
+                "title": [
+                    "Publier une correction concrète",
+                    "Story sondage objection",
+                    "Carrousel checklist sauvegardable",
+                    "Recherche questions audience",
+                    "Vidéo preuve ou cas réel",
+                    "LIVE diagnostic court",
+                    "Story rappel ressource",
+                ][index % 7],
+                "hook": "Tu peux corriger ça aujourd'hui avec une seule décision.",
+                "cta": f"Commente PLAN ou passe à l'étape liée à {monetization_label(profile)}.",
+            }
+        )
+    return {"events": events, "source": "fallback_rules"}
 
 
 def google_configured() -> bool:
@@ -484,30 +755,33 @@ async def analyze_profile(
     data = await read_upload(
         screenshot, min(settings.max_upload_bytes, 15 * 1024 * 1024)
     )
-    ensure_ai_budget(db, user_id)
-    try:
-        report = await ai.generate_json(
-            model=settings.visual_model,
-            feature="profile_analysis",
-            effort="low",
-            schema=PROFILE_SCHEMA,
-            prompt=(
-                "Analyse cette capture de profil TikTok. Extrais uniquement ce qui est réellement visible. "
-                "Évalue le positionnement, la cohérence des couvertures, la promesse de bio, le chemin de "
-                "conversion et la préparation à la monétisation. Les compteurs illisibles doivent être null. "
-                f"Source déclarée: {source}."
-            ),
-            media=[
-                image_item(
-                    data,
-                    screenshot.content_type or "image/jpeg",
-                    detail="original",
-                )
-            ],
-        )
-        report["source"] = "openai"
-        db.record_ai_usage(user_id, "profile-analysis", settings.visual_model)
-    except AIUnavailableError:
+    report = None
+    if has_ai_budget(db, user_id):
+        try:
+            report = await ai.generate_json(
+                model=settings.visual_model,
+                feature="profile_analysis",
+                effort="low",
+                schema=PROFILE_SCHEMA,
+                prompt=(
+                    "Analyse cette capture de profil TikTok. Extrais uniquement ce qui est réellement visible. "
+                    "Évalue le positionnement, la cohérence des couvertures, la promesse de bio, le chemin de "
+                    "conversion et la préparation à la monétisation. Les compteurs illisibles doivent être null. "
+                    f"Source déclarée: {source}."
+                ),
+                media=[
+                    image_item(
+                        data,
+                        screenshot.content_type or "image/jpeg",
+                        detail="original",
+                    )
+                ],
+            )
+            report["source"] = "openai"
+            db.record_ai_usage(user_id, "profile-analysis", settings.visual_model)
+        except AIUnavailableError:
+            report = None
+    if report is None:
         report = profile_fallback(source)
     report["analysisId"] = db.save_analysis(user_id, "profile", report)
     report["authenticatedTikTokData"] = False
@@ -557,7 +831,6 @@ async def analyze_content(
                 image_item(data, upload.content_type or "image/jpeg", detail="high")
             )
 
-    ensure_ai_budget(db, user_id)
     prompt = (
         f"Analyse ce {type} TikTok pour l'objectif {goal}. Les images sont ordonnées. "
         "Évalue hook/couverture, clarté, progression, rétention probable, preuve, partage, sauvegarde "
@@ -566,18 +839,22 @@ async def analyze_content(
     )
     if transcript:
         prompt += f" Transcription audio automatique: {transcript[:10000]}"
-    try:
-        report = await ai.generate_json(
-            model=settings.visual_model,
-            feature="content_analysis",
-            effort="medium",
-            schema=CONTENT_SCHEMA,
-            prompt=prompt,
-            media=media,
-        )
-        report["source"] = "openai"
-        db.record_ai_usage(user_id, "content-analysis", settings.visual_model)
-    except AIUnavailableError:
+    report = None
+    if has_ai_budget(db, user_id):
+        try:
+            report = await ai.generate_json(
+                model=settings.visual_model,
+                feature="content_analysis",
+                effort="medium",
+                schema=CONTENT_SCHEMA,
+                prompt=prompt,
+                media=media,
+            )
+            report["source"] = "openai"
+            db.record_ai_usage(user_id, "content-analysis", settings.visual_model)
+        except AIUnavailableError:
+            report = None
+    if report is None:
         report = content_fallback(type, len(assets), transcript)
     report["analysisId"] = db.save_analysis(user_id, "content", report)
     report["transcriptAvailable"] = bool(transcript)
@@ -591,21 +868,28 @@ async def analyze_idea(
     db: Database = Depends(database),
     ai: AIEngine = Depends(ai_engine),
 ):
-    ensure_ai_budget(db, user_id)
-    report = await ai.generate_json(
-        model=settings.strategy_model,
-        feature="idea_analysis",
-        effort="low",
-        schema=IDEA_SCHEMA,
-        prompt=(
-            f"Analyse cette idée avant tournage: {request.idea}\n"
-            f"Profil créateur: {compact_context(request.profile.model_dump())}\n"
-            f"Contexte compte: {compact_context(request.account_context)}\n"
-            "Le score mesure précision de promesse, tension, valeur partageable, adéquation audience, "
-            "faisabilité et lien revenu. Donne un hook et un script directement filmables."
-        ),
-    )
-    db.record_ai_usage(user_id, "idea-analysis", settings.strategy_model)
+    report = None
+    if has_ai_budget(db, user_id):
+        try:
+            report = await ai.generate_json(
+                model=settings.strategy_model,
+                feature="idea_analysis",
+                effort="low",
+                schema=IDEA_SCHEMA,
+                prompt=(
+                    f"Analyse cette idée avant tournage: {request.idea}\n"
+                    f"Profil créateur: {compact_context(request.profile.model_dump())}\n"
+                    f"Contexte compte: {compact_context(request.account_context)}\n"
+                    "Le score mesure précision de promesse, tension, valeur partageable, adéquation audience, "
+                    "faisabilité et lien revenu. Donne un hook et un script directement filmables."
+                ),
+            )
+            report["source"] = "openai"
+            db.record_ai_usage(user_id, "idea-analysis", settings.strategy_model)
+        except AIUnavailableError:
+            report = None
+    if report is None:
+        report = idea_fallback(request.idea, request.profile)
     report["analysisId"] = db.save_analysis(user_id, "idea", report)
     return report
 
@@ -617,25 +901,27 @@ async def analyze_onboarding(
     db: Database = Depends(database),
     ai: AIEngine = Depends(ai_engine),
 ):
-    ensure_ai_budget(db, user_id)
-    try:
-        report = await ai.generate_json(
-            model=settings.strategy_model,
-            feature="onboarding_report",
-            effort="low",
-            schema=ONBOARDING_SCHEMA,
-            prompt=(
-                f"Établis le premier bilan de ce créateur: {compact_context(profile.model_dump())}. "
-                "Le score mesure uniquement la préparation opérationnelle déclarée, pas le potentiel viral garanti. "
-                "Respecte exactement sa cadence et son temps disponible. Donne trois priorités, un cycle réaliste, "
-                "une première semaine et une direction de revenu cohérente."
-            ),
-        )
-    except AIUnavailableError:
+    report = None
+    if has_ai_budget(db, user_id):
+        try:
+            report = await ai.generate_json(
+                model=settings.strategy_model,
+                feature="onboarding_report",
+                effort="low",
+                schema=ONBOARDING_SCHEMA,
+                prompt=(
+                    f"Établis le premier bilan de ce créateur: {compact_context(profile.model_dump())}. "
+                    "Le score mesure uniquement la préparation opérationnelle déclarée, pas le potentiel viral garanti. "
+                    "Respecte exactement sa cadence et son temps disponible. Donne trois priorités, un cycle réaliste, "
+                    "une première semaine et une direction de revenu cohérente."
+                ),
+            )
+            report["source"] = "openai"
+            db.record_ai_usage(user_id, "onboarding", settings.strategy_model)
+        except AIUnavailableError:
+            report = None
+    if report is None:
         report = onboarding_fallback(profile)
-    else:
-        report["source"] = "openai"
-        db.record_ai_usage(user_id, "onboarding", settings.strategy_model)
     report["analysisId"] = db.save_analysis(user_id, "onboarding", report)
     return report
 
@@ -647,21 +933,28 @@ async def generate_ideas(
     db: Database = Depends(database),
     ai: AIEngine = Depends(ai_engine),
 ):
-    ensure_ai_budget(db, user_id)
-    report = await ai.generate_json(
-        model=settings.strategy_model,
-        feature="idea_generation",
-        effort="low",
-        schema=IDEAS_SCHEMA,
-        prompt=(
-            f"Génère exactement {request.count} idées distinctes et réalisables. "
-            f"Profil: {compact_context(request.profile.model_dump())}. "
-            f"Contexte compte: {compact_context(request.account_context)}. "
-            "Aucune tendance temps réel ne doit être inventée. Chaque idée doit avoir une promesse, "
-            "un format, un effort réaliste et un chemin de monétisation cohérent."
-        ),
-    )
-    db.record_ai_usage(user_id, "idea-generation", settings.strategy_model)
+    report = None
+    if has_ai_budget(db, user_id):
+        try:
+            report = await ai.generate_json(
+                model=settings.strategy_model,
+                feature="idea_generation",
+                effort="low",
+                schema=IDEAS_SCHEMA,
+                prompt=(
+                    f"Génère exactement {request.count} idées distinctes et réalisables. "
+                    f"Profil: {compact_context(request.profile.model_dump())}. "
+                    f"Contexte compte: {compact_context(request.account_context)}. "
+                    "Aucune tendance temps réel ne doit être inventée. Chaque idée doit avoir une promesse, "
+                    "un format, un effort réaliste et un chemin de monétisation cohérent."
+                ),
+            )
+            report["source"] = "openai"
+            db.record_ai_usage(user_id, "idea-generation", settings.strategy_model)
+        except AIUnavailableError:
+            report = None
+    if report is None:
+        report = ideas_fallback(request.profile, request.count)
     db.save_analysis(user_id, "ideas", report)
     return report
 
@@ -673,22 +966,29 @@ async def coach(
     db: Database = Depends(database),
     ai: AIEngine = Depends(ai_engine),
 ):
-    ensure_ai_budget(db, user_id)
-    report = await ai.generate_json(
-        model=settings.fast_model,
-        feature="coach_answer",
-        effort="low",
-        schema=COACH_SCHEMA,
-        prompt=(
-            f"Question: {request.question}\n"
-            f"Profil: {compact_context(request.profile.model_dump())}\n"
-            f"Compte: {compact_context(request.account_context)}\n"
-            f"Stratégie: {compact_context(request.strategy_context)}\n"
-            "Réponds sans présenter les conseils génériques comme des vérités algorithmiques. "
-            "Quand les données manquent, propose un protocole de test mesurable."
-        ),
-    )
-    db.record_ai_usage(user_id, "coach", settings.fast_model)
+    report = None
+    if has_ai_budget(db, user_id):
+        try:
+            report = await ai.generate_json(
+                model=settings.fast_model,
+                feature="coach_answer",
+                effort="low",
+                schema=COACH_SCHEMA,
+                prompt=(
+                    f"Question: {request.question}\n"
+                    f"Profil: {compact_context(request.profile.model_dump())}\n"
+                    f"Compte: {compact_context(request.account_context)}\n"
+                    f"Stratégie: {compact_context(request.strategy_context)}\n"
+                    "Réponds sans présenter les conseils génériques comme des vérités algorithmiques. "
+                    "Quand les données manquent, propose un protocole de test mesurable."
+                ),
+            )
+            report["source"] = "openai"
+            db.record_ai_usage(user_id, "coach", settings.fast_model)
+        except AIUnavailableError:
+            report = None
+    if report is None:
+        report = coach_fallback(request)
     db.save_analysis(user_id, "coach", report)
     return report
 
@@ -711,21 +1011,28 @@ async def generate_strategy(
     db: Database = Depends(database),
     ai: AIEngine = Depends(ai_engine),
 ):
-    ensure_ai_budget(db, user_id)
-    strategy = await ai.generate_json(
-        model=settings.strategy_model,
-        feature="creator_strategy",
-        effort="medium",
-        schema=STRATEGY_SCHEMA,
-        prompt=(
-            f"Crée une stratégie TikTok personnalisée. Profil: {compact_context(request.profile.model_dump())}. "
-            f"Analyse de compte disponible: {compact_context(request.account_context)}. "
-            f"Fuseau: {request.timezone}. Les créneaux sont des hypothèses à tester 14 jours, pas des vérités. "
-            "Pour lien bio, LIVE et Shop, indique que les critères varient selon pays, âge, état et type de compte. "
-            "Les fourchettes de revenu doivent être indicatives, modestes et accompagnées de leur base de calcul."
-        ),
-    )
-    db.record_ai_usage(user_id, "strategy", settings.strategy_model)
+    strategy = None
+    if has_ai_budget(db, user_id):
+        try:
+            strategy = await ai.generate_json(
+                model=settings.strategy_model,
+                feature="creator_strategy",
+                effort="medium",
+                schema=STRATEGY_SCHEMA,
+                prompt=(
+                    f"Crée une stratégie TikTok personnalisée. Profil: {compact_context(request.profile.model_dump())}. "
+                    f"Analyse de compte disponible: {compact_context(request.account_context)}. "
+                    f"Fuseau: {request.timezone}. Les créneaux sont des hypothèses à tester 14 jours, pas des vérités. "
+                    "Pour lien bio, LIVE et Shop, indique que les critères varient selon pays, âge, état et type de compte. "
+                    "Les fourchettes de revenu doivent être indicatives, modestes et accompagnées de leur base de calcul."
+                ),
+            )
+            strategy["source"] = "openai"
+            db.record_ai_usage(user_id, "strategy", settings.strategy_model)
+        except AIUnavailableError:
+            strategy = None
+    if strategy is None:
+        strategy = strategy_fallback(request.profile, request.account_context)
     db.save_strategy(user_id, strategy)
     return strategy
 
@@ -786,21 +1093,28 @@ async def generate_calendar(
     except ValueError as error:
         raise HTTPException(422, "Date de départ invalide.") from error
     end = start + timedelta(days=request.days - 1)
-    ensure_ai_budget(db, user_id)
-    result = await ai.generate_json(
-        model=settings.fast_model,
-        feature="content_calendar",
-        effort="low",
-        schema=CALENDAR_SCHEMA,
-        prompt=(
-            f"Génère un calendrier du {start.isoformat()} au {end.isoformat()} inclus. "
-            f"Profil: {compact_context(request.profile.model_dump())}. "
-            f"Stratégie validée: {compact_context(request.strategy)}. "
-            "Respecte strictement la cadence et le temps disponible. Répartis recherche, vidéos, carrousels, "
-            "stories et LIVE seulement quand cohérent. Chaque événement doit avoir un hook et un CTA concret."
-        ),
-    )
-    db.record_ai_usage(user_id, "calendar", settings.fast_model)
+    result = None
+    if has_ai_budget(db, user_id):
+        try:
+            result = await ai.generate_json(
+                model=settings.fast_model,
+                feature="content_calendar",
+                effort="low",
+                schema=CALENDAR_SCHEMA,
+                prompt=(
+                    f"Génère un calendrier du {start.isoformat()} au {end.isoformat()} inclus. "
+                    f"Profil: {compact_context(request.profile.model_dump())}. "
+                    f"Stratégie validée: {compact_context(request.strategy)}. "
+                    "Respecte strictement la cadence et le temps disponible. Répartis recherche, vidéos, carrousels, "
+                    "stories et LIVE seulement quand cohérent. Chaque événement doit avoir un hook et un CTA concret."
+                ),
+            )
+            result["source"] = "openai"
+            db.record_ai_usage(user_id, "calendar", settings.fast_model)
+        except AIUnavailableError:
+            result = None
+    if result is None:
+        result = calendar_fallback(request.profile, request.strategy, start, request.days)
     events = [
         db.create_event(
             user_id, {**event, "status": "planned", "source": "ai"}
