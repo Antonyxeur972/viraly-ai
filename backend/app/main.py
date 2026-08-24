@@ -112,6 +112,63 @@ def compact_context(value: Any) -> str:
     return json.dumps(value or {}, ensure_ascii=False, separators=(",", ":"))[:12000]
 
 
+def onboarding_fallback(profile: CreatorProfile) -> dict[str, Any]:
+    cadence = {
+        "1-2": "2 contenus par semaine",
+        "3-4": "3 contenus par semaine",
+        "5-7": "5 contenus par semaine",
+        "multiple": "1 contenu par jour avec un jour de récupération",
+    }.get(profile.cadence, "3 contenus par semaine")
+    score = 48
+    score += 12 if profile.niche == "clear" else 5 if profile.niche == "broad" else 0
+    score += 10 if profile.cadence in {"3-4", "5-7"} else 4
+    score += 8 if profile.time in {"6-10h", "10h+"} else 4
+    score += 7 if profile.format != "mixed" else 4
+    score = min(score, 86)
+
+    niche_priority = {
+        "clear": "Formule une promesse unique et répète-la sur trois contenus.",
+        "broad": "Réduis ta niche à une audience, un problème et un résultat précis.",
+        "hesitating": "Teste deux angles de niche pendant sept jours avec le même format.",
+        "none": "Choisis une niche à l'intersection de ton expérience, d'une demande et d'une offre.",
+    }.get(profile.niche, "Précise ton audience et le résultat promis.")
+    goal_priority = {
+        "reach": "Teste deux hooks par sujet et mesure les vues après 24 heures.",
+        "community": "Termine chaque contenu par une question qui appelle une réponse précise.",
+        "traffic": "Relie chaque publication à une ressource ou une prochaine étape mesurable.",
+        "revenue": "Valide une offre simple avant d'augmenter le volume de publication.",
+    }.get(profile.goal, "Définis un indicateur principal à suivre chaque semaine.")
+    format_priority = {
+        "camera": "Prépare des scripts courts : tension, preuve, action.",
+        "voice": "Construis une bibliothèque de plans et de voix off réutilisables.",
+        "carousel": "Fais de la première slide une promesse et de la dernière un appel à l'action.",
+        "mixed": "Garde un format principal et un seul format secondaire pendant deux semaines.",
+    }.get(profile.format, "Stabilise un format reconnaissable pendant deux semaines.")
+    revenue_direction = {
+        "affiliate": "Commence par une ressource affiliée directement liée au problème traité.",
+        "service": "Propose un diagnostic court pour valider la demande avant une offre complète.",
+        "product": "Transforme la question la plus fréquente en ressource numérique minimale.",
+        "shop": "Teste des démonstrations produit centrées sur l'usage, la preuve et l'objection.",
+    }.get(profile.monetization, "Valide une première piste de revenu avec une action mesurable.")
+
+    return {
+        "score": score,
+        "summary": (
+            "Ce premier bilan est calculé à partir de tes réponses. "
+            "Ta priorité est de stabiliser un positionnement, un format et un rythme mesurable."
+        ),
+        "priorities": [niche_priority, goal_priority, format_priority],
+        "cycle": cadence,
+        "firstWeek": [
+            "Jour 1 : préciser la promesse et préparer trois hooks",
+            "Jour 3 : publier un contenu de preuve ou de démonstration",
+            "Jour 6 : analyser les signaux et réécrire le meilleur angle",
+        ],
+        "revenueDirection": revenue_direction,
+        "source": "profile_rules",
+    }
+
+
 def google_configured() -> bool:
     return bool(
         settings.google_client_id
@@ -422,19 +479,24 @@ async def analyze_onboarding(
     ai: AIEngine = Depends(ai_engine),
 ):
     ensure_ai_budget(db, user_id)
-    report = await ai.generate_json(
-        model=settings.strategy_model,
-        feature="onboarding_report",
-        effort="low",
-        schema=ONBOARDING_SCHEMA,
-        prompt=(
-            f"Établis le premier bilan de ce créateur: {compact_context(profile.model_dump())}. "
-            "Le score mesure uniquement la préparation opérationnelle déclarée, pas le potentiel viral garanti. "
-            "Respecte exactement sa cadence et son temps disponible. Donne trois priorités, un cycle réaliste, "
-            "une première semaine et une direction de revenu cohérente."
-        ),
-    )
-    db.record_ai_usage(user_id, "onboarding", settings.strategy_model)
+    try:
+        report = await ai.generate_json(
+            model=settings.strategy_model,
+            feature="onboarding_report",
+            effort="low",
+            schema=ONBOARDING_SCHEMA,
+            prompt=(
+                f"Établis le premier bilan de ce créateur: {compact_context(profile.model_dump())}. "
+                "Le score mesure uniquement la préparation opérationnelle déclarée, pas le potentiel viral garanti. "
+                "Respecte exactement sa cadence et son temps disponible. Donne trois priorités, un cycle réaliste, "
+                "une première semaine et une direction de revenu cohérente."
+            ),
+        )
+    except AIUnavailableError:
+        report = onboarding_fallback(profile)
+    else:
+        report["source"] = "openai"
+        db.record_ai_usage(user_id, "onboarding", settings.strategy_model)
     report["analysisId"] = db.save_analysis(user_id, "onboarding", report)
     return report
 

@@ -142,6 +142,36 @@ def test_onboarding_uses_structured_ai_and_persists_result(client, auth_headers)
     assert response.json()["analysisId"].startswith("ana_")
 
 
+def test_onboarding_falls_back_to_profile_rules_when_ai_is_unavailable(client, auth_headers):
+    from app.ai import AIEngine
+    from app.config import Settings
+    from app.main import app
+
+    original = app.state.ai
+    app.state.ai = AIEngine(Settings(openai_api_key=""))
+    try:
+        response = client.post(
+            "/api/v1/onboarding/analyze",
+            headers=auth_headers,
+            json={
+                "goal": "revenue",
+                "niche": "broad",
+                "followers": "100-1000",
+                "cadence": "3-4",
+                "format": "camera",
+                "time": "3-5h",
+                "monetization": "service",
+            },
+        )
+    finally:
+        app.state.ai = original
+
+    assert response.status_code == 200
+    assert response.json()["source"] == "profile_rules"
+    assert len(response.json()["priorities"]) == 3
+    assert response.json()["analysisId"].startswith("ana_")
+
+
 def test_calendar_requires_a_session(client):
     response = client.get("/api/v1/calendar/events")
     assert response.status_code == 401
