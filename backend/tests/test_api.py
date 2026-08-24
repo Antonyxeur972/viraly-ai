@@ -66,6 +66,40 @@ def test_ai_endpoint_never_returns_fake_data_without_key(client, auth_headers):
     assert response.json()["code"] == "ai_not_configured"
 
 
+def test_ai_authentication_error_is_sanitized(client):
+    from openai import AuthenticationError
+    from app.ai import AIEngine, AIUnavailableError
+    from app.config import Settings
+
+    class FailingResponses:
+        async def create(self, **_):
+            raise AuthenticationError(
+                "invalid key",
+                response=type("Response", (), {"request": None, "status_code": 401, "headers": {}})(),
+                body={"error": {"message": "secret details"}},
+            )
+
+    engine = AIEngine(Settings())
+    engine.client = type("Client", (), {"responses": FailingResponses()})()
+
+    import asyncio
+
+    try:
+        asyncio.run(
+            engine.generate_json(
+                model="test-model",
+                feature="test",
+                prompt="test",
+                schema={"type": "object", "properties": {}},
+            )
+        )
+    except AIUnavailableError as error:
+        assert "renouvelée" in str(error)
+        assert "secret details" not in str(error)
+    else:
+        raise AssertionError("AIUnavailableError attendue")
+
+
 def test_onboarding_uses_structured_ai_and_persists_result(client, auth_headers):
     class FakeAI:
         configured = True

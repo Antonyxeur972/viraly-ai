@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from openai import AsyncOpenAI
+from openai import APIConnectionError, APIStatusError, AsyncOpenAI, AuthenticationError, RateLimitError
 
 from .config import Settings
 
@@ -50,21 +50,38 @@ class AIEngine:
 
         content: list[dict[str, Any]] = [{"type": "input_text", "text": prompt}]
         content.extend(media or [])
-        response = await self.client.responses.create(
-            model=model,
-            reasoning={"effort": effort},
-            instructions=SYSTEM_PROMPT,
-            input=[{"role": "user", "content": content}],
-            text={
-                "verbosity": "low",
-                "format": {
-                    "type": "json_schema",
-                    "name": feature.replace("-", "_")[:64],
-                    "strict": True,
-                    "schema": schema,
+        try:
+            response = await self.client.responses.create(
+                model=model,
+                reasoning={"effort": effort},
+                instructions=SYSTEM_PROMPT,
+                input=[{"role": "user", "content": content}],
+                text={
+                    "verbosity": "low",
+                    "format": {
+                        "type": "json_schema",
+                        "name": feature.replace("-", "_")[:64],
+                        "strict": True,
+                        "schema": schema,
+                    },
                 },
-            },
-        )
+            )
+        except AuthenticationError as error:
+            raise AIUnavailableError(
+                "La connexion au moteur IA doit être renouvelée. Réessaie dans quelques instants."
+            ) from error
+        except RateLimitError as error:
+            raise AIUnavailableError(
+                "Le moteur IA est momentanément saturé ou son quota est atteint."
+            ) from error
+        except APIConnectionError as error:
+            raise AIUnavailableError(
+                "Le moteur IA est momentanément inaccessible. Vérifie ta connexion puis réessaie."
+            ) from error
+        except APIStatusError as error:
+            raise AIUnavailableError(
+                "Le moteur IA n'a pas pu terminer cette analyse. Réessaie dans quelques instants."
+            ) from error
         if not response.output_text:
             raise RuntimeError("Le moteur IA n'a retourné aucune analyse exploitable.")
         return json.loads(response.output_text)
@@ -82,4 +99,3 @@ class AIEngine:
             return str(result).strip() or None
         except Exception:
             return None
-

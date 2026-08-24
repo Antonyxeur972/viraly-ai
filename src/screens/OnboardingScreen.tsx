@@ -142,6 +142,7 @@ export function OnboardingScreen({
   const [answers, setAnswers] = useState<Partial<CreatorOnboardingProfile>>({});
   const [report, setReport] = useState<OnboardingAIReport | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const googleConnected = googleStatus === "connected";
   const showingReport = step >= questions.length && report !== null;
   const current = questions[Math.min(step, questions.length - 1)];
@@ -155,14 +156,17 @@ export function OnboardingScreen({
     }
 
     setIsAnalyzing(true);
+    setAnalysisError(null);
     try {
       const nextReport = await analyzeOnboarding(answers as CreatorOnboardingProfile);
       setReport(nextReport);
       setStep(questions.length);
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Impossible de générer ton bilan.";
+      setAnalysisError(message);
       Alert.alert(
         "Bilan indisponible",
-        error instanceof Error ? error.message : "Impossible de générer ton bilan."
+        message
       );
     } finally {
       setIsAnalyzing(false);
@@ -276,6 +280,12 @@ export function OnboardingScreen({
           );
         })}
       </View>
+      {analysisError ? (
+        <View style={styles.analysisError}>
+          <Ionicons color={palette.paperMuted} name="alert-circle-outline" size={18} />
+          <Text style={styles.analysisErrorText}>{analysisError}</Text>
+        </View>
+      ) : null}
       <View style={styles.navigation}>
         {step > 0 ? (
           <TouchableOpacity onPress={() => setStep((value) => value - 1)} style={styles.backButton}>
@@ -323,6 +333,8 @@ const styles = StyleSheet.create({
   optionCopy: { flex: 1, gap: 3 },
   optionLabel: { ...typography.h3, color: palette.white },
   optionDetail: { ...typography.caption, color: palette.muted },
+  analysisError: { alignItems: "flex-start", borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.sm, padding: spacing.md },
+  analysisErrorText: { ...typography.caption, color: palette.paperMuted, flex: 1 },
   navigation: { flexDirection: "row", gap: spacing.sm },
   backButton: { alignItems: "center", borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, height: 54, justifyContent: "center", width: 54 },
   backPlaceholder: { width: 54 },
