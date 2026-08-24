@@ -50,7 +50,7 @@ app.add_middleware(
     allow_origins=list(settings.cors_origins),
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "X-Viraly-Installation"],
 )
 app.state.db = Database(settings.database_path)
 app.state.ai = AIEngine(settings)
@@ -71,7 +71,7 @@ async def security_headers(request, call_next):
 async def ai_unavailable_handler(_, error: AIUnavailableError):
     return JSONResponse(
         status_code=503,
-        content={"detail": str(error), "code": "ai_not_configured"},
+        content={"detail": str(error), "code": error.code},
     )
 
 
@@ -756,13 +756,18 @@ async def exchange_managed_auth_session(
 
 
 @app.post("/api/v1/auth/preview")
-def create_preview_session(request: Request, db: Database = Depends(database)):
+def create_preview_session(
+    request: Request,
+    installation_id: Annotated[str | None, Header(alias="X-Viraly-Installation")] = None,
+    db: Database = Depends(database),
+):
     if not settings.preview_access_enabled or not settings.preview_secret:
         raise HTTPException(503, "La version de test n'est pas activée.")
 
     client_ip = request.client.host if request.client else "unknown"
+    identity_source = (installation_id or "").strip()[:160] or client_ip
     identity = hmac.new(
-        settings.preview_secret.encode(), client_ip.encode(), sha256
+        settings.preview_secret.encode(), identity_source.encode(), sha256
     ).hexdigest()
     token = f"preview_{hmac.new(settings.preview_secret.encode(), identity.encode(), sha256).hexdigest()}"
     user_id = f"usr_preview_{identity[:32]}"
@@ -784,37 +789,32 @@ async def analyze_profile(
     data = await read_upload(
         screenshot, min(settings.max_upload_bytes, 15 * 1024 * 1024)
     )
-    report = None
-    if has_ai_budget(db, user_id):
-        try:
-            report = await ai.generate_json(
-                model=settings.visual_model,
-                feature="profile_analysis",
-                effort="medium",
-                verbosity="medium",
-                schema=PROFILE_SCHEMA,
-                prompt=(
-                    "Analyse cette capture de profil TikTok comme un audit de conversion. Extrais uniquement ce qui est lisible. "
-                    "Identifie les preuves visibles dans la bio, les compteurs et les couvertures. Formule la promesse comprise "
-                    "par un nouveau visiteur en cinq secondes, puis repère la rupture principale entre découverte, confiance et action. "
-                    "Classe les corrections par impact et effort, et propose une action exécutable aujourd'hui avec un résultat observable. "
-                    "Les compteurs illisibles doivent être null. Ne déduis aucune performance vidéo depuis les miniatures. "
-                    f"Source déclarée: {source}."
-                ),
-                media=[
-                    image_item(
-                        data,
-                        screenshot.content_type or "image/jpeg",
-                        detail="original",
-                    )
-                ],
+    ensure_ai_budget(db, user_id)
+    report = await ai.generate_json(
+        model=settings.visual_model,
+        feature="profile_analysis",
+        effort="medium",
+        verbosity="medium",
+        schema=PROFILE_SCHEMA,
+        prompt=(
+            "Analyse cette capture de profil TikTok comme un audit de conversion. Extrais uniquement ce qui est lisible. "
+            "Identifie les preuves visibles dans la bio, les compteurs et les couvertures. Formule la promesse comprise "
+            "par un nouveau visiteur en cinq secondes, puis repère la rupture principale entre découverte, confiance et action. "
+            "Classe les corrections par impact et effort, et propose une action exécutable aujourd'hui avec un résultat observable. "
+            "Les compteurs illisibles doivent être null. Ne déduis aucune performance vidéo depuis les miniatures. "
+            f"Source déclarée: {source}."
+        ),
+        media=[
+            image_item(
+                data,
+                screenshot.content_type or "image/jpeg",
+                detail="high",
             )
-            report["source"] = "openai"
-            db.record_ai_usage(user_id, "profile-analysis", settings.visual_model)
-        except AIUnavailableError:
-            report = None
-    if report is None:
-        report = profile_fallback(source)
+        ],
+    )
+    used_model = str(report.pop("_model", settings.visual_model))
+    report["source"] = "openai"
+    db.record_ai_usage(user_id, "profile-analysis", used_model)
     report["analysisId"] = db.save_analysis(user_id, "profile", report)
     report["authenticatedTikTokData"] = False
     return report
@@ -891,24 +891,19 @@ async def analyze_content(
     )
     if transcript:
         prompt += f" Transcription audio automatique: {transcript[:10000]}"
-    report = None
-    if has_ai_budget(db, user_id):
-        try:
-            report = await ai.generate_json(
-                model=settings.visual_model,
-                feature="content_analysis",
-                effort="medium",
-                verbosity="medium",
-                schema=CONTENT_SCHEMA,
-                prompt=prompt,
-                media=media,
-            )
-            report["source"] = "openai"
-            db.record_ai_usage(user_id, "content-analysis", settings.visual_model)
-        except AIUnavailableError:
-            report = None
-    if report is None:
-        report = content_fallback(type, len(assets), transcript)
+    ensure_ai_budget(db, user_id)
+    report = await ai.generate_json(
+        model=settings.visual_model,
+        feature="content_analysis",
+        effort="medium",
+        verbosity="medium",
+        schema=CONTENT_SCHEMA,
+        prompt=prompt,
+        media=media,
+    )
+    used_model = str(report.pop("_model", settings.visual_model))
+    report["source"] = "openai"
+    db.record_ai_usage(user_id, "content-analysis", used_model)
     report["analysisId"] = db.save_analysis(user_id, "content", report)
     report["transcriptAvailable"] = bool(transcript)
     return report

@@ -1,6 +1,7 @@
 import type { ImagePickerAsset } from "expo-image-picker";
 
 import { apiRequest } from "./api";
+import { normalizeImageForVision } from "./imageUpload";
 
 export type ContentAnalysisReport = {
   score: number;
@@ -22,6 +23,7 @@ export type ContentAnalysisReport = {
   };
   analysisId: string;
   transcriptAvailable: boolean;
+  source: "openai";
 };
 
 export async function requestContentAnalysis(
@@ -31,11 +33,14 @@ export async function requestContentAnalysis(
   const body = new FormData();
   body.append("type", type);
   body.append("goal", "revenue");
-  assets.forEach((asset, index) => {
+  const normalizedAssets = await Promise.all(
+    assets.map((asset, index) => normalizeImageForVision(asset, `carousel-${index + 1}`))
+  );
+  normalizedAssets.forEach((asset) => {
     body.append("assets[]", {
       uri: asset.uri,
-      name: asset.fileName || `${type}-${index + 1}`,
-      type: asset.mimeType || "image/jpeg"
+      name: asset.name,
+      type: asset.type
     } as unknown as Blob);
   });
 

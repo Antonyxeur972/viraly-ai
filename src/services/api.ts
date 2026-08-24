@@ -1,12 +1,15 @@
 import type { CreatorOnboardingProfile } from "../types";
+import * as Crypto from "expo-crypto";
 import { Platform } from "react-native";
 
 const SESSION_TOKEN_KEY = "viraly_session_token";
 const CREATOR_PROFILE_KEY = "viraly_creator_profile";
+const INSTALLATION_ID_KEY = "viraly_installation_id";
 
 let sessionToken: string | null =
   process.env.EXPO_PUBLIC_VIRALY_DEV_TOKEN?.trim() || null;
 let memoryCreatorProfile: CreatorOnboardingProfile | null = null;
+let memoryInstallationId: string | null = null;
 
 const PRODUCTION_API_URL = "https://viraly-ai.onrender.com";
 
@@ -116,9 +119,21 @@ export async function clearCreatorProfile() {
 }
 
 export async function createPreviewSession(): Promise<{ token: string; name: string }> {
+  const secureStore = await getSecureStore();
+  const storedInstallationId = secureStore
+    ? await secureStore.getItemAsync(INSTALLATION_ID_KEY)
+    : getWebItem(INSTALLATION_ID_KEY);
+  memoryInstallationId = memoryInstallationId || storedInstallationId || `install_${Crypto.randomUUID()}`;
+  if (!storedInstallationId) {
+    if (secureStore) await secureStore.setItemAsync(INSTALLATION_ID_KEY, memoryInstallationId);
+    setWebItem(INSTALLATION_ID_KEY, memoryInstallationId);
+  }
   const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/preview`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" }
+    headers: {
+      "Content-Type": "application/json",
+      "X-Viraly-Installation": memoryInstallationId
+    }
   });
   if (!response.ok) {
     let message = `Accès test indisponible (${response.status}).`;
@@ -133,7 +148,7 @@ export async function createPreviewSession(): Promise<{ token: string; name: str
   return response.json() as Promise<{ token: string; name: string }>;
 }
 
-export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function performApiRequest<T>(path: string, options: RequestInit, canRefreshPreview: boolean): Promise<T> {
   const baseUrl = getApiBaseUrl();
   if (!sessionToken) throw new Error("Reconnecte ton compte Google pour lancer cette analyse.");
 
@@ -152,6 +167,14 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
     } catch {
       // Keep the status-based error when the backend did not return JSON.
     }
+    const previewToken = sessionToken?.startsWith("preview_") ? sessionToken : null;
+    if (canRefreshPreview && previewToken && (response.status === 401 || response.status === 429)) {
+      const refreshed = await createPreviewSession();
+      if (refreshed.token !== previewToken) {
+        setApiSessionToken(refreshed.token);
+        return performApiRequest<T>(path, options, false);
+      }
+    }
     if (response.status === 401) {
       setApiSessionToken(null);
     }
@@ -159,4 +182,8 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
+}
+
+export function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  return performApiRequest<T>(path, options, true);
 }

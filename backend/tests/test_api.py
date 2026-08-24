@@ -230,7 +230,10 @@ def test_preview_session_issues_reusable_token(client, monkeypatch):
             preview_secret="test-preview-secret",
         ),
     )
-    response = client.post("/api/v1/auth/preview")
+    response = client.post(
+        "/api/v1/auth/preview",
+        headers={"X-Viraly-Installation": "iphone-test-installation"},
+    )
 
     assert response.status_code == 200
     payload = response.json()
@@ -241,6 +244,17 @@ def test_preview_session_issues_reusable_token(client, monkeypatch):
         headers={"Authorization": f"Bearer {payload['token']}"},
     )
     assert authorized.status_code == 200
+
+    same_installation = client.post(
+        "/api/v1/auth/preview",
+        headers={"X-Viraly-Installation": "iphone-test-installation"},
+    )
+    other_installation = client.post(
+        "/api/v1/auth/preview",
+        headers={"X-Viraly-Installation": "second-test-installation"},
+    )
+    assert same_installation.json()["token"] == payload["token"]
+    assert other_installation.json()["token"] != payload["token"]
 
 
 def test_google_auth_reports_missing_configuration(client, monkeypatch):
@@ -262,7 +276,7 @@ def test_google_auth_reports_missing_configuration(client, monkeypatch):
     assert "Google+n%27est+pas+encore+activ%C3%A9" in response.headers["location"]
 
 
-def test_profile_analysis_falls_back_when_ai_is_unavailable(client, auth_headers):
+def test_profile_analysis_reports_when_ai_is_unavailable(client, auth_headers):
     from app.ai import AIEngine
     from app.config import Settings
     from app.main import app
@@ -279,14 +293,12 @@ def test_profile_analysis_falls_back_when_ai_is_unavailable(client, auth_headers
     finally:
         app.state.ai = original
 
-    assert response.status_code == 200
+    assert response.status_code == 503
     payload = response.json()
-    assert payload["source"] == "fallback_rules"
-    assert payload["analysisId"].startswith("ana_")
-    assert payload["authenticatedTikTokData"] is False
+    assert payload["code"] == "unavailable"
 
 
-def test_carousel_analysis_falls_back_when_ai_is_unavailable(client, auth_headers):
+def test_carousel_analysis_reports_when_ai_is_unavailable(client, auth_headers):
     from app.ai import AIEngine
     from app.config import Settings
     from app.main import app
@@ -306,11 +318,9 @@ def test_carousel_analysis_falls_back_when_ai_is_unavailable(client, auth_header
     finally:
         app.state.ai = original
 
-    assert response.status_code == 200
+    assert response.status_code == 503
     payload = response.json()
-    assert payload["source"] == "fallback_rules"
-    assert len(payload["dimensions"]) >= 4
-    assert payload["analysisId"].startswith("ana_")
+    assert payload["code"] == "unavailable"
 
 
 def test_video_analysis_is_temporarily_disabled(client, auth_headers):

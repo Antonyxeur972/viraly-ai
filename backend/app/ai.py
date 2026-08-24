@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from openai import APIConnectionError, APIStatusError, AsyncOpenAI, AuthenticationError, RateLimitError
 
 from .config import Settings
+
+
+logger = logging.getLogger("viraly.ai")
 
 
 SYSTEM_PROMPT = """Tu es le directeur de croissance de VIRALY AI pour créateurs TikTok.
@@ -17,7 +21,9 @@ Réponds en français naturel et respecte exactement le schéma JSON demandé.""
 
 
 class AIUnavailableError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, code: str = "unavailable"):
+        super().__init__(message)
+        self.code = code
 
 
 class AIEngine:
@@ -51,41 +57,88 @@ class AIEngine:
 
         content: list[dict[str, Any]] = [{"type": "input_text", "text": prompt}]
         content.extend(media or [])
-        try:
-            response = await self.client.responses.create(
-                model=model,
-                reasoning={"effort": effort},
-                instructions=SYSTEM_PROMPT,
-                input=[{"role": "user", "content": content}],
-                text={
-                    "verbosity": verbosity,
-                    "format": {
-                        "type": "json_schema",
-                        "name": feature.replace("-", "_")[:64],
-                        "strict": True,
-                        "schema": schema,
-                    },
-                },
-            )
-        except AuthenticationError as error:
-            raise AIUnavailableError(
-                "La connexion au moteur IA doit être renouvelée. Réessaie dans quelques instants."
-            ) from error
-        except RateLimitError as error:
-            raise AIUnavailableError(
-                "Le moteur IA est momentanément saturé ou son quota est atteint."
-            ) from error
-        except APIConnectionError as error:
-            raise AIUnavailableError(
-                "Le moteur IA est momentanément inaccessible. Vérifie ta connexion puis réessaie."
-            ) from error
-        except APIStatusError as error:
-            raise AIUnavailableError(
-                "Le moteur IA n'a pas pu terminer cette analyse. Réessaie dans quelques instants."
-            ) from error
-        if not response.output_text:
-            raise RuntimeError("Le moteur IA n'a retourné aucune analyse exploitable.")
-        return json.loads(response.output_text)
+        candidates = [model]
+        fallbacks = ["gpt-4.1-mini", "gpt-4o-mini"] if media else [self.settings.fast_model, "gpt-4.1-mini"]
+        for fallback in fallbacks:
+            if fallback and fallback not in candidates:
+                candidates.append(fallback)
+
+        last_error: Exception | None = None
+        for candidate in candidates:
+            text_config: dict[str, Any] = {
+                "format": {
+                    "type": "json_schema",
+                    "name": feature.replace("-", "_")[:64],
+                    "strict": True,
+                    "schema": schema,
+                }
+            }
+            request: dict[str, Any] = {
+                "model": candidate,
+                "instructions": SYSTEM_PROMPT,
+                "input": [{"role": "user", "content": content}],
+                "text": text_config,
+            }
+            if candidate.startswith("gpt-5"):
+                request["reasoning"] = {"effort": effort}
+                text_config["verbosity"] = verbosity
+
+            try:
+                response = await self.client.responses.create(**request)
+                if not response.output_text:
+                    raise AIUnavailableError(
+                        "Le moteur IA n'a retourné aucune analyse exploitable.",
+                        code="empty_response",
+                    )
+                result = json.loads(response.output_text)
+                result["_model"] = candidate
+                return result
+            except AuthenticationError as error:
+                raise AIUnavailableError(
+                    "La connexion au moteur IA doit être renouvelée.",
+                    code="authentication",
+                ) from error
+            except RateLimitError as error:
+                last_error = error
+                error_code = self._error_code(error)
+                logger.warning("AI rate limit feature=%s model=%s code=%s", feature, candidate, error_code)
+                if error_code in {"insufficient_quota", "billing_hard_limit_reached"}:
+                    raise AIUnavailableError(
+                        "Le crédit OpenAI du backend est épuisé. Recharge la facturation API puis relance l'analyse.",
+                        code="quota",
+                    ) from error
+            except APIConnectionError as error:
+                raise AIUnavailableError(
+                    "Le moteur IA est momentanément inaccessible. Vérifie ta connexion puis réessaie.",
+                    code="connection",
+                ) from error
+            except APIStatusError as error:
+                last_error = error
+                logger.warning(
+                    "AI status error feature=%s model=%s status=%s code=%s",
+                    feature,
+                    candidate,
+                    error.status_code,
+                    self._error_code(error),
+                )
+                if error.status_code not in {400, 403, 404, 429}:
+                    break
+
+        raise AIUnavailableError(
+            "L'analyse visuelle n'a pas pu démarrer. Réessaie dans quelques instants.",
+            code="models_unavailable",
+        ) from last_error
+
+    @staticmethod
+    def _error_code(error: APIStatusError) -> str:
+        body = getattr(error, "body", None)
+        if isinstance(body, dict):
+            nested = body.get("error")
+            if isinstance(nested, dict) and nested.get("code"):
+                return str(nested["code"])
+            if body.get("code"):
+                return str(body["code"])
+        return str(getattr(error, "code", "unknown") or "unknown")
 
     async def transcribe(self, file_path: str) -> str | None:
         if not self.client:
