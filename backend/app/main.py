@@ -760,18 +760,15 @@ def create_preview_session(request: Request, db: Database = Depends(database)):
     if not settings.preview_access_enabled or not settings.preview_secret:
         raise HTTPException(503, "La version de test n'est pas activée.")
 
-    day = date.today().isoformat()
     client_ip = request.client.host if request.client else "unknown"
     identity = hmac.new(
-        settings.preview_secret.encode(), f"{day}:{client_ip}".encode(), sha256
+        settings.preview_secret.encode(), client_ip.encode(), sha256
     ).hexdigest()
     token = f"preview_{hmac.new(settings.preview_secret.encode(), identity.encode(), sha256).hexdigest()}"
     user_id = f"usr_preview_{identity[:32]}"
-    tomorrow = datetime.combine(
-        date.today() + timedelta(days=1), time.min, tzinfo=timezone.utc
-    ).isoformat()
-    db.ensure_preview_session(token, user_id, tomorrow)
-    return {"token": token, "name": "Créateur test", "expiresAt": tomorrow}
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+    db.ensure_preview_session(token, user_id, expires_at)
+    return {"token": token, "name": "Créateur test", "expiresAt": expires_at}
 
 
 @app.post("/api/v1/profile/analyze")

@@ -217,7 +217,7 @@ def test_preview_session_is_disabled_by_default(client, monkeypatch):
     assert response.status_code == 503
 
 
-def test_preview_session_issues_short_lived_token(client, monkeypatch):
+def test_preview_session_issues_reusable_token(client, monkeypatch):
     from dataclasses import replace
     from app import main
 
@@ -235,6 +235,7 @@ def test_preview_session_issues_short_lived_token(client, monkeypatch):
     assert response.status_code == 200
     payload = response.json()
     assert payload["token"].startswith("preview_")
+    assert payload["expiresAt"] > "2026-08-25"
     authorized = client.get(
         "/api/v1/calendar/events",
         headers={"Authorization": f"Bearer {payload['token']}"},

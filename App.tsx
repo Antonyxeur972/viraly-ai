@@ -23,6 +23,7 @@ import { VideoLabScreen } from "./src/screens/VideoLabScreen";
 import {
   clearCreatorProfile,
   createPreviewSession,
+  getApiSessionToken,
   loadApiSessionToken,
   loadCreatorProfile,
   saveCreatorProfile,
@@ -64,19 +65,6 @@ export default function App() {
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [creatorSetup, setCreatorSetup] = useState<CreatorOnboardingProfile | null>(null);
   const [accountContext, setAccountContext] = useState<ProfileAnalysisReport | null>(null);
-
-  useEffect(() => {
-    Promise.all([loadApiSessionToken(), loadCreatorProfile()]).then(([token, storedProfile]) => {
-      if (token && googleStatus !== "connected") {
-        setGoogleName("Créateur");
-        setGoogleStatus("connected");
-      }
-      if (token && storedProfile) {
-        setCreatorSetup(storedProfile);
-        setOnboardingComplete(true);
-      }
-    }).catch(() => {});
-  }, []);
 
   useEffect(() => {
     const handleUrl = (url: string) => {
@@ -123,6 +111,35 @@ export default function App() {
       setOnboardingComplete(true);
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const restoreSession = async () => {
+      const token = await loadApiSessionToken();
+      if (!token) return;
+
+      const storedProfile = await loadCreatorProfile();
+      if (!getApiSessionToken()) {
+        const session = await createPreviewSession();
+        if (!cancelled) await activateApiSession(session.token, session.name);
+        return;
+      }
+
+      if (cancelled) return;
+      setGoogleName("Créateur");
+      setGoogleStatus("connected");
+      if (storedProfile) {
+        setCreatorSetup(storedProfile);
+        setOnboardingComplete(true);
+      }
+    };
+
+    restoreSession().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const connectGoogle = async () => {
     setGoogleStatus("connecting");

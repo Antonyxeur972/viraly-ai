@@ -16,6 +16,10 @@ export function getApiBaseUrl() {
   );
 }
 
+export function getApiSessionToken() {
+  return sessionToken;
+}
+
 async function getSecureStore() {
   try {
     return await import("expo-secure-store");
