@@ -41,6 +41,7 @@ from .schemas import (
     StrategyRequest,
     CreatorProfile,
     GoogleCodeExchange,
+    ManagedSessionExchange,
 )
 
 
@@ -746,6 +747,40 @@ def exchange_google_session(
     if not session:
         raise HTTPException(401, "Code Google invalide ou expiré.")
     return session
+
+
+@app.post("/api/v1/auth/session")
+async def exchange_managed_auth_session(
+    payload: ManagedSessionExchange, db: Database = Depends(database)
+):
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            response = await client.get(
+                "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
+                headers={"X-Session-ID": payload.session_id},
+            )
+        except httpx.HTTPError as error:
+            raise HTTPException(
+                502, "Connexion Google temporairement indisponible."
+            ) from error
+
+    if response.status_code != 200:
+        raise HTTPException(401, "Session Google invalide ou expirée.")
+
+    data = response.json()
+    email = str(data.get("email") or "").strip().lower()
+    if not email:
+        raise HTTPException(401, "Profil Google incomplet.")
+    name = str(data.get("name") or email.split("@", 1)[0] or "Créateur")
+    session_token = str(data.get("session_token") or "").strip()
+    if not session_token:
+        raise HTTPException(401, "Session Google incomplète.")
+    return db.create_managed_login(
+        email=email,
+        name=name,
+        session_token=session_token,
+        picture=str(data.get("picture") or ""),
+    )
 
 
 @app.post("/api/v1/auth/preview")

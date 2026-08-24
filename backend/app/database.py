@@ -153,6 +153,32 @@ class Database:
             )
         return exchange_code
 
+    def create_managed_login(
+        self, email: str, name: str, session_token: str, picture: str | None = None
+    ) -> dict[str, str]:
+        user_id = f"usr_managed_{sha256(email.lower().encode()).hexdigest()[:32]}"
+        created_at = now_iso()
+        session_expiry = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+
+        with self.lock, self.connection:
+            self.connection.execute(
+                """
+                INSERT INTO users(id, email, name, created_at) VALUES (?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET email = excluded.email, name = excluded.name
+                """,
+                (user_id, email, name, created_at),
+            )
+            self.connection.execute(
+                "INSERT OR REPLACE INTO sessions(token, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)",
+                (session_token, user_id, session_expiry, created_at),
+            )
+        return {
+            "token": session_token,
+            "email": email,
+            "name": name or email.split("@", 1)[0] or "Créateur",
+            "picture": picture or "",
+        }
+
     def consume_oauth_code(self, code: str) -> dict[str, str] | None:
         with self.lock, self.connection:
             row = self.connection.execute(

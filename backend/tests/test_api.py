@@ -390,3 +390,49 @@ def test_google_state_and_one_time_session_exchange(client, monkeypatch):
     assert exchanged.status_code == 200
     assert exchanged.json()["token"]
     assert client.post("/api/v1/auth/google/session", json={"code": code}).status_code == 401
+
+
+def test_managed_google_session_exchange_creates_app_session(client, monkeypatch):
+    from app import main
+
+    class FakeResponse:
+        status_code = 200
+
+        def json(self):
+            return {
+                "email": "creator@example.com",
+                "name": "Creator",
+                "picture": "https://example.com/p.png",
+                "session_token": "managed_session_token_123",
+            }
+
+    class FakeClient:
+        def __init__(self, *_, **__):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def get(self, url, headers):
+            assert "session-data" in url
+            assert headers["X-Session-ID"] == "managed-session-id"
+            return FakeResponse()
+
+    monkeypatch.setattr(main.httpx, "AsyncClient", FakeClient)
+    response = client.post(
+        "/api/v1/auth/session",
+        json={"session_id": "managed-session-id"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["token"] == "managed_session_token_123"
+    assert payload["email"] == "creator@example.com"
+    authorized = client.get(
+        "/api/v1/calendar/events",
+        headers={"Authorization": "Bearer managed_session_token_123"},
+    )
+    assert authorized.status_code == 200

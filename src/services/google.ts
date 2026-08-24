@@ -1,4 +1,5 @@
 import { makeRedirectUri } from "expo-auth-session";
+import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 
 import { getApiBaseUrl } from "./api";
@@ -10,6 +11,7 @@ export type GoogleCallback = {
   email?: string;
   name?: string;
   code?: string;
+  sessionId?: string;
   error?: string;
 };
 
@@ -28,20 +30,41 @@ export function getGoogleCallbackUrl() {
 }
 
 export async function beginGoogleConnection(): Promise<GoogleCallback> {
-  const endpoint = getGoogleConnectionEndpoint();
-  const callbackUrl = getGoogleCallbackUrl();
-  const params = new URLSearchParams({ return_to: callbackUrl });
-  const separator = endpoint.includes("?") ? "&" : "?";
+  const callbackUrl = Linking.createURL("auth");
+  const authUrl = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(callbackUrl)}&app_name=${encodeURIComponent("VIRALY AI")}&name=${encodeURIComponent("VIRALY AI")}`;
   const result = await WebBrowser.openAuthSessionAsync(
-    `${endpoint}${separator}${params.toString()}`,
+    authUrl,
     callbackUrl
   );
   if (result.type !== "success") {
     return { connected: false, error: "Connexion Google annulée." };
   }
-  return parseGoogleCallback(result.url) || {
+  const managedCallback = parseManagedGoogleCallback(result.url);
+  if (managedCallback) return managedCallback;
+
+  const endpoint = getGoogleConnectionEndpoint();
+  const legacyCallbackUrl = getGoogleCallbackUrl();
+  const params = new URLSearchParams({ return_to: legacyCallbackUrl });
+  const separator = endpoint.includes("?") ? "&" : "?";
+  const legacyResult = await WebBrowser.openAuthSessionAsync(
+    `${endpoint}${separator}${params.toString()}`,
+    legacyCallbackUrl
+  );
+  if (legacyResult.type !== "success") {
+    return { connected: false, error: "Connexion Google annulée." };
+  }
+  return parseGoogleCallback(legacyResult.url) || {
     connected: false,
     error: "Retour Google invalide."
+  };
+}
+
+export function parseManagedGoogleCallback(url: string): GoogleCallback | null {
+  const sessionMatch = url.match(/[?#&]session_id=([^&]+)/);
+  if (!sessionMatch) return null;
+  return {
+    connected: true,
+    sessionId: decodeURIComponent(sessionMatch[1])
   };
 }
 
@@ -67,6 +90,25 @@ export async function exchangeGoogleCode(code: string) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code })
+  });
+  if (!response.ok) {
+    let message = "Impossible de créer la session Google.";
+    try {
+      const payload = await response.json();
+      message = payload.detail || message;
+    } catch {
+      // Keep the generic error when the backend did not return JSON.
+    }
+    throw new Error(message);
+  }
+  return response.json() as Promise<{ token: string; email: string; name: string }>;
+}
+
+export async function exchangeManagedSession(sessionId: string) {
+  const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: sessionId })
   });
   if (!response.ok) {
     let message = "Impossible de créer la session Google.";

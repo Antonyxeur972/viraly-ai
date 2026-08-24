@@ -23,7 +23,8 @@ import { VideoLabScreen } from "./src/screens/VideoLabScreen";
 import { createPreviewSession, setApiSessionToken } from "./src/services/api";
 import {
   beginGoogleConnection,
-  exchangeGoogleCode
+  exchangeGoogleCode,
+  exchangeManagedSession
 } from "./src/services/google";
 import {
   beginTikTokConnection,
@@ -96,6 +97,13 @@ export default function App() {
 
     try {
       const callback = await beginGoogleConnection();
+      if (callback.connected && callback.sessionId) {
+        const session = await exchangeManagedSession(callback.sessionId);
+        setApiSessionToken(session.token);
+        setGoogleName(session.name);
+        setGoogleStatus("connected");
+        return;
+      }
       if (!callback.connected || !callback.code) {
         if (callback.error?.toLowerCase().includes("google")) {
           const session = await createPreviewSession();
