@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class CreatorProfile(BaseModel):
     goal: str = "reach"
     niche: str = "none"
+    nicheTopic: str | None = Field(default=None, max_length=120)
     followers: str = "0-100"
     cadence: str = "3-4"
     format: str = "mixed"

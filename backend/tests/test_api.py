@@ -334,6 +334,30 @@ def test_strategy_falls_back_when_ai_is_unavailable(client, auth_headers):
     assert len(payload["eligibility"]) == 3
 
 
+def test_custom_niche_personalizes_strategy_fallback(client, auth_headers):
+    response = client.post(
+        "/api/v1/strategy/generate",
+        headers=auth_headers,
+        json={
+            "profile": {
+                "goal": "traffic",
+                "niche": "clear",
+                "nicheTopic": "recettes antillaises rapides",
+                "followers": "0-100",
+                "cadence": "1-2",
+                "format": "carousel",
+                "time": "1-2h",
+                "monetization": "affiliate",
+            },
+            "account_context": None,
+            "timezone": "Europe/Paris",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "recettes antillaises rapides" in response.json()["niches"][0]["name"]
+
+
 def test_google_state_and_one_time_session_exchange(client, monkeypatch):
     from dataclasses import replace
     from urllib.parse import parse_qs, urlparse

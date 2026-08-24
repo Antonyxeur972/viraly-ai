@@ -130,6 +130,26 @@ def preferred_format(profile: CreatorProfile) -> str:
     }.get(profile.format, "format mixte")
 
 
+def niche_label(profile: CreatorProfile) -> str:
+    custom = (profile.nicheTopic or "").strip()
+    if custom:
+        return custom[:120]
+    return {
+        "education": "éducation / pédagogie",
+        "business": "business / argent",
+        "fitness": "fitness / bien-être",
+        "beauty": "beauté / skincare",
+        "food": "food / recettes",
+        "travel": "voyage / lifestyle",
+        "tech": "IA / tech / outils",
+        "personal": "développement personnel",
+        "clear": "ta niche actuelle",
+        "broad": "ton thème large",
+        "hesitating": "tes niches en test",
+        "none": "une niche à valider",
+    }.get(profile.niche, "ta niche")
+
+
 def monetization_label(profile: CreatorProfile) -> str:
     return {
         "affiliate": "affiliation",
@@ -182,12 +202,13 @@ def onboarding_fallback(profile: CreatorProfile) -> dict[str, Any]:
         "score": score,
         "summary": (
             "Ce premier bilan est calculé à partir de tes réponses. "
-            "Ta priorité est de stabiliser un positionnement, un format et un rythme mesurable."
+            f"Ta priorité est de stabiliser un positionnement en {niche_label(profile)}, "
+            "un format et un rythme mesurable."
         ),
         "priorities": [niche_priority, goal_priority, format_priority],
         "cycle": cadence,
         "firstWeek": [
-            "Jour 1 : préciser la promesse et préparer trois hooks",
+            f"Jour 1 : préciser la promesse pour {niche_label(profile)} et préparer trois hooks",
             "Jour 3 : publier un contenu de preuve ou de démonstration",
             "Jour 6 : analyser les signaux et réécrire le meilleur angle",
         ],
@@ -303,10 +324,11 @@ def content_fallback(content_type: str, asset_count: int, transcript: str | None
 
 def idea_fallback(idea: str, profile: CreatorProfile) -> dict[str, Any]:
     clean_idea = idea.strip()
+    niche = niche_label(profile)
     return {
         "score": 68 if profile.niche in {"clear", "broad"} else 58,
         "summary": (
-            "Analyse de secours: l'idée est exploitable si elle promet un résultat précis "
+            f"Analyse de secours pour {niche}: l'idée est exploitable si elle promet un résultat précis "
             "et prouve vite pourquoi le spectateur doit rester."
         ),
         "optimizedHook": f"Tu veux vraiment réussir ça ? Voici l'erreur cachée derrière: {clean_idea[:90]}",
@@ -316,7 +338,7 @@ def idea_fallback(idea: str, profile: CreatorProfile) -> dict[str, Any]:
             "Donner trois étapes applicables sans jargon.",
             f"Finir par une action liée à {monetization_label(profile)}.",
         ],
-        "audiencePromise": "Le spectateur repart avec une décision ou une correction immédiate.",
+        "audiencePromise": f"L'audience {niche} repart avec une décision ou une correction immédiate.",
         "revenuePath": (
             f"Relier l'idée à {monetization_label(profile)} via une ressource, un diagnostic ou un produit utile."
         ),
@@ -330,6 +352,7 @@ def idea_fallback(idea: str, profile: CreatorProfile) -> dict[str, Any]:
 
 def ideas_fallback(profile: CreatorProfile, count: int) -> dict[str, Any]:
     format_name = preferred_format(profile)
+    niche = niche_label(profile)
     revenue = monetization_label(profile)
     base = [
         ("3 erreurs qui bloquent tes résultats", "Corriger les erreurs invisibles que ton audience répète."),
@@ -346,7 +369,7 @@ def ideas_fallback(profile: CreatorProfile, count: int) -> dict[str, Any]:
             {
                 "title": title,
                 "format": format_name,
-                "promise": promise,
+                "promise": f"{promise} Angle: {niche}.",
                 "score": min(86, 64 + index * 3),
                 "revenuePath": f"CTA vers {revenue}: commentaire mot-clé, lien bio ou message privé.",
                 "effort": "faible" if index < 2 else "moyen",
@@ -360,6 +383,7 @@ def ideas_fallback(profile: CreatorProfile, count: int) -> dict[str, Any]:
 def coach_fallback(request: CoachRequest) -> dict[str, Any]:
     question = request.question.lower()
     profile = request.profile
+    niche = niche_label(profile)
     if "heure" in question or "poster" in question:
         answer = "Teste 2 créneaux fixes pendant 14 jours: 12h15 et 19h30, puis garde celui qui gagne en sauvegardes et commentaires."
         calendar = "Ajoute deux publications cette semaine: mardi 19h30 et jeudi 12h15."
@@ -377,7 +401,7 @@ def coach_fallback(request: CoachRequest) -> dict[str, Any]:
     return {
         "answer": answer,
         "why": (
-            f"Réponse de secours basée sur ton profil: objectif {profile.goal}, "
+            f"Réponse de secours basée sur ta niche ({niche}), ton objectif {profile.goal}, "
             f"format {preferred_format(profile)}, monétisation {monetization_label(profile)}."
         ),
         "actions": [
@@ -395,6 +419,7 @@ def coach_fallback(request: CoachRequest) -> dict[str, Any]:
 def strategy_fallback(profile: CreatorProfile, account_context: dict[str, Any] | None) -> dict[str, Any]:
     revenue = monetization_label(profile)
     format_name = preferred_format(profile)
+    niche = niche_label(profile)
     has_context = bool(account_context)
     return {
         "summary": (
@@ -403,9 +428,9 @@ def strategy_fallback(profile: CreatorProfile, account_context: dict[str, Any] |
         ),
         "niches": [
             {
-                "name": "Problème précis + preuve courte",
-                "audience": "Créateurs ou prospects qui veulent un résultat mesurable rapidement.",
-                "edge": f"Utiliser ton format principal ({format_name}) pour prouver une correction en moins de 30 secondes.",
+                "name": f"{niche} : problème précis + preuve courte",
+                "audience": f"Audience intéressée par {niche} et qui veut un résultat mesurable rapidement.",
+                "edge": f"Utiliser ton format principal ({format_name}) pour prouver une correction liée à {niche} en moins de 30 secondes.",
                 "revenueAngle": f"Entrée naturelle vers {revenue}.",
                 "score": 78 if has_context else 70,
             },
@@ -467,7 +492,7 @@ def strategy_fallback(profile: CreatorProfile, account_context: dict[str, Any] |
             {
                 "name": revenue.title(),
                 "nextAction": "Créer une action simple: commentaire mot-clé, message privé ou ressource.",
-                "contentDirection": "Publier des contenus qui exposent le problème puis montrent la correction.",
+                "contentDirection": f"Publier des contenus {niche} qui exposent le problème puis montrent la correction.",
                 "range": "0-300 €/mois au départ",
                 "basis": "Fourchette prudente pour un compte en validation, sans métriques TikTok authentifiées.",
             },
@@ -538,7 +563,7 @@ def calendar_fallback(
                     "LIVE diagnostic court",
                     "Story rappel ressource",
                 ][index % 7],
-                "hook": "Tu peux corriger ça aujourd'hui avec une seule décision.",
+                "hook": f"En {niche_label(profile)}, tu peux corriger ça aujourd'hui avec une seule décision.",
                 "cta": f"Commente PLAN ou passe à l'étape liée à {monetization_label(profile)}.",
             }
         )

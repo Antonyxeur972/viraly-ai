@@ -85,6 +85,7 @@ export type GoogleConnectionStatus =
 export type CreatorOnboardingProfile = {
   goal: string;
   niche: string;
+  nicheTopic?: string;
   followers: string;
   cadence: string;
   format: string;

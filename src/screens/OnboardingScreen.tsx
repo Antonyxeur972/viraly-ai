@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View
 } from "react-native";
@@ -57,6 +58,20 @@ const questions: Question[] = [
       { id: "broad", label: "Encore trop large", detail: "J'ai un thème, mais pas un angle précis.", icon: "contract-outline" },
       { id: "hesitating", label: "J'hésite", detail: "Plusieurs niches semblent possibles.", icon: "git-branch-outline" },
       { id: "none", label: "Je pars de zéro", detail: "Je veux identifier une niche rentable.", icon: "compass-outline" }
+    ]
+  },
+  {
+    id: "nicheTopic",
+    eyebrow: "NICHE",
+    title: "Sur quel univers veux-tu créer ?",
+    subtitle: "Choisis une base ou écris ta niche exacte.",
+    options: [
+      { id: "IA / tech / outils", label: "IA / Tech", detail: "Outils, productivité, automatisation.", icon: "hardware-chip-outline" },
+      { id: "Business / argent", label: "Business", detail: "Revenus, vente, indépendance.", icon: "briefcase-outline" },
+      { id: "Fitness / bien-être", label: "Fitness", detail: "Corps, énergie, discipline.", icon: "barbell-outline" },
+      { id: "Beauté / skincare", label: "Beauté", detail: "Routine, transformation, produits.", icon: "sparkles-outline" },
+      { id: "Food / recettes", label: "Food", detail: "Recettes, tests, astuces cuisine.", icon: "restaurant-outline" },
+      { id: "Développement personnel", label: "Mindset", detail: "Habitudes, confiance, clarté.", icon: "sunny-outline" }
     ]
   },
   {
@@ -140,17 +155,24 @@ export function OnboardingScreen({
 }: Props) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Partial<CreatorOnboardingProfile>>({});
+  const [customNiche, setCustomNiche] = useState("");
   const [report, setReport] = useState<OnboardingAIReport | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const googleConnected = googleStatus === "connected";
   const showingReport = step >= questions.length && report !== null;
   const current = questions[Math.min(step, questions.length - 1)];
-  const selected = answers[current?.id];
+  const selected = current?.id === "nicheTopic" && customNiche.trim()
+    ? customNiche.trim()
+    : answers[current?.id];
 
   const continueOnboarding = async () => {
     if (!selected || isAnalyzing) return;
+    const nextAnswers = current?.id === "nicheTopic" && customNiche.trim()
+      ? { ...answers, nicheTopic: customNiche.trim() }
+      : answers;
     if (step < questions.length - 1) {
+      setAnswers(nextAnswers);
       setStep((value) => value + 1);
       return;
     }
@@ -158,7 +180,8 @@ export function OnboardingScreen({
     setIsAnalyzing(true);
     setAnalysisError(null);
     try {
-      const nextReport = await analyzeOnboarding(answers as CreatorOnboardingProfile);
+      const nextReport = await analyzeOnboarding(nextAnswers as CreatorOnboardingProfile);
+      setAnswers(nextAnswers);
       setReport(nextReport);
       setStep(questions.length);
     } catch (error) {
@@ -265,7 +288,10 @@ export function OnboardingScreen({
           return (
             <TouchableOpacity
               key={option.id}
-              onPress={() => setAnswers((value) => ({ ...value, [current.id]: option.id }))}
+              onPress={() => {
+                if (current.id === "nicheTopic") setCustomNiche("");
+                setAnswers((value) => ({ ...value, [current.id]: option.id }));
+              }}
               style={[styles.option, active && styles.optionActive]}
             >
               <View style={[styles.optionIcon, active && styles.optionIconActive]}>
@@ -280,6 +306,21 @@ export function OnboardingScreen({
           );
         })}
       </View>
+      {current.id === "nicheTopic" ? (
+        <View style={styles.customNichePanel}>
+          <Text style={styles.customNicheLabel}>Écrire ma niche</Text>
+          <TextInput
+            onChangeText={(value) => {
+              setCustomNiche(value);
+              if (value.trim()) setAnswers((currentAnswers) => ({ ...currentAnswers, nicheTopic: value }));
+            }}
+            placeholder="Ex : IA pour agents immobiliers, coiffure afro, recettes antillaises..."
+            placeholderTextColor={palette.muted}
+            style={styles.customNicheInput}
+            value={customNiche}
+          />
+        </View>
+      ) : null}
       {analysisError ? (
         <View style={styles.analysisError}>
           <Ionicons color={palette.paperMuted} name="alert-circle-outline" size={18} />
@@ -333,6 +374,9 @@ const styles = StyleSheet.create({
   optionCopy: { flex: 1, gap: 3 },
   optionLabel: { ...typography.h3, color: palette.white },
   optionDetail: { ...typography.caption, color: palette.muted },
+  customNichePanel: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, gap: spacing.sm, padding: spacing.md },
+  customNicheLabel: { ...typography.caption, color: palette.mint },
+  customNicheInput: { ...typography.body, color: palette.white, minHeight: 48 },
   analysisError: { alignItems: "flex-start", borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.sm, padding: spacing.md },
   analysisErrorText: { ...typography.caption, color: palette.paperMuted, flex: 1 },
   navigation: { flexDirection: "row", gap: spacing.sm },

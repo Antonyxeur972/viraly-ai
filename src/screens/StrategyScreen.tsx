@@ -16,6 +16,7 @@ import {
   getStrategy,
   updateCalendarEvent
 } from "../services/ai";
+import { syncEventsToDeviceCalendar } from "../services/deviceCalendar";
 import { ProfileAnalysisReport } from "../services/profileAnalysis";
 import { palette, radius, spacing, typography } from "../theme";
 import { CreatorOnboardingProfile } from "../types";
@@ -31,6 +32,7 @@ export function StrategyScreen({ profile, accountContext }: Props) {
   const [strategy, setStrategy] = useState<StrategyReport | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState<"strategy" | "calendar" | "event" | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDate, setNewDate] = useState(today());
@@ -117,6 +119,22 @@ export function StrategyScreen({ profile, accountContext }: Props) {
     ]);
   };
 
+  const syncCalendar = async () => {
+    if (!events.length || isSyncing) return;
+    setIsSyncing(true);
+    try {
+      const result = await syncEventsToDeviceCalendar(events);
+      Alert.alert(
+        "Calendrier synchronisé",
+        `${result.synced} publication${result.synced > 1 ? "s" : ""} ajoutée${result.synced > 1 ? "s" : ""} dans ${result.calendarTitle}.`
+      );
+    } catch (error) {
+      Alert.alert("Synchronisation calendrier", error instanceof Error ? error.message : "Synchronisation impossible.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
@@ -201,6 +219,10 @@ export function StrategyScreen({ profile, accountContext }: Props) {
           <Ionicons color={palette.mint} name="calendar-outline" size={18} />
           <Text style={styles.outlineText}>{loading === "calendar" ? "Planification..." : "Générer 7 jours"}</Text>
         </TouchableOpacity>
+        <TouchableOpacity disabled={!events.length || isSyncing} onPress={syncCalendar} style={[styles.outlineButton, !events.length && styles.disabled]}>
+          <Ionicons color={palette.sky} name="sync-outline" size={18} />
+          <Text style={[styles.outlineText, styles.syncText]}>{isSyncing ? "Synchro..." : "Synchroniser"}</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={() => setShowAdd((value) => !value)} style={styles.iconButton}>
           <Ionicons color={palette.white} name={showAdd ? "close" : "add"} size={22} />
         </TouchableOpacity>
@@ -275,6 +297,7 @@ const styles = StyleSheet.create({
   calendarActions: { flexDirection: "row", gap: spacing.sm },
   outlineButton: { alignItems: "center", borderColor: palette.mint, borderRadius: radius.sm, borderWidth: 1, flex: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 46 },
   outlineText: { ...typography.caption, color: palette.mint },
+  syncText: { color: palette.sky },
   iconButton: { alignItems: "center", borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, height: 46, justifyContent: "center", width: 46 },
   disabled: { opacity: 0.4 },
   addPanel: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, gap: spacing.sm, padding: spacing.md },
