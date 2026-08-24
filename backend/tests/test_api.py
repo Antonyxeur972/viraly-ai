@@ -216,6 +216,11 @@ def test_google_auth_reports_missing_configuration(client, monkeypatch):
     from app import main
 
     monkeypatch.setattr(main, "settings", replace(main.settings, google_client_id=""))
+    status = client.get("/api/v1/auth/google/status")
+    assert status.status_code == 200
+    assert status.json()["configured"] is False
+    assert "GOOGLE_CLIENT_ID" in status.json()["missing"]
+
     response = client.get(
         "/api/v1/auth/google/start",
         params={"return_to": "viralyai://auth/google"},

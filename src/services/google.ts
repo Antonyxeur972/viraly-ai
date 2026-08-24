@@ -3,6 +3,8 @@ import * as WebBrowser from "expo-web-browser";
 
 import { getApiBaseUrl } from "./api";
 
+WebBrowser.maybeCompleteAuthSession();
+
 export type GoogleCallback = {
   connected: boolean;
   email?: string;

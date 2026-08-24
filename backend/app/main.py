@@ -283,6 +283,19 @@ def google_configured() -> bool:
     )
 
 
+def google_missing_configuration() -> list[str]:
+    missing = []
+    if not settings.google_client_id:
+        missing.append("GOOGLE_CLIENT_ID")
+    if not settings.google_client_secret:
+        missing.append("GOOGLE_CLIENT_SECRET")
+    if not settings.google_state_secret:
+        missing.append("VIRALY_GOOGLE_STATE_SECRET")
+    if not settings.google_callback_url:
+        missing.append("VIRALY_GOOGLE_CALLBACK_URL")
+    return missing
+
+
 def allowed_google_return_url(url: str) -> bool:
     normalized = url.rstrip("/")
     return any(
@@ -343,6 +356,16 @@ def health():
             "strategy": settings.strategy_model,
             "fast": settings.fast_model,
         },
+    }
+
+
+@app.get("/api/v1/auth/google/status")
+def google_auth_status():
+    return {
+        "configured": google_configured(),
+        "missing": google_missing_configuration(),
+        "callbackUrl": settings.google_callback_url,
+        "allowedReturnPrefixes": list(settings.google_return_prefixes),
     }
 
 
