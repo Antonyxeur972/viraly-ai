@@ -15,6 +15,10 @@ class CreatorProfile(BaseModel):
     monetization: str = "affiliate"
 
 
+class GoogleCodeExchange(BaseModel):
+    code: str = Field(min_length=20, max_length=500)
+
+
 class IdeaAnalysisRequest(BaseModel):
     idea: str = Field(min_length=5, max_length=1200)
     profile: CreatorProfile

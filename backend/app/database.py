@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import secrets
 import sqlite3
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +39,14 @@ class Database:
                     expires_at TEXT,
                     created_at TEXT NOT NULL,
                     FOREIGN KEY(user_id) REFERENCES users(id)
+                );
+                CREATE TABLE IF NOT EXISTS oauth_codes (
+                    code TEXT PRIMARY KEY,
+                    session_token TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    used_at TEXT,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY(session_token) REFERENCES sessions(token)
                 );
                 CREATE TABLE IF NOT EXISTS ai_usage (
                     id TEXT PRIMARY KEY,
@@ -116,6 +126,57 @@ class Database:
         if row["expires_at"] and row["expires_at"] < now_iso():
             return None
         return str(row["user_id"])
+
+    def create_google_login(self, subject: str, email: str, name: str) -> str:
+        user_id = f"usr_google_{sha256(subject.encode()).hexdigest()[:32]}"
+        session_token = secrets.token_urlsafe(48)
+        exchange_code = secrets.token_urlsafe(32)
+        created_at = now_iso()
+        session_expiry = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+        code_expiry = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+
+        with self.lock, self.connection:
+            self.connection.execute(
+                """
+                INSERT INTO users(id, email, name, created_at) VALUES (?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET email = excluded.email, name = excluded.name
+                """,
+                (user_id, email, name, created_at),
+            )
+            self.connection.execute(
+                "INSERT INTO sessions(token, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)",
+                (session_token, user_id, session_expiry, created_at),
+            )
+            self.connection.execute(
+                "INSERT INTO oauth_codes(code, session_token, expires_at, created_at) VALUES (?, ?, ?, ?)",
+                (exchange_code, session_token, code_expiry, created_at),
+            )
+        return exchange_code
+
+    def consume_oauth_code(self, code: str) -> dict[str, str] | None:
+        with self.lock, self.connection:
+            row = self.connection.execute(
+                """
+                SELECT oauth_codes.session_token, oauth_codes.expires_at,
+                       oauth_codes.used_at, users.email, users.name
+                FROM oauth_codes
+                JOIN sessions ON sessions.token = oauth_codes.session_token
+                JOIN users ON users.id = sessions.user_id
+                WHERE oauth_codes.code = ?
+                """,
+                (code,),
+            ).fetchone()
+            if not row or row["used_at"] or row["expires_at"] < now_iso():
+                return None
+            self.connection.execute(
+                "UPDATE oauth_codes SET used_at = ? WHERE code = ? AND used_at IS NULL",
+                (now_iso(), code),
+            )
+            return {
+                "token": str(row["session_token"]),
+                "email": str(row["email"] or ""),
+                "name": str(row["name"] or "Créateur"),
+            }
 
     def record_ai_usage(self, user_id: str, feature: str, model: str) -> None:
         with self.lock, self.connection:

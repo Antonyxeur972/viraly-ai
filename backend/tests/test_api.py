@@ -145,3 +145,49 @@ def test_preview_session_issues_short_lived_token(client, monkeypatch):
         headers={"Authorization": f"Bearer {payload['token']}"},
     )
     assert authorized.status_code == 200
+
+
+def test_google_auth_reports_missing_configuration(client, monkeypatch):
+    from dataclasses import replace
+    from app import main
+
+    monkeypatch.setattr(main, "settings", replace(main.settings, google_client_id=""))
+    response = client.get(
+        "/api/v1/auth/google/start",
+        params={"return_to": "viralyai://auth/google"},
+    )
+    assert response.status_code == 503
+
+
+def test_google_state_and_one_time_session_exchange(client, monkeypatch):
+    from dataclasses import replace
+    from urllib.parse import parse_qs, urlparse
+    from app import main
+
+    monkeypatch.setattr(
+        main,
+        "settings",
+        replace(
+            main.settings,
+            google_client_id="client-id",
+            google_client_secret="client-secret",
+            google_state_secret="state-secret",
+        ),
+    )
+    started = client.get(
+        "/api/v1/auth/google/start",
+        params={"return_to": "viralyai://auth/google"},
+        follow_redirects=False,
+    )
+    assert started.status_code == 302
+    query = parse_qs(urlparse(started.headers["location"]).query)
+    assert query["client_id"] == ["client-id"]
+    assert main.decode_google_state(query["state"][0]) == "viralyai://auth/google"
+
+    code = main.app.state.db.create_google_login(
+        "google-subject", "creator@example.com", "Creator"
+    )
+    exchanged = client.post("/api/v1/auth/google/session", json={"code": code})
+    assert exchanged.status_code == 200
+    assert exchanged.json()["token"]
+    assert client.post("/api/v1/auth/google/session", json={"code": code}).status_code == 401

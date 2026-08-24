@@ -33,6 +33,21 @@ class Settings:
     preview_ai_daily_limit: int = int(
         os.getenv("VIRALY_PREVIEW_AI_DAILY_LIMIT", "5")
     )
+    google_client_id: str = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+    google_client_secret: str = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
+    google_state_secret: str = os.getenv("VIRALY_GOOGLE_STATE_SECRET", "").strip()
+    google_callback_url: str = os.getenv(
+        "VIRALY_GOOGLE_CALLBACK_URL",
+        "https://viraly-ai.onrender.com/api/v1/auth/google/callback",
+    ).strip()
+    google_return_prefixes: tuple[str, ...] = tuple(
+        item.strip().rstrip("/")
+        for item in os.getenv(
+            "VIRALY_GOOGLE_RETURN_PREFIXES",
+            "viralyai://auth/google,exp://u.expo.dev/944108e1-dc57-48e7-bd7b-11a7e1ebc705",
+        ).split(",")
+        if item.strip()
+    )
     visual_model: str = os.getenv("VIRALY_VISUAL_MODEL", "gpt-5.6-sol")
     strategy_model: str = os.getenv("VIRALY_STRATEGY_MODEL", "gpt-5.6-terra")
     fast_model: str = os.getenv("VIRALY_FAST_MODEL", "gpt-5.6-luna")

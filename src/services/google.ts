@@ -1,36 +1,46 @@
-import { Linking } from "react-native";
+import { makeRedirectUri } from "expo-auth-session";
+import * as WebBrowser from "expo-web-browser";
+
+import { getApiBaseUrl } from "./api";
 
 export type GoogleCallback = {
   connected: boolean;
   email?: string;
   name?: string;
-  sessionId?: string;
+  code?: string;
   error?: string;
 };
 
 export function getGoogleConnectionEndpoint() {
-  return process.env.EXPO_PUBLIC_GOOGLE_CONNECT_URL?.trim() || null;
-}
-
-export function getGoogleCallbackUrl() {
   return (
-    process.env.EXPO_PUBLIC_GOOGLE_CALLBACK_URL?.trim() ||
-    "viralyai://auth/google"
+    process.env.EXPO_PUBLIC_GOOGLE_CONNECT_URL?.trim() ||
+    `${getApiBaseUrl()}/api/v1/auth/google/start`
   );
 }
 
-export async function beginGoogleConnection() {
+export function getGoogleCallbackUrl() {
+  return process.env.EXPO_PUBLIC_GOOGLE_CALLBACK_URL?.trim() || makeRedirectUri({
+    scheme: "viralyai",
+    path: "auth/google"
+  });
+}
+
+export async function beginGoogleConnection(): Promise<GoogleCallback> {
   const endpoint = getGoogleConnectionEndpoint();
-
-  if (!endpoint) {
-    throw new Error(
-      "La connexion Google sera active des que le backend OAuth VIRALY AI sera configure."
-    );
-  }
-
-  const params = new URLSearchParams({ return_to: getGoogleCallbackUrl() });
+  const callbackUrl = getGoogleCallbackUrl();
+  const params = new URLSearchParams({ return_to: callbackUrl });
   const separator = endpoint.includes("?") ? "&" : "?";
-  await Linking.openURL(`${endpoint}${separator}${params.toString()}`);
+  const result = await WebBrowser.openAuthSessionAsync(
+    `${endpoint}${separator}${params.toString()}`,
+    callbackUrl
+  );
+  if (result.type !== "success") {
+    return { connected: false, error: "Connexion Google annulée." };
+  }
+  return parseGoogleCallback(result.url) || {
+    connected: false,
+    error: "Retour Google invalide."
+  };
 }
 
 export function parseGoogleCallback(url: string): GoogleCallback | null {
@@ -41,11 +51,30 @@ export function parseGoogleCallback(url: string): GoogleCallback | null {
 
   if (error) return { connected: false, error };
 
-  const sessionId = parsed.searchParams.get("session");
+  const code = parsed.searchParams.get("code");
   return {
-    connected: Boolean(sessionId),
+    connected: Boolean(code),
     email: parsed.searchParams.get("email") || undefined,
     name: parsed.searchParams.get("name") || undefined,
-    sessionId: sessionId || undefined
+    code: code || undefined
   };
+}
+
+export async function exchangeGoogleCode(code: string) {
+  const response = await fetch(`${getApiBaseUrl()}/api/v1/auth/google/session`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code })
+  });
+  if (!response.ok) {
+    let message = "Impossible de créer la session Google.";
+    try {
+      const payload = await response.json();
+      message = payload.detail || message;
+    } catch {
+      // Keep the generic error when the backend did not return JSON.
+    }
+    throw new Error(message);
+  }
+  return response.json() as Promise<{ token: string; email: string; name: string }>;
 }

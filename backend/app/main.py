@@ -1,15 +1,23 @@
 from __future__ import annotations
 
+import base64
 import hmac
 import json
+import secrets
+import time as unix_time
 from datetime import date, datetime, time, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
 from typing import Annotated, Any
+from urllib.parse import urlencode
 
+import httpx
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
+from starlette.concurrency import run_in_threadpool
 
 from .ai import AIEngine, AIUnavailableError
 from .config import settings
@@ -32,6 +40,7 @@ from .schemas import (
     IdeaGenerationRequest,
     StrategyRequest,
     CreatorProfile,
+    GoogleCodeExchange,
 )
 
 
@@ -103,17 +112,156 @@ def compact_context(value: Any) -> str:
     return json.dumps(value or {}, ensure_ascii=False, separators=(",", ":"))[:12000]
 
 
+def google_configured() -> bool:
+    return bool(
+        settings.google_client_id
+        and settings.google_client_secret
+        and settings.google_state_secret
+        and settings.google_callback_url
+    )
+
+
+def allowed_google_return_url(url: str) -> bool:
+    normalized = url.rstrip("/")
+    return any(
+        normalized == prefix or normalized.startswith(f"{prefix}/")
+        for prefix in settings.google_return_prefixes
+    )
+
+
+def encode_google_state(return_to: str) -> str:
+    payload = json.dumps(
+        {
+            "return_to": return_to,
+            "nonce": secrets.token_urlsafe(16),
+            "exp": int(unix_time.time()) + 600,
+        },
+        separators=(",", ":"),
+    ).encode()
+    encoded = base64.urlsafe_b64encode(payload).rstrip(b"=").decode()
+    signature = hmac.new(
+        settings.google_state_secret.encode(), encoded.encode(), sha256
+    ).hexdigest()
+    return f"{encoded}.{signature}"
+
+
+def decode_google_state(state: str) -> str:
+    try:
+        encoded, signature = state.split(".", 1)
+        expected = hmac.new(
+            settings.google_state_secret.encode(), encoded.encode(), sha256
+        ).hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            raise ValueError
+        padding = "=" * (-len(encoded) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(encoded + padding))
+        return_to = str(payload["return_to"])
+        if int(payload["exp"]) < int(unix_time.time()):
+            raise ValueError
+        if not allowed_google_return_url(return_to):
+            raise ValueError
+        return return_to
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+        raise HTTPException(400, "État OAuth Google invalide ou expiré.") from error
+
+
+def app_redirect(return_to: str, **params: str) -> RedirectResponse:
+    separator = "&" if "?" in return_to else "?"
+    return RedirectResponse(f"{return_to}{separator}{urlencode(params)}", status_code=302)
+
+
 @app.get("/api/health")
 def health():
     return {
         "status": "ok",
         "aiConfigured": ai_engine().configured,
+        "googleConfigured": google_configured(),
         "models": {
             "visual": settings.visual_model,
             "strategy": settings.strategy_model,
             "fast": settings.fast_model,
         },
     }
+
+
+@app.get("/api/v1/auth/google/start")
+def start_google_auth(return_to: str = Query(...)):
+    if not google_configured():
+        raise HTTPException(503, "La connexion Google n'est pas activée.")
+    if not allowed_google_return_url(return_to):
+        raise HTTPException(400, "Adresse de retour Google non autorisée.")
+    params = {
+        "client_id": settings.google_client_id,
+        "redirect_uri": settings.google_callback_url,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": encode_google_state(return_to),
+        "prompt": "select_account",
+    }
+    return RedirectResponse(
+        f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}",
+        status_code=302,
+    )
+
+
+@app.get("/api/v1/auth/google/callback")
+async def google_auth_callback(
+    state: str = Query(...),
+    code: str | None = Query(default=None),
+    error: str | None = Query(default=None),
+    db: Database = Depends(database),
+):
+    return_to = decode_google_state(state)
+    if error:
+        return app_redirect(return_to, error="Connexion Google annulée.")
+    if not code:
+        return app_redirect(return_to, error="Code Google manquant.")
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": settings.google_client_id,
+                "client_secret": settings.google_client_secret,
+                "redirect_uri": settings.google_callback_url,
+                "grant_type": "authorization_code",
+            },
+        )
+    if response.status_code != 200:
+        return app_redirect(return_to, error="Google n'a pas validé la connexion.")
+
+    token_payload = response.json()
+    raw_id_token = token_payload.get("id_token")
+    if not raw_id_token:
+        return app_redirect(return_to, error="Identité Google manquante.")
+    try:
+        identity = await run_in_threadpool(
+            google_id_token.verify_oauth2_token,
+            raw_id_token,
+            google_requests.Request(),
+            settings.google_client_id,
+        )
+    except ValueError:
+        return app_redirect(return_to, error="Identité Google invalide.")
+
+    subject = str(identity.get("sub") or "")
+    email = str(identity.get("email") or "")
+    name = str(identity.get("name") or email.split("@", 1)[0] or "Créateur")
+    if not subject or not email:
+        return app_redirect(return_to, error="Profil Google incomplet.")
+    exchange_code = db.create_google_login(subject, email, name)
+    return app_redirect(return_to, code=exchange_code)
+
+
+@app.post("/api/v1/auth/google/session")
+def exchange_google_session(
+    payload: GoogleCodeExchange, db: Database = Depends(database)
+):
+    session = db.consume_oauth_code(payload.code)
+    if not session:
+        raise HTTPException(401, "Code Google invalide ou expiré.")
+    return session
 
 
 @app.post("/api/v1/auth/preview")

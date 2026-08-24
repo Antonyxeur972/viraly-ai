@@ -23,7 +23,7 @@ import { VideoLabScreen } from "./src/screens/VideoLabScreen";
 import { createPreviewSession, setApiSessionToken } from "./src/services/api";
 import {
   beginGoogleConnection,
-  parseGoogleCallback
+  exchangeGoogleCode
 } from "./src/services/google";
 import {
   beginTikTokConnection,
@@ -59,20 +59,6 @@ export default function App() {
 
   useEffect(() => {
     const handleUrl = (url: string) => {
-      const googleCallback = parseGoogleCallback(url);
-
-      if (googleCallback) {
-        if (googleCallback.connected) {
-          setApiSessionToken(googleCallback.sessionId);
-          setGoogleName(googleCallback.name);
-          setGoogleStatus("connected");
-        } else {
-          setGoogleStatus("error");
-          Alert.alert("Connexion Google", googleCallback.error || "La connexion a échoué.");
-        }
-        return;
-      }
-
       const callback = parseTikTokCallback(url);
 
       if (!callback) return;
@@ -109,7 +95,14 @@ export default function App() {
     setGoogleStatus("connecting");
 
     try {
-      await beginGoogleConnection();
+      const callback = await beginGoogleConnection();
+      if (!callback.connected || !callback.code) {
+        throw new Error(callback.error || "La connexion Google a échoué.");
+      }
+      const session = await exchangeGoogleCode(callback.code);
+      setApiSessionToken(session.token);
+      setGoogleName(session.name);
+      setGoogleStatus("connected");
     } catch (error) {
       setGoogleStatus("error");
       Alert.alert(
