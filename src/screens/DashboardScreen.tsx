@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -12,6 +12,7 @@ import {
 } from "react-native";
 
 import { GlassPanel } from "../components/GlassPanel";
+import { AnalysisHistoryList } from "../components/AnalysisHistoryList";
 import { ProgressBar } from "../components/ProgressBar";
 import { ScoreDial } from "../components/ScoreDial";
 import { SectionHeader } from "../components/SectionHeader";
@@ -19,12 +20,19 @@ import {
   ProfileAnalysisReport,
   requestProfileAnalysis
 } from "../services/profileAnalysis";
+import {
+  AnalysisHistoryItem,
+  deleteAnalysisHistory,
+  listAnalysisHistory
+} from "../services/analysisHistory";
+import { estimateProfileRevenue } from "../lib/revenueModel";
 import { palette, radius, spacing, typography } from "../theme";
-import { TikTokConnectionStatus } from "../types";
+import { CreatorOnboardingProfile, TikTokConnectionStatus } from "../types";
 
 type Props = {
   tiktokStatus: TikTokConnectionStatus;
   tiktokHandle?: string;
+  profile: CreatorOnboardingProfile;
   onConnectTikTok: () => void;
   onProfileAnalyzed: (report: ProfileAnalysisReport) => void;
 };
@@ -39,12 +47,28 @@ export function DashboardScreen({
   tiktokStatus,
   tiktokHandle,
   onConnectTikTok,
-  onProfileAnalyzed
+  onProfileAnalyzed,
+  profile
 }: Props) {
   const [screenshot, setScreenshot] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [report, setReport] = useState<ProfileAnalysisReport | null>(null);
+  const [history, setHistory] = useState<AnalysisHistoryItem<ProfileAnalysisReport>[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const connected = tiktokStatus === "connected";
+  const revenue = estimateProfileRevenue(profile, report?.metrics.followers);
+  const euro = (value: number) => new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0
+  }).format(value);
+
+  useEffect(() => {
+    let active = true;
+    listAnalysisHistory<ProfileAnalysisReport>("profile")
+      .then((items) => active && setHistory(items))
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   const pickScreenshot = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -70,11 +94,33 @@ export function DashboardScreen({
       const result = await requestProfileAnalysis(screenshot);
       setReport(result);
       onProfileAnalyzed(result);
+      setHistory((items) => [
+        { id: result.analysisId, kind: "profile", createdAt: new Date().toISOString(), report: result },
+        ...items.filter((item) => item.id !== result.analysisId)
+      ].slice(0, 12));
     } catch (error) {
       Alert.alert("Analyse du profil", error instanceof Error ? error.message : "Analyse impossible.");
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const removeHistoryItem = (item: AnalysisHistoryItem<ProfileAnalysisReport>) => {
+    Alert.alert("Supprimer l'analyse", "Cette analyse ne sera plus disponible dans ton historique.", [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Supprimer",
+        style: "destructive",
+        onPress: () => {
+          deleteAnalysisHistory(item.id)
+            .then(() => {
+              setHistory((items) => items.filter((entry) => entry.id !== item.id));
+              if (report?.analysisId === item.id) setReport(null);
+            })
+            .catch((error) => Alert.alert("Historique", error instanceof Error ? error.message : "Suppression impossible."));
+        }
+      }
+    ]);
   };
 
   const metrics = report
@@ -113,6 +159,32 @@ export function DashboardScreen({
             : "Une capture suffit pour transformer ton profil en priorités de contenu, de conversion et de revenu."}
         </Text>
       </View>
+
+      <GlassPanel style={styles.revenuePanel} textureOpacity={0.24}>
+        <View style={styles.revenueAccent} />
+        <View style={styles.revenueTop}>
+          <View style={styles.revenueIcon}>
+            <Ionicons color={palette.white} name="trending-up" size={21} />
+          </View>
+          <View style={styles.revenueHeading}>
+            <Text style={styles.revenueEyebrow}>POTENTIEL MENSUEL PERSONNALISÉ</Text>
+            <Text numberOfLines={1} style={styles.revenueChannel}>{revenue.channel}</Text>
+          </View>
+        </View>
+        <View>
+          <Text adjustsFontSizeToFit numberOfLines={1} style={styles.revenueAmount}>
+            {euro(revenue.monthlyLow)} – {euro(revenue.monthlyHigh)}
+          </Text>
+          <Text style={styles.revenueCaption}>par mois avec une exécution optimisée et mesurée</Text>
+        </View>
+        <View style={styles.revenueDivider} />
+        <Text style={styles.revenueAction}>{revenue.action}</Text>
+        <View style={styles.revenueMetaRow}>
+          <View style={styles.revenueMeta}><Ionicons color={palette.mint} name="locate-outline" size={14} /><Text style={styles.revenueMetaText}>{revenue.niche}</Text></View>
+          <View style={styles.revenueMeta}><Ionicons color={palette.mint} name="calculator-outline" size={14} /><Text style={styles.revenueMetaText}>{revenue.basis}</Text></View>
+        </View>
+        <Text style={styles.revenueDisclaimer}>Estimation indicative, jamais garantie. Elle évolue avec les vues, la conversion, l'offre et les données réellement observées.</Text>
+      </GlassPanel>
 
       {!report ? (
         <GlassPanel style={styles.briefPanel} textureOpacity={0.17}>
@@ -166,6 +238,20 @@ export function DashboardScreen({
           ) : null}
         </GlassPanel>
       ) : null}
+
+      <View style={styles.historySection}>
+        <SectionHeader eyebrow="Mémoire" title="Historique des profils" action={`${history.length}`} />
+        <AnalysisHistoryList
+          activeId={report?.analysisId}
+          emptyLabel="Ta première analyse de profil apparaîtra ici."
+          items={history}
+          onDelete={removeHistoryItem}
+          onOpen={(item) => {
+            setReport(item.report);
+            onProfileAnalyzed(item.report);
+          }}
+        />
+      </View>
 
       {report ? (
         <>
@@ -236,7 +322,23 @@ export function DashboardScreen({
 
 const styles = StyleSheet.create({
   content: { gap: spacing.xl, padding: spacing.lg, paddingBottom: spacing.xxl, paddingTop: spacing.md },
+  historySection: { gap: spacing.md },
   hero: { gap: spacing.sm, paddingTop: spacing.sm },
+  revenuePanel: { gap: spacing.md, overflow: "hidden", padding: spacing.xl },
+  revenueAccent: { backgroundColor: palette.mint, bottom: 0, left: 0, position: "absolute", top: 0, width: 3 },
+  revenueTop: { alignItems: "center", flexDirection: "row", gap: spacing.md },
+  revenueIcon: { alignItems: "center", backgroundColor: palette.mintDark, borderColor: palette.lineStrong, borderRadius: radius.sm, borderWidth: 1, height: 42, justifyContent: "center", width: 42 },
+  revenueHeading: { flex: 1, gap: 2, minWidth: 0 },
+  revenueEyebrow: { ...typography.caption, color: palette.mint, fontSize: 10 },
+  revenueChannel: { ...typography.body, color: palette.white, fontWeight: "800" },
+  revenueAmount: { color: palette.white, fontSize: 34, fontWeight: "900", lineHeight: 40 },
+  revenueCaption: { ...typography.caption, color: palette.paperMuted },
+  revenueDivider: { backgroundColor: palette.line, height: 1 },
+  revenueAction: { ...typography.body, color: palette.white },
+  revenueMetaRow: { gap: spacing.xs },
+  revenueMeta: { alignItems: "center", flexDirection: "row", gap: spacing.xs, minWidth: 0 },
+  revenueMetaText: { color: palette.paperMuted, flex: 1, fontSize: 11, fontWeight: "700", lineHeight: 16 },
+  revenueDisclaimer: { color: palette.muted, fontSize: 9, lineHeight: 13 },
   brandRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: spacing.lg },
   brand: { color: palette.white, fontSize: 26, fontWeight: "800" },
   brandAccent: { color: palette.mint },
@@ -244,7 +346,7 @@ const styles = StyleSheet.create({
   eyebrow: { ...typography.caption, color: palette.mint },
   title: { ...typography.title, color: palette.white, maxWidth: 350 },
   subtitle: { ...typography.body, color: palette.paperMuted, maxWidth: 370 },
-  connectButton: { alignItems: "center", backgroundColor: "rgba(3,15,10,0.56)", borderColor: palette.lineStrong, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.xs, minHeight: 42, paddingHorizontal: spacing.md },
+  connectButton: { alignItems: "center", backgroundColor: "rgba(3,10,27,0.68)", borderColor: palette.lineStrong, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.xs, minHeight: 42, paddingHorizontal: spacing.md },
   connectButtonActive: { backgroundColor: palette.mint, borderColor: palette.mint },
   connectText: { ...typography.caption, color: palette.white },
   connectTextActive: { color: palette.ink },

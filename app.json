@@ -44,7 +44,7 @@
       [
         "expo-notifications",
         {
-          "color": "#A7F542",
+          "color": "#2D7CFF",
           "defaultChannel": "rappels-publication"
         }
       ],

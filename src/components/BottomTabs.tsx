@@ -55,7 +55,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.xs,
     justifyContent: "space-between",
-    borderColor: "rgba(181,255,63,0.20)",
+    backgroundColor: "rgba(3,8,20,0.94)",
+    borderColor: "rgba(66,139,255,0.26)",
     marginBottom: spacing.xs,
     marginHorizontal: spacing.xs,
     paddingBottom: spacing.xs,
@@ -73,17 +74,25 @@ const styles = StyleSheet.create({
     maxWidth: 76
   },
   tabActive: {
-    backgroundColor: "rgba(167,245,66,0.07)"
+    backgroundColor: "rgba(45,124,255,0.09)"
   },
   iconWrap: {
     alignItems: "center",
-    borderRadius: radius.pill,
-    height: 31,
+    borderColor: "transparent",
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    height: 34,
     justifyContent: "center",
-    width: 42
+    width: 44
   },
   iconWrapActive: {
-    backgroundColor: palette.mint
+    backgroundColor: palette.mint,
+    borderColor: "rgba(255,255,255,0.32)",
+    elevation: 8,
+    shadowColor: palette.mint,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.52,
+    shadowRadius: 10
   },
   label: {
     ...typography.caption,
@@ -91,6 +100,6 @@ const styles = StyleSheet.create({
     fontSize: 11
   },
   labelActive: {
-    color: palette.white
+    color: palette.sky
   }
 });

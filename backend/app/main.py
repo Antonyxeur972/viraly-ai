@@ -125,6 +125,16 @@ def ai_provider_for_model(model: str) -> str:
     return "anthropic" if model.lower().startswith("claude") else "openai"
 
 
+async def history_thumbnail(upload: UploadFile | None) -> str | None:
+    if upload is None:
+        return None
+    if not (upload.content_type or "").startswith("image/"):
+        raise HTTPException(415, "L'aperçu doit être une image.")
+    data = await read_upload(upload, 600 * 1024)
+    media_type = upload.content_type or "image/jpeg"
+    return f"data:{media_type};base64,{base64.b64encode(data).decode()}"
+
+
 def preferred_format(profile: CreatorProfile) -> str:
     return {
         "camera": "vidéo face caméra",
@@ -785,6 +795,7 @@ def create_preview_session(
 @app.post("/api/v1/profile/analyze")
 async def analyze_profile(
     screenshot: Annotated[UploadFile, File()],
+    thumbnail: Annotated[UploadFile | None, File()] = None,
     source: Annotated[str, Form()] = "tiktok_profile_screenshot",
     user_id: str = Depends(require_user),
     db: Database = Depends(database),
@@ -820,9 +831,11 @@ async def analyze_profile(
     )
     used_model = str(report.pop("_model", settings.visual_model))
     report["source"] = ai_provider_for_model(used_model)
+    report["thumbnail"] = await history_thumbnail(thumbnail)
+    report["historyTitle"] = str(report.get("metrics", {}).get("handle") or "Profil TikTok")
+    report["authenticatedTikTokData"] = False
     db.record_ai_usage(user_id, "profile-analysis", used_model)
     report["analysisId"] = db.save_analysis(user_id, "profile", report)
-    report["authenticatedTikTokData"] = False
     return report
 
 
@@ -854,11 +867,36 @@ def delete_creator_profile(
     return None
 
 
+@app.get("/api/v1/analyses")
+def list_analyses(
+    kind: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=30)] = 20,
+    user_id: str = Depends(require_user),
+    db: Database = Depends(database),
+):
+    allowed_kinds = {"profile", "content", "idea", "ideas", "onboarding", "coach"}
+    if kind and kind not in allowed_kinds:
+        raise HTTPException(422, "Type d'analyse invalide.")
+    return {"analyses": db.list_analyses(user_id, kind, limit)}
+
+
+@app.delete("/api/v1/analyses/{analysis_id}", status_code=204)
+def delete_analysis(
+    analysis_id: str,
+    user_id: str = Depends(require_user),
+    db: Database = Depends(database),
+):
+    if not db.delete_analysis(user_id, analysis_id):
+        raise HTTPException(404, "Analyse introuvable.")
+    return None
+
+
 @app.post("/api/v1/content/analyze")
 async def analyze_content(
     type: Annotated[str, Form()],
     goal: Annotated[str, Form()] = "revenue",
     assets: Annotated[list[UploadFile], File(alias="assets[]")] = [],
+    thumbnail: Annotated[UploadFile | None, File()] = None,
     user_id: str = Depends(require_user),
     db: Database = Depends(database),
     ai: AIEngine = Depends(ai_engine),
@@ -909,9 +947,12 @@ async def analyze_content(
     )
     used_model = str(report.pop("_model", settings.visual_model))
     report["source"] = ai_provider_for_model(used_model)
+    report["thumbnail"] = await history_thumbnail(thumbnail)
+    report["historyTitle"] = str(report.get("revisedHook") or "Carrousel TikTok")[:120]
+    report["assetCount"] = len(assets)
+    report["transcriptAvailable"] = bool(transcript)
     db.record_ai_usage(user_id, "content-analysis", used_model)
     report["analysisId"] = db.save_analysis(user_id, "content", report)
-    report["transcriptAvailable"] = bool(transcript)
     return report
 
 

@@ -1,7 +1,7 @@
 import type { ImagePickerAsset } from "expo-image-picker";
 
 import { apiRequest } from "./api";
-import { normalizeImageForVision } from "./imageUpload";
+import { createHistoryThumbnail, normalizeImageForVision } from "./imageUpload";
 
 export type ContentAnalysisReport = {
   score: number;
@@ -24,6 +24,9 @@ export type ContentAnalysisReport = {
   analysisId: string;
   transcriptAvailable: boolean;
   source: "openai" | "anthropic";
+  assetCount?: number;
+  historyTitle?: string;
+  thumbnail?: string | null;
 };
 
 export async function requestContentAnalysis(
@@ -33,9 +36,10 @@ export async function requestContentAnalysis(
   const body = new FormData();
   body.append("type", type);
   body.append("goal", "revenue");
-  const normalizedAssets = await Promise.all(
-    assets.map((asset, index) => normalizeImageForVision(asset, `carousel-${index + 1}`))
-  );
+  const [normalizedAssets, thumbnail] = await Promise.all([
+    Promise.all(assets.map((asset, index) => normalizeImageForVision(asset, `carousel-${index + 1}`))),
+    createHistoryThumbnail(assets[0], "carousel-cover")
+  ]);
   normalizedAssets.forEach((asset) => {
     body.append("assets[]", {
       uri: asset.uri,
@@ -43,6 +47,11 @@ export async function requestContentAnalysis(
       type: asset.type
     } as unknown as Blob);
   });
+  body.append("thumbnail", {
+    uri: thumbnail.uri,
+    name: thumbnail.name,
+    type: thumbnail.type
+  } as unknown as Blob);
 
   return apiRequest<ContentAnalysisReport>("/api/v1/content/analyze", {
     method: "POST",

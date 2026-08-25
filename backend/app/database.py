@@ -91,6 +91,8 @@ class Database:
                     ON calendar_events(user_id, date, time);
                 CREATE INDEX IF NOT EXISTS idx_ai_usage_user_created
                     ON ai_usage(user_id, created_at);
+                CREATE INDEX IF NOT EXISTS idx_analyses_user_created
+                    ON analyses(user_id, created_at DESC);
                 """
             )
 
@@ -240,6 +242,35 @@ class Database:
             (user_id, kind),
         ).fetchone()
         return json.loads(row["payload"]) if row else None
+
+    def list_analyses(
+        self, user_id: str, kind: str | None = None, limit: int = 20
+    ) -> list[dict[str, Any]]:
+        query = "SELECT id, kind, payload, created_at FROM analyses WHERE user_id = ?"
+        params: list[Any] = [user_id]
+        if kind:
+            query += " AND kind = ?"
+            params.append(kind)
+        query += " ORDER BY created_at DESC LIMIT ?"
+        params.append(limit)
+        rows = self.connection.execute(query, params).fetchall()
+        return [
+            {
+                "id": str(row["id"]),
+                "kind": str(row["kind"]),
+                "createdAt": str(row["created_at"]),
+                "report": {**json.loads(row["payload"]), "analysisId": str(row["id"])},
+            }
+            for row in rows
+        ]
+
+    def delete_analysis(self, user_id: str, analysis_id: str) -> bool:
+        with self.lock, self.connection:
+            cursor = self.connection.execute(
+                "DELETE FROM analyses WHERE id = ? AND user_id = ?",
+                (analysis_id, user_id),
+            )
+        return cursor.rowcount > 0
 
     def save_strategy(self, user_id: str, payload: dict[str, Any]) -> None:
         with self.lock, self.connection:

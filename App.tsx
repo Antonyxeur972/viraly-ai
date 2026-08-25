@@ -50,10 +50,10 @@ type TabKey = "dashboard" | "video" | "ideas" | "strategy" | "coach";
 
 const tabs: TabItem<TabKey>[] = [
   { key: "dashboard", label: "Accueil", icon: "home-outline" },
-  { key: "video", label: "Analyse", icon: "stats-chart-outline" },
-  { key: "ideas", label: "Idees", icon: "bulb-outline" },
-  { key: "strategy", label: "Plan", icon: "calendar-outline" },
-  { key: "coach", label: "Coach", icon: "chatbubbles-outline" }
+  { key: "video", label: "Analyse", icon: "scan-outline" },
+  { key: "ideas", label: "Idées", icon: "sparkles-outline" },
+  { key: "strategy", label: "Plan", icon: "calendar-clear-outline" },
+  { key: "coach", label: "Coach", icon: "chatbubble-ellipses-outline" }
 ];
 
 export default function App() {
@@ -206,7 +206,10 @@ export default function App() {
     setActiveTab(tab);
 
     if (Platform.OS === "web") {
-      requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: "auto" }));
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "auto" });
+        document.querySelector<HTMLElement>('[data-testid="viraly-shell"]')?.scrollTo({ top: 0 });
+      });
     }
   };
 
@@ -234,6 +237,7 @@ export default function App() {
           <DashboardScreen
             onConnectTikTok={connectTikTok}
             onProfileAnalyzed={setAccountContext}
+            profile={creatorSetup}
             tiktokHandle={tiktokHandle}
             tiktokStatus={tiktokStatus}
           />
@@ -249,12 +253,12 @@ export default function App() {
         source={require("./assets/viraly-rainforest.png")}
         style={styles.background}
       >
-        <View style={styles.scrim}>
+        <View style={styles.scrim} testID="viraly-shell">
           <LinearGradient
             colors={[
-              "rgba(1,10,7,0.18)",
-              "rgba(2,15,10,0.38)",
-              "rgba(2,12,8,0.94)"
+              "rgba(2,8,22,0.28)",
+              "rgba(3,13,36,0.52)",
+              "rgba(2,7,18,0.96)"
             ]}
             locations={[0, 0.48, 1]}
             pointerEvents="none"
@@ -269,16 +273,16 @@ export default function App() {
           </View>
           {onboardingComplete && creatorSetup ? (
             <>
-              <View style={styles.screen}>{screen}</View>
+              <View key={activeTab} style={styles.screen}>{screen}</View>
               <BottomTabs
                 activeTab={activeTab}
                 items={tabs}
                 onChange={changeTab}
                 renderIcon={(item, focused) => (
                   <Ionicons
-                    color={focused ? palette.mint : palette.muted}
+                    color={focused ? palette.white : palette.muted}
                     name={focused ? item.icon.replace("-outline", "") as typeof item.icon : item.icon}
-                    size={21}
+                    size={22}
                   />
                 )}
               />

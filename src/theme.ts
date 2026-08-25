@@ -1,21 +1,21 @@
 export const palette = {
-  ink: "#04120B",
-  graphite: "rgba(3, 15, 10, 0.96)",
-  panel: "rgba(5, 23, 15, 0.82)",
-  panelSoft: "rgba(10, 31, 21, 0.70)",
-  line: "rgba(181, 255, 63, 0.16)",
-  lineStrong: "rgba(181, 255, 63, 0.40)",
-  paper: "#F4F7F4",
+  ink: "#030711",
+  graphite: "rgba(3, 8, 20, 0.97)",
+  panel: "rgba(5, 13, 31, 0.86)",
+  panelSoft: "rgba(11, 23, 50, 0.72)",
+  line: "rgba(66, 139, 255, 0.20)",
+  lineStrong: "rgba(66, 139, 255, 0.48)",
+  paper: "#F4F7FF",
   paperMuted: "rgba(255, 255, 255, 0.72)",
   white: "#FFFFFF",
   muted: "rgba(255, 255, 255, 0.42)",
-  mint: "#A7F542",
-  mintDark: "#2E771B",
-  coral: "#C9D2CD",
-  lemon: "#E7EEE9",
-  sky: "#8FB8A8",
-  violet: "#7C9489",
-  green: "#A7F542"
+  mint: "#2D7CFF",
+  mintDark: "#0B3F9A",
+  coral: "#D1D8E8",
+  lemon: "#E5ECF8",
+  sky: "#77C7FF",
+  violet: "#AAB8D8",
+  green: "#2D7CFF"
 };
 
 export const shadow = {

@@ -25,7 +25,7 @@ async function getViralyCalendarId() {
 
   return Calendar.createCalendarAsync({
     accessLevel: Calendar.CalendarAccessLevel.OWNER,
-    color: "#45F2A4",
+    color: "#2D7CFF",
     entityType: Calendar.EntityTypes.EVENT,
     name: CALENDAR_TITLE,
     ownerAccount: writable.ownerAccount || CALENDAR_TITLE,

@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject
   },
   highlight: {
-    backgroundColor: "rgba(215,255,180,0.13)",
+    backgroundColor: "rgba(112,169,255,0.16)",
     height: 1,
     left: 1,
     position: "absolute",

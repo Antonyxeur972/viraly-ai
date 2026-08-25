@@ -186,6 +186,53 @@ def test_ai_provider_follows_the_model_that_answered():
     assert ai_provider_for_model("gpt-5-mini") == "openai"
 
 
+def test_anthropic_is_the_primary_provider_for_every_ai_feature():
+    from app.ai import AIEngine
+    from app.config import Settings
+
+    engine = AIEngine(Settings(openai_api_key="openai-test", anthropic_api_key="anthropic-test"))
+    calls = []
+
+    async def fake_anthropic(**kwargs):
+        calls.append(("anthropic", kwargs["feature"]))
+        return {"ok": True, "_model": "claude-test"}
+
+    async def fake_openai(**kwargs):
+        calls.append(("openai", kwargs["feature"]))
+        return {"ok": True, "_model": "gpt-test"}
+
+    engine._generate_anthropic = fake_anthropic
+    engine._generate_openai = fake_openai
+
+    import asyncio
+
+    result = asyncio.run(
+        engine.generate_json(
+            model="gpt-test",
+            feature="all_features",
+            prompt="Analyse",
+            schema={"type": "object", "properties": {}},
+        )
+    )
+    assert result["_model"] == "claude-test"
+    assert calls == [("anthropic", "all_features")]
+
+
+def test_analysis_history_can_be_reopened_and_deleted(client, auth_headers):
+    analysis_id = client.app.state.db.save_analysis(
+        "usr_tests", "content", {"score": 73, "summary": "Test sauvegardé"}
+    )
+
+    history = client.get("/api/v1/analyses?kind=content", headers=auth_headers)
+    assert history.status_code == 200
+    assert history.json()["analyses"][0]["id"] == analysis_id
+    assert history.json()["analyses"][0]["report"]["score"] == 73
+
+    deleted = client.delete(f"/api/v1/analyses/{analysis_id}", headers=auth_headers)
+    assert deleted.status_code == 204
+    assert client.get("/api/v1/analyses?kind=content", headers=auth_headers).json()["analyses"] == []
+
+
 def test_onboarding_uses_structured_ai_and_persists_result(client, auth_headers):
     class FakeAI:
         configured = True

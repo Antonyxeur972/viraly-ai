@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
   kicker: { ...typography.caption, color: palette.sky },
   title: { ...typography.title, color: palette.white },
   subtitle: { ...typography.body, color: palette.paperMuted },
-  contextStrip: { alignItems: "center", backgroundColor: "rgba(3,15,10,0.62)", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  contextStrip: { alignItems: "center", backgroundColor: "rgba(3,10,27,0.68)", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   contextItem: { alignItems: "center", flex: 1, flexDirection: "row", gap: spacing.xs, minWidth: 0 },
   contextText: { ...typography.caption, color: palette.paperMuted, flexShrink: 1 },
   contextDivider: { backgroundColor: palette.line, height: 20, width: 1 },

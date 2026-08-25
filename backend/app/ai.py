@@ -72,7 +72,19 @@ class AIEngine:
     ) -> dict[str, Any]:
         content: list[dict[str, Any]] = [{"type": "input_text", "text": prompt}]
         content.extend(media or [])
-        openai_error: AIUnavailableError | None = None
+        anthropic_error: AIUnavailableError | None = None
+        if self.anthropic_client:
+            try:
+                return await self._generate_anthropic(
+                    feature=feature,
+                    prompt=prompt,
+                    schema=schema,
+                    media=media,
+                )
+            except AIUnavailableError as error:
+                anthropic_error = error
+                logger.warning("Anthropic unavailable feature=%s code=%s", feature, error.code)
+
         if self.client:
             try:
                 return await self._generate_openai(
@@ -85,21 +97,15 @@ class AIEngine:
                     verbosity=verbosity,
                 )
             except AIUnavailableError as error:
-                openai_error = error
-                logger.warning("OpenAI unavailable feature=%s code=%s", feature, error.code)
+                logger.warning("OpenAI fallback unavailable feature=%s code=%s", feature, error.code)
+                if anthropic_error:
+                    raise anthropic_error from error
+                raise
 
-        if self.anthropic_client:
-            return await self._generate_anthropic(
-                feature=feature,
-                prompt=prompt,
-                schema=schema,
-                media=media,
-            )
-
-        if openai_error:
-            raise openai_error
+        if anthropic_error:
+            raise anthropic_error
         raise AIUnavailableError(
-            "Aucun moteur IA visuel n'est configuré sur le backend VIRALY AI.",
+            "Aucun moteur IA n'est configuré sur le backend VIRALY AI.",
             code="not_configured",
         )
 
@@ -197,7 +203,7 @@ class AIEngine:
         media: list[dict[str, Any]] | None,
     ) -> dict[str, Any]:
         if not self.anthropic_client:
-            raise AIUnavailableError("Claude Vision n'est pas configuré.", code="not_configured")
+            raise AIUnavailableError("Claude n'est pas configuré.", code="not_configured")
 
         content: list[dict[str, Any]] = []
         for item in media or []:
@@ -235,17 +241,17 @@ class AIEngine:
             )
         except AnthropicAuthenticationError as error:
             raise AIUnavailableError(
-                "La connexion Claude Vision doit être renouvelée.",
+                "La connexion Claude doit être renouvelée.",
                 code="anthropic_authentication",
             ) from error
         except AnthropicRateLimitError as error:
             raise AIUnavailableError(
-                "Claude Vision a atteint sa limite temporaire. Réessaie dans quelques instants.",
+                "Claude a atteint sa limite temporaire. Réessaie dans quelques instants.",
                 code="anthropic_rate_limit",
             ) from error
         except AnthropicConnectionError as error:
             raise AIUnavailableError(
-                "Claude Vision est momentanément inaccessible.",
+                "Claude est momentanément inaccessible.",
                 code="anthropic_connection",
             ) from error
         except AnthropicStatusError as error:
@@ -255,7 +261,7 @@ class AIEngine:
                 error.status_code,
             )
             raise AIUnavailableError(
-                "Claude Vision n'a pas pu terminer cette analyse.",
+                "Claude n'a pas pu terminer cette analyse.",
                 code="anthropic_status",
             ) from error
 
@@ -267,7 +273,7 @@ class AIEngine:
         start, end = raw.find("{"), raw.rfind("}")
         if start < 0 or end <= start:
             raise AIUnavailableError(
-                "Claude Vision n'a retourné aucune analyse exploitable.",
+                "Claude n'a retourné aucune analyse exploitable.",
                 code="anthropic_invalid_json",
             )
         try:
@@ -275,7 +281,7 @@ class AIEngine:
             validate(instance=result, schema=schema)
         except (json.JSONDecodeError, ValidationError) as error:
             raise AIUnavailableError(
-                "Claude Vision a retourné une analyse incomplète. Relance la lecture.",
+                "Claude a retourné une analyse incomplète. Relance la lecture.",
                 code="anthropic_invalid_schema",
             ) from error
         result["_model"] = self.settings.anthropic_model

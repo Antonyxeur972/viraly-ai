@@ -19,7 +19,7 @@ export function Tag({ label, color = palette.paper }: Props) {
 const styles = StyleSheet.create({
   tag: {
     ...typography.caption,
-    backgroundColor: "rgba(5,10,8,0.62)",
+    backgroundColor: "rgba(4,9,22,0.68)",
     borderWidth: 1,
     borderRadius: radius.pill,
     overflow: "hidden",

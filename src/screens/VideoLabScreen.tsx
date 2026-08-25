@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
@@ -12,6 +12,7 @@ import {
 } from "react-native";
 
 import { GlassPanel } from "../components/GlassPanel";
+import { AnalysisHistoryList } from "../components/AnalysisHistoryList";
 import { ProgressBar } from "../components/ProgressBar";
 import { ScoreDial } from "../components/ScoreDial";
 import { SectionHeader } from "../components/SectionHeader";
@@ -19,12 +20,26 @@ import {
   ContentAnalysisReport,
   requestContentAnalysis
 } from "../services/contentAnalysis";
+import {
+  AnalysisHistoryItem,
+  deleteAnalysisHistory,
+  listAnalysisHistory
+} from "../services/analysisHistory";
 import { palette, radius, spacing, typography } from "../theme";
 
 export function VideoLabScreen() {
   const [assets, setAssets] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [report, setReport] = useState<ContentAnalysisReport | null>(null);
+  const [history, setHistory] = useState<AnalysisHistoryItem<ContentAnalysisReport>[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    listAnalysisHistory<ContentAnalysisReport>("content")
+      .then((items) => active && setHistory(items))
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
 
   const pickContent = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -49,12 +64,35 @@ export function VideoLabScreen() {
     if (!assets.length) return;
     setIsAnalyzing(true);
     try {
-      setReport(await requestContentAnalysis("carousel", assets));
+      const result = await requestContentAnalysis("carousel", assets);
+      setReport(result);
+      setHistory((items) => [
+        { id: result.analysisId, kind: "content", createdAt: new Date().toISOString(), report: result },
+        ...items.filter((item) => item.id !== result.analysisId)
+      ].slice(0, 12));
     } catch (error) {
       Alert.alert("Analyse du contenu", error instanceof Error ? error.message : "Analyse impossible.");
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const removeHistoryItem = (item: AnalysisHistoryItem<ContentAnalysisReport>) => {
+    Alert.alert("Supprimer l'analyse", "Le post et son analyse seront retirés de l'historique.", [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Supprimer",
+        style: "destructive",
+        onPress: () => {
+          deleteAnalysisHistory(item.id)
+            .then(() => {
+              setHistory((items) => items.filter((entry) => entry.id !== item.id));
+              if (report?.analysisId === item.id) setReport(null);
+            })
+            .catch((error) => Alert.alert("Historique", error instanceof Error ? error.message : "Suppression impossible."));
+        }
+      }
+    ]);
   };
 
   return (
@@ -93,6 +131,20 @@ export function VideoLabScreen() {
           ))}
         </ScrollView>
       ) : null}
+
+      <View style={styles.historySection}>
+        <SectionHeader eyebrow="Bibliothèque" title="Posts déjà analysés" action={`${history.length}`} />
+        <AnalysisHistoryList
+          activeId={report?.analysisId}
+          emptyLabel="Tes posts analysés resteront disponibles ici."
+          items={history}
+          onDelete={removeHistoryItem}
+          onOpen={(item) => {
+            setAssets([]);
+            setReport(item.report);
+          }}
+        />
+      </View>
 
       {assets.length ? (
         <TouchableOpacity disabled={isAnalyzing} onPress={analyze} style={styles.analyzeButton}>
@@ -159,11 +211,12 @@ export function VideoLabScreen() {
 
 const styles = StyleSheet.create({
   content: { gap: spacing.xl, padding: spacing.lg, paddingBottom: spacing.xxl, paddingTop: spacing.lg },
+  historySection: { gap: spacing.md },
   header: { gap: spacing.sm },
   kicker: { ...typography.caption, color: palette.mint },
   title: { ...typography.title, color: palette.white },
   subtitle: { ...typography.body, color: palette.paperMuted },
-  modeCard: { alignItems: "center", backgroundColor: "rgba(3,15,10,0.62)", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, minHeight: 52, paddingHorizontal: spacing.md },
+  modeCard: { alignItems: "center", backgroundColor: "rgba(3,10,27,0.68)", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, minHeight: 52, paddingHorizontal: spacing.md },
   modeCopy: { flex: 1, gap: 1 },
   modeText: { ...typography.caption, color: palette.white },
   modeMeta: { color: palette.muted, fontSize: 10, lineHeight: 14 },
