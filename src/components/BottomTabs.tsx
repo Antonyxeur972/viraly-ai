@@ -56,7 +56,6 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     justifyContent: "space-between",
     backgroundColor: "rgba(3,8,20,0.94)",
-    borderColor: "rgba(66,139,255,0.26)",
     marginBottom: spacing.xs,
     marginHorizontal: spacing.xs,
     paddingBottom: spacing.xs,
@@ -78,16 +77,13 @@ const styles = StyleSheet.create({
   },
   iconWrap: {
     alignItems: "center",
-    borderColor: "transparent",
     borderRadius: radius.sm,
-    borderWidth: 1,
     height: 34,
     justifyContent: "center",
     width: 44
   },
   iconWrapActive: {
     backgroundColor: palette.mint,
-    borderColor: "rgba(255,255,255,0.32)",
     elevation: 8,
     shadowColor: palette.mint,
     shadowOffset: { width: 0, height: 4 },

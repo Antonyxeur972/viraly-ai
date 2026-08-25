@@ -25,7 +25,6 @@ export function GlassPanel({ children, style, textureOpacity = 0.13 }: Props) {
           style={[styles.texture, { opacity: textureOpacity }]}
         />
       </View>
-      <View pointerEvents="none" style={styles.highlight} />
       {children}
     </BlurView>
   );
@@ -34,22 +33,12 @@ export function GlassPanel({ children, style, textureOpacity = 0.13 }: Props) {
 const styles = StyleSheet.create({
   panel: {
     backgroundColor: palette.panel,
-    borderColor: palette.line,
     borderRadius: radius.lg,
-    borderWidth: 1,
     overflow: "hidden",
     position: "relative",
     ...shadow.md
   },
   texture: {
     ...StyleSheet.absoluteFillObject
-  },
-  highlight: {
-    backgroundColor: "rgba(112,169,255,0.16)",
-    height: 1,
-    left: 1,
-    position: "absolute",
-    right: 1,
-    top: 0
   }
 });
