@@ -67,6 +67,12 @@ class Database:
                     payload TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS content_plans (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    payload TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
                 CREATE TABLE IF NOT EXISTS creator_profiles (
                     user_id TEXT PRIMARY KEY,
                     payload TEXT NOT NULL,
@@ -93,6 +99,8 @@ class Database:
                     ON ai_usage(user_id, created_at);
                 CREATE INDEX IF NOT EXISTS idx_analyses_user_created
                     ON analyses(user_id, created_at DESC);
+                CREATE INDEX IF NOT EXISTS idx_content_plans_user_created
+                    ON content_plans(user_id, created_at DESC);
                 """
             )
 
@@ -285,6 +293,35 @@ class Database:
         ).fetchone()
         return json.loads(row["payload"]) if row else None
 
+    def save_content_plan(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        plan_id = f"plan_{uuid.uuid4().hex}"
+        created_at = now_iso()
+        stored = {**payload, "id": plan_id, "createdAt": created_at}
+        with self.lock, self.connection:
+            self.connection.execute(
+                "INSERT INTO content_plans(id, user_id, payload, created_at) VALUES (?, ?, ?, ?)",
+                (plan_id, user_id, json.dumps(stored), created_at),
+            )
+        return stored
+
+    def list_content_plans(self, user_id: str, limit: int = 8) -> list[dict[str, Any]]:
+        rows = self.connection.execute(
+            "SELECT id, payload, created_at FROM content_plans WHERE user_id = ? ORDER BY created_at DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+        return [
+            {
+                **json.loads(row["payload"]),
+                "id": str(row["id"]),
+                "createdAt": str(row["created_at"]),
+            }
+            for row in rows
+        ]
+
+    def latest_content_plan(self, user_id: str) -> dict[str, Any] | None:
+        plans = self.list_content_plans(user_id, 1)
+        return plans[0] if plans else None
+
     def save_creator_profile(self, user_id: str, payload: dict[str, Any]) -> None:
         with self.lock, self.connection:
             self.connection.execute(
@@ -339,6 +376,20 @@ class Database:
                 [record[field] for field in fields],
             )
         return record
+
+    def replace_ai_events(self, user_id: str, events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        with self.lock, self.connection:
+            self.connection.execute(
+                "DELETE FROM calendar_events WHERE user_id = ? AND source = 'ai'",
+                (user_id,),
+            )
+        return [
+            self.create_event(
+                user_id,
+                {**event, "status": "planned", "source": "ai"},
+            )
+            for event in events
+        ]
 
     def update_event(self, user_id: str, event_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         current = self.connection.execute(

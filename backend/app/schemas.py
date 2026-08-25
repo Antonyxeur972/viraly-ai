@@ -49,6 +49,10 @@ class StrategyRequest(BaseModel):
     timezone: str = "Europe/Paris"
 
 
+class PlanGenerationRequest(StrategyRequest):
+    starting_date: str
+
+
 class CalendarGenerationRequest(BaseModel):
     profile: CreatorProfile
     strategy: dict[str, Any]
@@ -252,6 +256,62 @@ STRATEGY_SCHEMA = {
                     "name": {"type": "string"}, "nextAction": {"type": "string"},
                     "contentDirection": {"type": "string"}, "range": {"type": "string"},
                     "basis": {"type": "string"},
+                },
+            },
+        },
+    },
+}
+
+
+CONTENT_PLAN_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": [
+        "summary",
+        "strategyDecision",
+        "postingSlots",
+        "weeklyFocus",
+        "events",
+    ],
+    "properties": {
+        "summary": {"type": "string"},
+        "strategyDecision": {"type": "string"},
+        "postingSlots": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["dayOffset", "time", "reason"],
+                "properties": {
+                    "dayOffset": {"type": "integer", "minimum": 0, "maximum": 6},
+                    "time": {"type": "string"},
+                    "reason": {"type": "string"},
+                },
+            },
+        },
+        "weeklyFocus": {
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 3,
+            "maxItems": 5,
+        },
+        "events": {
+            "type": "array",
+            "minItems": 7,
+            "maxItems": 21,
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["dayOffset", "time", "type", "title", "hook", "cta"],
+                "properties": {
+                    "dayOffset": {"type": "integer", "minimum": 0, "maximum": 6},
+                    "time": {"type": "string"},
+                    "type": {"type": "string", "enum": ["video", "carousel", "story"]},
+                    "title": {"type": "string"},
+                    "hook": {"type": "string"},
+                    "cta": {"type": "string"},
                 },
             },
         },

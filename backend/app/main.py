@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import hmac
 import json
+import re
 import secrets
 import time as unix_time
 from datetime import date, datetime, time, timedelta, timezone
@@ -25,6 +27,7 @@ from .media import image_item, read_upload
 from .schemas import (
     CALENDAR_SCHEMA,
     COACH_SCHEMA,
+    CONTENT_PLAN_SCHEMA,
     CONTENT_SCHEMA,
     IDEA_SCHEMA,
     IDEAS_SCHEMA,
@@ -41,6 +44,7 @@ from .schemas import (
     CreatorProfile,
     GoogleCodeExchange,
     ManagedSessionExchange,
+    PlanGenerationRequest,
 )
 
 
@@ -398,25 +402,42 @@ def coach_fallback(request: CoachRequest) -> dict[str, Any]:
     question = request.question.lower()
     profile = request.profile
     niche = niche_label(profile)
+    strategy = request.strategy_context or {}
+    mix = strategy.get("contentMix") if isinstance(strategy, dict) else None
+    if not isinstance(mix, dict):
+        mix = content_mix_for_profile(profile)
+    videos = int(mix.get("videos", 0))
+    carousels = int(mix.get("carousels", 0))
+    stories = int(mix.get("stories", 0))
+    weekly_volume = (
+        f"{videos} vidéo(s), {carousels} carrousel(s) et {stories} stories sur 7 jours"
+    )
     if "heure" in question or "poster" in question:
-        answer = "Teste 2 créneaux fixes pendant 14 jours: 12h15 et 19h30, puis garde celui qui gagne en sauvegardes et commentaires."
-        calendar = "Ajoute deux publications cette semaine: mardi 19h30 et jeudi 12h15."
-    elif "live" in question:
-        answer = "Prépare les LIVE comme un rendez-vous de conversion: un sujet précis, 3 preuves, 1 offre ou ressource en fin de session."
-        calendar = "Place un LIVE court de 25 minutes après une publication forte."
+        answer = (
+            f"Pour ton rythme, garde {weekly_volume}. Teste les publications principales à 12h15 et 19h30, "
+            "puis conserve le créneau qui gagne en sauvegardes et commentaires après 24 heures."
+        )
+        calendar = "Utilise les heures du plan actif et compare uniquement 12h15 contre 19h30."
     elif "story" in question:
-        answer = "Utilise les stories pour chauffer l'audience: coulisses, sondage, preuve, puis rappel vers le contenu principal."
-        calendar = "Ajoute 3 stories les jours sans publication."
+        answer = (
+            f"Ton plan prévoit {stories} stories: répartis-les entre sondage, coulisse, preuve et rappel "
+            "vers la publication principale du jour."
+        )
+        calendar = f"Garde les {stories} stories aux moments déjà indiqués dans ton plan de 7 jours."
     else:
         answer = (
-            "Priorité: clarifie la promesse, publie avec un rythme stable, puis relie chaque contenu à une action mesurable."
+            f"Priorité pour {niche}: exécute {weekly_volume} autour d'une seule promesse, "
+            "puis relie chaque contenu à une action mesurable."
         )
-        calendar = "Planifie une publication de preuve et une publication tutoriel cette semaine."
+        calendar = "Commence par la première publication de preuve prévue dans le plan actif."
+    account_score = (request.account_context or {}).get("score")
+    score_context = f", score observé {account_score}/100" if account_score is not None else ""
     return {
         "answer": answer,
         "why": (
             f"Décision construite à partir de ta niche ({niche}), de ton objectif {profile.goal}, "
-            f"format {preferred_format(profile)}, monétisation {monetization_label(profile)}."
+            f"format {preferred_format(profile)}, monétisation {monetization_label(profile)}{score_context} "
+            "et des volumes de ton dernier plan."
         ),
         "actions": [
             "Choisir un seul indicateur principal pour 7 jours.",
@@ -555,6 +576,278 @@ def calendar_fallback(
             }
         )
     return {"events": events, "source": "fallback_rules"}
+
+
+def content_mix_for_profile(profile: CreatorProfile) -> dict[str, int]:
+    cadence_posts = {"1-2": 2, "3-4": 4, "5-7": 6, "multiple": 7}.get(
+        profile.cadence, 4
+    )
+    time_capacity = {"1-2h": 2, "3-5h": 4, "6-10h": 6, "10h+": 7}.get(
+        profile.time, 4
+    )
+    feed_posts = min(cadence_posts, time_capacity)
+    if profile.format == "carousel":
+        videos = 1
+        carousels = max(1, feed_posts - videos)
+    elif profile.format == "mixed":
+        videos = max(1, (feed_posts + 1) // 2)
+        carousels = max(1, feed_posts - videos)
+    else:
+        carousels = 1
+        videos = max(1, feed_posts - carousels)
+    stories = {"1-2h": 7, "3-5h": 8, "6-10h": 10, "10h+": 12}.get(
+        profile.time, 8
+    )
+    return {"videos": videos, "carousels": carousels, "stories": stories}
+
+
+def visible_follower_bracket(
+    profile: CreatorProfile, account_context: dict[str, Any] | None
+) -> str:
+    metrics = (account_context or {}).get("metrics")
+    visible = str(metrics.get("followers") or "") if isinstance(metrics, dict) else ""
+    normalized = visible.lower().replace(" ", "").replace(",", ".")
+    match = re.search(r"[\d.]+", normalized)
+    if not match:
+        return profile.followers
+    try:
+        count = float(match.group(0))
+    except ValueError:
+        return profile.followers
+    if "m" in normalized:
+        count *= 1_000_000
+    elif "k" in normalized:
+        count *= 1_000
+    if count >= 10_000:
+        return "10000+"
+    if count >= 1_000:
+        return "1000-10000"
+    if count >= 100:
+        return "100-1000"
+    return "0-100"
+
+
+def revenue_potential_after(
+    profile: CreatorProfile, account_context: dict[str, Any] | None
+) -> str:
+    scenarios = {
+        "affiliate": {
+            "0-100": (0, 30), "100-1000": (10, 120),
+            "1000-10000": (80, 900), "10000+": (500, 4500),
+        },
+        "service": {
+            "0-100": (0, 150), "100-1000": (80, 600),
+            "1000-10000": (300, 3000), "10000+": (1200, 9000),
+        },
+        "product": {
+            "0-100": (0, 80), "100-1000": (40, 400),
+            "1000-10000": (200, 2500), "10000+": (1000, 10000),
+        },
+        "partnerships": {
+            "0-100": (0, 0), "100-1000": (0, 150),
+            "1000-10000": (150, 1500), "10000+": (800, 7000),
+        },
+    }
+    bracket = visible_follower_bracket(profile, account_context)
+    monetization = profile.monetization if profile.monetization in scenarios else "affiliate"
+    low, high = scenarios[monetization].get(bracket, scenarios[monetization]["0-100"])
+    factor = {"1-2": 0.7, "3-4": 1.0, "5-7": 1.25, "multiple": 1.5}.get(
+        profile.cadence, 1.0
+    )
+    low = max(0, round(low * factor / 10) * 10)
+    high = max(low, round(high * factor / 10) * 10)
+    if low == 0:
+        return f"jusqu'à {high} €/mois"
+    return f"{low} à {high} €/mois"
+
+
+def fallback_content_plan(
+    profile: CreatorProfile,
+    account_context: dict[str, Any] | None,
+    start: date,
+) -> dict[str, Any]:
+    niche = niche_label(profile)
+    mix = content_mix_for_profile(profile)
+    objective = {
+        "reach": "les vues qualifiées",
+        "community": "la conversion en abonnés",
+        "traffic": "les clics utiles",
+        "revenue": "les demandes qualifiées",
+    }.get(profile.goal, "la croissance du compte")
+    feed_days = [1, 3, 6, 4, 0, 2, 5]
+    feed_times = ["19:30", "12:15", "18:00", "20:00", "12:30", "19:00", "11:30"]
+    video_titles = [
+        f"3 erreurs en {niche} qui bloquent {objective}",
+        f"Avant/après: la correction {niche} qui change le résultat",
+        f"Je tranche ce débat fréquent en {niche}",
+        f"Le test {niche} à reproduire cette semaine",
+        f"Ce conseil {niche} semble juste, mais ralentit les résultats",
+        f"Analyse d'un cas réel en {niche}",
+        f"La méthode courte pour progresser en {niche}",
+    ]
+    carousel_titles = [
+        f"Checklist {niche}: 5 points à vérifier avant de commencer",
+        f"Plan en 4 étapes pour obtenir un résultat en {niche}",
+        f"À garder: les erreurs et corrections clés en {niche}",
+        f"Comparatif {niche}: mauvaise méthode contre bonne méthode",
+        f"Les 6 questions à poser avant une décision en {niche}",
+        f"Guide express {niche} à sauvegarder",
+        f"Le système hebdomadaire pour progresser en {niche}",
+    ]
+    story_titles = [
+        f"Sondage: ton blocage numéro 1 en {niche}",
+        f"Coulisse: préparation du prochain contenu {niche}",
+        f"Question ouverte sur l'erreur la plus fréquente en {niche}",
+        f"Preuve rapide avant/après en {niche}",
+        f"Rappel de la méthode publiée cette semaine",
+        f"Réponse à l'objection qui revient le plus",
+        f"Bilan: quel sujet {niche} approfondir ensuite ?",
+        f"Quiz express pour tester une idée reçue en {niche}",
+        f"Mini-conseil applicable aujourd'hui en {niche}",
+        f"Retour sur le meilleur commentaire de la semaine",
+        f"Annonce du contenu publié ce soir",
+        f"Demande de cas à analyser en {niche}",
+    ]
+    feed_types = ["video"] * mix["videos"] + ["carousel"] * mix["carousels"]
+    if profile.format == "carousel":
+        feed_types.sort(key=lambda item: item != "carousel")
+    elif profile.format == "mixed":
+        feed_types = [
+            "video" if index % 2 == 0 and mix["videos"] else "carousel"
+            for index in range(sum(mix[key] for key in ("videos", "carousels")))
+        ]
+        while feed_types.count("video") > mix["videos"]:
+            feed_types[feed_types.index("video")] = "carousel"
+        while feed_types.count("carousel") > mix["carousels"]:
+            feed_types[feed_types.index("carousel")] = "video"
+    events: list[dict[str, Any]] = []
+    type_indexes = {"video": 0, "carousel": 0}
+    for index, event_type in enumerate(feed_types):
+        day_offset = feed_days[index]
+        type_index = type_indexes[event_type]
+        type_indexes[event_type] += 1
+        title = video_titles[type_index] if event_type == "video" else carousel_titles[type_index]
+        events.append(
+            {
+                "dayOffset": day_offset,
+                "time": feed_times[index],
+                "type": event_type,
+                "title": title,
+                "hook": f"Si tu crées sur {niche}, cette décision peut améliorer {objective} dès ce cycle.",
+                "cta": f"Enregistre puis passe à l'étape liée à {monetization_label(profile)}.",
+            }
+        )
+    story_times = ["09:00", "18:15", "20:45"]
+    for index in range(mix["stories"]):
+        day_offset = index % 7
+        moment_index = index // 7
+        events.append(
+            {
+                "dayOffset": day_offset,
+                "time": story_times[min(moment_index, len(story_times) - 1)],
+                "type": "story",
+                "title": story_titles[index],
+                "hook": f"Une interaction courte pour préciser le prochain contenu {niche}.",
+                "cta": "Réponds, vote ou ouvre le contenu principal du jour.",
+            }
+        )
+    events.sort(key=lambda item: (item["dayOffset"], item["time"]))
+    return {
+        "summary": (
+            f"Pendant 7 jours, concentre le compte sur {niche} avec {mix['videos']} vidéo(s), "
+            f"{mix['carousels']} carrousel(s) et {mix['stories']} stories adaptés à {profile.time} disponibles."
+        ),
+        "strategyDecision": (
+            f"Positionnement retenu: résoudre un problème précis en {niche}, montrer une preuve, "
+            f"puis orienter vers {monetization_label(profile)}."
+        ),
+        "postingSlots": [
+            {
+                "dayOffset": feed_days[index],
+                "time": feed_times[index],
+                "reason": "Créneau de test personnalisé à comparer sur les sauvegardes, commentaires et clics à 24 h.",
+            }
+            for index in range(min(3, len(feed_types)))
+        ],
+        "weeklyFocus": [
+            f"Répéter une promesse unique autour de {niche}.",
+            "Comparer les hooks, sans changer le sujet ni le format du test.",
+            "Transformer les réponses aux stories en prochains contenus.",
+        ],
+        "events": events,
+        "contentMix": mix,
+        "revenuePotentialAfter": revenue_potential_after(profile, account_context),
+        "source": "fallback_rules",
+    }
+
+
+def normalized_content_plan(
+    profile: CreatorProfile,
+    account_context: dict[str, Any] | None,
+    start: date,
+    generated: dict[str, Any] | None,
+    source: str,
+) -> dict[str, Any]:
+    fallback = fallback_content_plan(profile, account_context, start)
+    if not generated:
+        generated = fallback
+    candidates: dict[str, list[dict[str, Any]]] = {"video": [], "carousel": [], "story": []}
+    for item in generated.get("events", []):
+        if isinstance(item, dict) and item.get("type") in candidates:
+            candidates[str(item["type"])].append(item)
+    events: list[dict[str, Any]] = []
+    for template in fallback["events"]:
+        event_type = str(template["type"])
+        candidate = candidates[event_type].pop(0) if candidates[event_type] else {}
+        day_offset = int(template["dayOffset"])
+        events.append(
+            {
+                "date": (start + timedelta(days=day_offset)).isoformat(),
+                "time": str(template["time"]),
+                "type": event_type,
+                "title": str(candidate.get("title") or template["title"])[:180],
+                "hook": str(candidate.get("hook") or template["hook"])[:500],
+                "cta": str(candidate.get("cta") or template["cta"])[:500],
+            }
+        )
+    posting_slots = generated.get("postingSlots")
+    if not isinstance(posting_slots, list) or len(posting_slots) < 2:
+        posting_slots = fallback["postingSlots"]
+    normalized_slots = []
+    for slot in posting_slots[:4]:
+        if not isinstance(slot, dict):
+            continue
+        try:
+            day_offset = max(0, min(6, int(slot.get("dayOffset", 0))))
+        except (TypeError, ValueError):
+            day_offset = 0
+        normalized_slots.append(
+            {
+                "dayOffset": day_offset,
+                "date": (start + timedelta(days=day_offset)).isoformat(),
+                "time": str(slot.get("time") or "19:00")[:5],
+                "reason": str(slot.get("reason") or fallback["postingSlots"][0]["reason"])[:300],
+            }
+        )
+    weekly_focus = [
+        str(item)[:240]
+        for item in generated.get("weeklyFocus", [])
+        if isinstance(item, str) and item.strip()
+    ][:5]
+    return {
+        "summary": str(generated.get("summary") or fallback["summary"])[:700],
+        "strategyDecision": str(
+            generated.get("strategyDecision") or fallback["strategyDecision"]
+        )[:700],
+        "contentMix": fallback["contentMix"],
+        "postingSlots": normalized_slots or fallback["postingSlots"],
+        "weeklyFocus": weekly_focus or fallback["weeklyFocus"],
+        "events": events,
+        "revenuePotentialAfter": fallback["revenuePotentialAfter"],
+        "profileSnapshot": profile.model_dump(),
+        "accountScore": (account_context or {}).get("score"),
+        "source": source,
+    }
 
 
 def google_configured() -> bool:
@@ -1070,12 +1363,24 @@ async def coach(
     db: Database = Depends(database),
     ai: AIEngine = Depends(ai_engine),
 ):
+    account_context = request.account_context or db.latest_analysis(user_id, "profile")
+    strategy_context = (
+        request.strategy_context
+        or db.latest_content_plan(user_id)
+        or db.get_strategy(user_id)
+    )
+    effective_request = request.model_copy(
+        update={
+            "account_context": account_context,
+            "strategy_context": strategy_context,
+        }
+    )
     report = None
     if has_ai_budget(db, user_id):
         try:
             coach_model = (
                 settings.strategy_model
-                if request.account_context and len(request.question.strip()) >= 80
+                if account_context and len(request.question.strip()) >= 80
                 else settings.fast_model
             )
             report = await ai.generate_json(
@@ -1087,10 +1392,11 @@ async def coach(
                 prompt=(
                     f"Question: {request.question}\n"
                     f"Profil: {compact_context(request.profile.model_dump())}\n"
-                    f"Compte: {compact_context(request.account_context)}\n"
-                    f"Stratégie: {compact_context(request.strategy_context)}\n"
+                    f"Compte: {compact_context(account_context)}\n"
+                    f"Dernier plan 7 jours: {compact_context(strategy_context)}\n"
                     "Réponds d'abord par une décision nette adaptée à ce profil. Justifie-la par les données disponibles. "
-                    "Transforme-la en une à quatre actions réalisables cette semaine. Quand une donnée manque, "
+                    "Respecte exactement les volumes, formats, dates et heures du dernier plan lorsqu'il existe. "
+                    "Transforme la décision en une à quatre actions réalisables cette semaine. Quand une donnée manque, "
                     "propose un test A/B qui ne change qu'une variable, avec métrique et règle de décision."
                 ),
             )
@@ -1100,9 +1406,77 @@ async def coach(
         except AIUnavailableError:
             report = None
     if report is None:
-        report = coach_fallback(request)
+        report = coach_fallback(effective_request)
     db.save_analysis(user_id, "coach", report)
     return report
+
+
+@app.get("/api/v1/plans")
+def list_content_plans(
+    limit: int = Query(default=8, ge=1, le=12),
+    user_id: str = Depends(require_user),
+    db: Database = Depends(database),
+):
+    return {"plans": db.list_content_plans(user_id, limit)}
+
+
+@app.post("/api/v1/plans/generate")
+async def generate_content_plan(
+    request: PlanGenerationRequest,
+    user_id: str = Depends(require_user),
+    db: Database = Depends(database),
+    ai: AIEngine = Depends(ai_engine),
+):
+    try:
+        start = date.fromisoformat(request.starting_date)
+    except ValueError as error:
+        raise HTTPException(422, "Date de départ invalide.") from error
+
+    account_context = request.account_context or db.latest_analysis(user_id, "profile")
+    mix = content_mix_for_profile(request.profile)
+    generated = None
+    source = "fallback_rules"
+    if has_ai_budget(db, user_id):
+        try:
+            generated = await asyncio.wait_for(
+                ai.generate_json(
+                    model=settings.strategy_model,
+                    feature="weekly_content_plan",
+                    effort="medium",
+                    verbosity="low",
+                    schema=CONTENT_PLAN_SCHEMA,
+                    prompt=(
+                        f"Construis un plan TikTok du {start.isoformat()} sur exactement 7 jours. "
+                        f"Profil déclaré: {compact_context(request.profile.model_dump())}. "
+                        f"Analyse visuelle du compte: {compact_context(account_context)}. "
+                        f"Volume imposé: exactement {mix['videos']} vidéos, {mix['carousels']} carrousels "
+                        f"et {mix['stories']} stories. Fuseau: {request.timezone}. "
+                        "Chaque jour doit apparaître avec au moins un contenu ou une story. Les dayOffset vont de 0 à 6. "
+                        "Prends parti pour une seule stratégie cohérente avec la niche, le niveau du compte, l'objectif, "
+                        "le format naturel, le temps disponible et la monétisation. Donne des titres spécifiques à cette niche, "
+                        "des hooks prononçables et des CTA directement exécutables. Utilise des moments réalistes de la journée. "
+                        "Ne parle ni d'éligibilité, ni de LIVE, ni de TikTok Shop, ni de revenus détaillés. "
+                        "N'invente aucune tendance ou donnée temps réel."
+                    ),
+                ),
+                timeout=18,
+            )
+            used_model = str(generated.pop("_model", settings.strategy_model))
+            source = ai_provider_for_model(used_model)
+            db.record_ai_usage(user_id, "weekly-plan", used_model)
+        except (AIUnavailableError, TimeoutError):
+            generated = None
+
+    plan = normalized_content_plan(
+        request.profile,
+        account_context,
+        start,
+        generated,
+        source,
+    )
+    plan["events"] = db.replace_ai_events(user_id, plan["events"])
+    db.save_strategy(user_id, plan)
+    return db.save_content_plan(user_id, plan)
 
 
 @app.get("/api/v1/strategy")
