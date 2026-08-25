@@ -514,6 +514,116 @@ def test_custom_niche_personalizes_strategy_fallback(client, auth_headers):
     assert "recettes antillaises rapides" in response.json()["niches"][0]["name"]
 
 
+def test_weekly_plan_has_exact_personalized_mix_and_seven_days(client, auth_headers):
+    response = client.post(
+        "/api/v1/plans/generate",
+        headers=auth_headers,
+        json={
+            "profile": {
+                "goal": "traffic",
+                "niche": "clear",
+                "nicheTopic": "recettes antillaises rapides",
+                "followers": "100-1000",
+                "cadence": "3-4",
+                "format": "carousel",
+                "time": "3-5h",
+                "monetization": "affiliate",
+            },
+            "starting_date": "2026-08-25",
+            "timezone": "Europe/Paris",
+        },
+    )
+
+    assert response.status_code == 200
+    plan = response.json()
+    assert plan["contentMix"] == {"videos": 1, "carousels": 3, "stories": 8}
+    assert len([event for event in plan["events"] if event["type"] == "video"]) == 1
+    assert len([event for event in plan["events"] if event["type"] == "carousel"]) == 3
+    assert len([event for event in plan["events"] if event["type"] == "story"]) == 8
+    assert len({event["date"] for event in plan["events"]}) == 7
+    assert "recettes antillaises rapides" in plan["strategyDecision"]
+    assert plan["revenuePotentialAfter"].endswith("€/mois")
+
+
+def test_old_plans_are_kept_while_active_ai_calendar_is_replaced(client, auth_headers):
+    initial_history = client.get("/api/v1/plans?limit=8", headers=auth_headers).json()["plans"]
+    payload = {
+        "profile": {
+            "goal": "reach",
+            "niche": "tech",
+            "followers": "0-100",
+            "cadence": "1-2",
+            "format": "mixed",
+            "time": "1-2h",
+            "monetization": "affiliate",
+        },
+        "starting_date": "2026-08-25",
+        "timezone": "Europe/Paris",
+    }
+    first = client.post("/api/v1/plans/generate", headers=auth_headers, json=payload)
+    payload["starting_date"] = "2026-09-01"
+    second = client.post("/api/v1/plans/generate", headers=auth_headers, json=payload)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    history = client.get("/api/v1/plans?limit=8", headers=auth_headers).json()["plans"]
+    calendar = client.get("/api/v1/calendar/events", headers=auth_headers).json()["events"]
+    assert len(history) == len(initial_history) + 2
+    assert history[0]["id"] == second.json()["id"]
+    assert len(calendar) == len(second.json()["events"])
+    assert {event["date"] for event in calendar} == {
+        event["date"] for event in second.json()["events"]
+    }
+
+
+def test_plan_and_coach_reuse_latest_saved_profile_analysis(client, auth_headers):
+    client.app.state.db.save_analysis(
+        "usr_tests",
+        "profile",
+        {
+            "score": 89,
+            "metrics": {"followers": "2.4K"},
+            "summary": "Le profil montre une promesse déjà claire.",
+        },
+    )
+    profile = {
+        "goal": "revenue",
+        "niche": "clear",
+        "nicheTopic": "coaching TikTok local",
+        "followers": "0-100",
+        "cadence": "3-4",
+        "format": "camera",
+        "time": "3-5h",
+        "monetization": "service",
+    }
+    plan_response = client.post(
+        "/api/v1/plans/generate",
+        headers=auth_headers,
+        json={
+            "profile": profile,
+            "account_context": None,
+            "starting_date": "2026-08-25",
+            "timezone": "Europe/Paris",
+        },
+    )
+    coach_response = client.post(
+        "/api/v1/coach",
+        headers=auth_headers,
+        json={
+            "question": "Combien dois-je publier cette semaine ?",
+            "profile": profile,
+            "account_context": None,
+            "strategy_context": None,
+        },
+    )
+
+    assert plan_response.status_code == 200
+    assert plan_response.json()["accountScore"] == 89
+    assert coach_response.status_code == 200
+    assert "3 vidéo(s), 1 carrousel(s) et 8 stories" in coach_response.json()["answer"]
+    assert "score observé 89/100" in coach_response.json()["why"]
+
+
 def test_google_state_and_one_time_session_exchange(client, monkeypatch):
     from dataclasses import replace
     from urllib.parse import parse_qs, urlparse
