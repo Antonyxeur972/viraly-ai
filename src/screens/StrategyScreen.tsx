@@ -28,6 +28,10 @@ type Props = {
   onResetCreatorProfile: () => void;
 };
 
+type PlanDuration = 7 | 14 | 30;
+
+const planDurations: PlanDuration[] = [7, 14, 30];
+
 const formatMeta: Record<CalendarEvent["type"], { icon: IconName; label: string }> = {
   video: { icon: "videocam-outline", label: "Vidéo" },
   carousel: { icon: "albums-outline", label: "Carrousel" },
@@ -76,9 +80,28 @@ function momentLabel(time: string) {
 }
 
 function planRange(plan: ContentPlan) {
+  if (plan.startDate && plan.endDate) return `${shortDate(plan.startDate)} - ${shortDate(plan.endDate)}`;
   const dates = plan.events.map((event) => event.date).sort();
   if (!dates.length) return "7 jours";
   return `${shortDate(dates[0])} - ${shortDate(dates[dates.length - 1])}`;
+}
+
+function dateAfter(start: string, offset: number) {
+  const value = new Date(`${start}T12:00:00`);
+  value.setDate(value.getDate() + offset);
+  return value.toISOString().slice(0, 10);
+}
+
+function planDays(plan: ContentPlan) {
+  const grouped = groupEvents(plan.events);
+  const sortedDates = plan.events.map((event) => event.date).sort();
+  const start = plan.startDate || sortedDates[0];
+  const duration = plan.durationDays || 7;
+  if (!start) return [];
+  return Array.from({ length: duration }, (_, offset) => {
+    const date = dateAfter(start, offset);
+    return [date, grouped[date] || []] as const;
+  });
 }
 
 function groupEvents(events: CalendarEvent[]) {
@@ -95,9 +118,10 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
   const [isGenerating, setIsGenerating] = useState(false);
   const [syncingPlanId, setSyncingPlanId] = useState<string | null>(null);
   const [schedulingPlanId, setSchedulingPlanId] = useState<string | null>(null);
+  const [duration, setDuration] = useState<PlanDuration>(7);
 
   useEffect(() => {
-    listContentPlans(8)
+    listContentPlans(12)
       .then((savedPlans) => {
         setPlans(savedPlans);
         setSelectedPlanId(savedPlans[0]?.id || null);
@@ -111,7 +135,7 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
     [plans, selectedPlanId]
   );
   const groupedDays = useMemo(
-    () => Object.entries(groupEvents(activePlan?.events || [])).sort(([a], [b]) => a.localeCompare(b)),
+    () => activePlan ? planDays(activePlan) : [],
     [activePlan]
   );
 
@@ -119,8 +143,8 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
     if (isGenerating) return;
     setIsGenerating(true);
     try {
-      const plan = await generateContentPlan(profile, accountContext, localToday());
-      setPlans((current) => [plan, ...current.filter((item) => item.id !== plan.id)].slice(0, 8));
+      const plan = await generateContentPlan(profile, accountContext, localToday(), duration);
+      setPlans((current) => [plan, ...current.filter((item) => item.id !== plan.id)].slice(0, 12));
       setSelectedPlanId(plan.id);
     } catch (error) {
       Alert.alert("Plan VIRALY", error instanceof Error ? error.message : "Construction impossible.");
@@ -177,11 +201,28 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
-        <Text style={styles.kicker}>PLAN SUR 7 JOURS</Text>
+        <Text style={styles.kicker}>PLAN DE PUBLICATION</Text>
         <Text style={styles.title}>Le bon contenu, au bon moment.</Text>
         <Text style={styles.subtitle}>
           Un rythme calculé à partir de ton profil, de tes réponses et de l’analyse réelle du compte.
         </Text>
+      </View>
+
+      <View style={styles.durationControl}>
+        {planDurations.map((value) => {
+          const selected = value === duration;
+          return (
+            <TouchableOpacity
+              accessibilityState={{ selected }}
+              key={value}
+              onPress={() => setDuration(value)}
+              style={[styles.durationOption, selected && styles.durationOptionActive]}
+            >
+              <Text style={[styles.durationValue, selected && styles.durationValueActive]}>{value}</Text>
+              <Text style={[styles.durationLabel, selected && styles.durationLabelActive]}>JOURS</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <View style={styles.contextStrip}>
@@ -205,7 +246,7 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
       <TouchableOpacity disabled={isGenerating} onPress={buildPlan} style={[styles.primaryButton, isGenerating && styles.disabled]}>
         {isGenerating ? <ActivityIndicator color={palette.ink} /> : <Ionicons color={palette.ink} name="sparkles" size={20} />}
         <Text style={styles.primaryText}>
-          {isGenerating ? "Construction de ta semaine..." : activePlan ? "Générer un nouveau plan" : "Construire mon plan personnalisé"}
+          {isGenerating ? `Construction sur ${duration} jours...` : activePlan ? `Ajouter un plan de ${duration} jours` : `Construire mon plan sur ${duration} jours`}
         </Text>
       </TouchableOpacity>
 
@@ -218,8 +259,8 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
         <GlassPanel style={styles.loadingPanel} textureOpacity={0.18}>
           <View style={styles.loadingIcon}><Ionicons color={palette.ink} name="flash" size={21} /></View>
           <View style={styles.flex}>
-            <Text style={styles.loadingTitle}>Une seule analyse pour toute la semaine</Text>
-            <Text style={styles.loadingText}>VIRALY croise ton rythme, ta niche, ton diagnostic et ton objectif.</Text>
+            <Text style={styles.loadingTitle}>Une stratégie complète sur {duration} jours</Text>
+            <Text style={styles.loadingText}>Le nouveau plan sera ajouté sans supprimer les précédents.</Text>
           </View>
         </GlassPanel>
       ) : null}
@@ -277,7 +318,7 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
                   <Text style={styles.dayTitle}>{dayTitle(date)}</Text>
                 </View>
                 <View style={styles.eventStack}>
-                  {events
+                  {events.length ? events
                     .slice()
                     .sort((a, b) => a.time.localeCompare(b.time))
                     .map((event) => {
@@ -300,7 +341,12 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
                           </View>
                         </View>
                       );
-                    })}
+                    }) : (
+                      <View style={styles.restRow}>
+                        <Ionicons color={palette.muted} name="create-outline" size={17} />
+                        <Text style={styles.restText}>Préparation, réponses aux commentaires et analyse des signaux.</Text>
+                      </View>
+                    )}
                 </View>
               </View>
             ))}
@@ -320,8 +366,8 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
         <GlassPanel style={styles.emptyPanel} textureOpacity={0.12}>
           <Ionicons color={palette.mint} name="calendar-clear-outline" size={27} />
           <View style={styles.flex}>
-            <Text style={styles.emptyTitle}>Ta semaine est prête à être construite</Text>
-            <Text style={styles.emptyText}>Le premier plan fixera tes formats, tes horaires et les sujets précis des 7 prochains jours.</Text>
+            <Text style={styles.emptyTitle}>Ton prochain cycle est prêt à être construit</Text>
+            <Text style={styles.emptyText}>Choisis 7, 14 ou 30 jours. Chaque nouveau plan restera disponible dans l’historique.</Text>
           </View>
         </GlassPanel>
       ) : null}
@@ -334,7 +380,7 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
               <View key={plan.id} style={[styles.historyRow, plan.id === activePlan?.id && styles.historySelected]}>
                 <TouchableOpacity onPress={() => setSelectedPlanId(plan.id)} style={styles.historyMain}>
                   <View style={styles.historyTop}>
-                    <Text style={styles.historyTitle}>{index === 0 ? "Dernier plan" : `Plan du ${createdLabel(plan.createdAt)}`}</Text>
+                    <Text style={styles.historyTitle}>{index === 0 ? `Dernier plan · ${plan.durationDays || 7} j` : `Plan ${plan.durationDays || 7} j · ${createdLabel(plan.createdAt)}`}</Text>
                     <Text style={styles.historyRange}>{planRange(plan)}</Text>
                   </View>
                   <Text numberOfLines={2} style={styles.historySummary}>{plan.strategyDecision}</Text>
@@ -358,13 +404,20 @@ const styles = StyleSheet.create({
   kicker: { ...typography.caption, color: palette.mint },
   title: { ...typography.title, color: palette.white },
   subtitle: { ...typography.body, color: palette.paperMuted },
-  contextStrip: { alignItems: "center", backgroundColor: "rgba(3,10,27,0.72)", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  durationControl: { backgroundColor: "rgba(3,10,27,0.62)", borderRadius: radius.md, flexDirection: "row", gap: spacing.xs, padding: spacing.xs },
+  durationOption: { alignItems: "center", borderRadius: radius.sm, flex: 1, gap: 1, justifyContent: "center", minHeight: 58 },
+  durationOptionActive: { backgroundColor: palette.mint },
+  durationValue: { color: palette.paperMuted, fontSize: 19, fontWeight: "800" },
+  durationValueActive: { color: palette.ink },
+  durationLabel: { color: palette.muted, fontSize: 9, fontWeight: "800" },
+  durationLabelActive: { color: "rgba(3,7,17,0.68)" },
+  contextStrip: { alignItems: "center", backgroundColor: "rgba(3,10,27,0.54)", borderRadius: radius.pill, flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   contextItem: { alignItems: "center", flex: 1, flexDirection: "row", gap: spacing.xs, minWidth: 0 },
   contextText: { ...typography.caption, color: palette.paperMuted, flexShrink: 1 },
   contextDivider: { backgroundColor: palette.line, height: 21, width: 1 },
   primaryButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 54, paddingHorizontal: spacing.lg },
   primaryText: { ...typography.caption, color: palette.ink, textAlign: "center" },
-  resetButton: { alignItems: "center", alignSelf: "flex-start", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, minHeight: 42, paddingHorizontal: spacing.md },
+  resetButton: { alignItems: "center", alignSelf: "flex-start", backgroundColor: "rgba(13,28,57,0.62)", borderRadius: radius.pill, flexDirection: "row", gap: spacing.sm, minHeight: 42, paddingHorizontal: spacing.md },
   resetText: { ...typography.caption, color: palette.sky },
   disabled: { opacity: 0.5 },
   flex: { flex: 1 },
@@ -372,19 +425,19 @@ const styles = StyleSheet.create({
   loadingIcon: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, height: 44, justifyContent: "center", width: 44 },
   loadingTitle: { ...typography.h3, color: palette.white },
   loadingText: { ...typography.caption, color: palette.paperMuted, marginTop: 3 },
-  decisionPanel: { borderColor: palette.lineStrong, gap: spacing.sm, padding: spacing.xl },
+  decisionPanel: { gap: spacing.sm, padding: spacing.xl },
   decisionLabel: { ...typography.caption, color: palette.mint },
   decision: { ...typography.h2, color: palette.white },
   summary: { ...typography.body, color: palette.paperMuted },
   mixRow: { flexDirection: "row", gap: spacing.sm },
-  mixItem: { alignItems: "center", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flex: 1, gap: 4, minHeight: 112, paddingHorizontal: spacing.xs, paddingVertical: spacing.md },
+  mixItem: { alignItems: "center", backgroundColor: "rgba(7,17,38,0.82)", borderRadius: radius.md, flex: 1, gap: 4, minHeight: 112, paddingHorizontal: spacing.xs, paddingVertical: spacing.md },
   mixValue: { color: palette.white, fontSize: 27, fontWeight: "800", lineHeight: 32 },
   mixLabel: { color: palette.paperMuted, fontSize: 9, fontWeight: "800" },
-  revenueLine: { alignItems: "center", borderBottomColor: palette.line, borderTopColor: palette.line, borderWidth: 0, borderBottomWidth: 1, borderTopWidth: 1, flexDirection: "row", gap: spacing.sm, paddingVertical: spacing.md },
+  revenueLine: { alignItems: "center", backgroundColor: "rgba(7,17,38,0.54)", borderRadius: radius.md, flexDirection: "row", gap: spacing.sm, padding: spacing.md },
   revenueText: { ...typography.caption, color: palette.paperMuted, flex: 1 },
   revenueValue: { color: palette.white },
   planActions: { flexDirection: "row", gap: spacing.sm },
-  actionButton: { alignItems: "center", backgroundColor: palette.panel, borderColor: palette.lineStrong, borderRadius: radius.md, borderWidth: 1, flex: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 50, paddingHorizontal: spacing.sm },
+  actionButton: { alignItems: "center", backgroundColor: "rgba(13,31,65,0.82)", borderRadius: radius.md, flex: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 50, paddingHorizontal: spacing.sm },
   actionText: { ...typography.caption, color: palette.white, textAlign: "center" },
   days: { gap: spacing.xl },
   daySection: { gap: spacing.md },
@@ -392,7 +445,7 @@ const styles = StyleSheet.create({
   dayIndex: { ...typography.caption, color: palette.mint },
   dayTitle: { ...typography.h3, color: palette.white },
   eventStack: { gap: spacing.sm },
-  eventRow: { alignItems: "stretch", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", minHeight: 136, padding: spacing.md },
+  eventRow: { alignItems: "stretch", backgroundColor: "rgba(7,17,38,0.84)", borderRadius: radius.md, flexDirection: "row", minHeight: 136, padding: spacing.md },
   eventTime: { alignItems: "center", justifyContent: "flex-start", paddingTop: 2, width: 72 },
   time: { ...typography.h3, color: palette.white },
   moment: { color: palette.sky, fontSize: 10, fontWeight: "700", marginTop: 3 },
@@ -403,21 +456,23 @@ const styles = StyleSheet.create({
   eventTitle: { ...typography.h3, color: palette.white },
   eventHook: { color: palette.paperMuted, fontSize: 13, lineHeight: 19 },
   eventCta: { color: palette.sky, fontSize: 11, fontWeight: "700", lineHeight: 16 },
-  focusList: { borderBottomColor: palette.line, borderTopColor: palette.line, borderBottomWidth: 1, borderTopWidth: 1 },
-  focusRow: { alignItems: "flex-start", borderBottomColor: palette.line, borderBottomWidth: 1, flexDirection: "row", gap: spacing.md, paddingVertical: spacing.md },
+  restRow: { alignItems: "center", backgroundColor: "rgba(7,17,38,0.38)", borderRadius: radius.md, flexDirection: "row", gap: spacing.sm, minHeight: 54, padding: spacing.md },
+  restText: { color: palette.muted, flex: 1, fontSize: 12, lineHeight: 17 },
+  focusList: { gap: spacing.xs },
+  focusRow: { alignItems: "flex-start", backgroundColor: "rgba(7,17,38,0.42)", borderRadius: radius.sm, flexDirection: "row", gap: spacing.md, padding: spacing.md },
   focusNumber: { ...typography.caption, color: palette.mint, width: 26 },
   focusText: { ...typography.body, color: palette.white, flex: 1 },
   emptyPanel: { alignItems: "center", flexDirection: "row", gap: spacing.md, padding: spacing.xl },
   emptyTitle: { ...typography.h3, color: palette.white },
   emptyText: { ...typography.body, color: palette.paperMuted, marginTop: 4 },
   historyList: { gap: spacing.sm },
-  historyRow: { alignItems: "stretch", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", minHeight: 128, overflow: "hidden" },
-  historySelected: { borderColor: palette.lineStrong },
+  historyRow: { alignItems: "stretch", backgroundColor: "rgba(7,17,38,0.72)", borderRadius: radius.md, flexDirection: "row", minHeight: 128, overflow: "hidden" },
+  historySelected: { backgroundColor: "rgba(24,67,139,0.42)" },
   historyMain: { flex: 1, gap: spacing.xs, justifyContent: "center", padding: spacing.md },
   historyTop: { alignItems: "center", flexDirection: "row", gap: spacing.sm, justifyContent: "space-between" },
   historyTitle: { ...typography.h3, color: palette.white, flex: 1 },
   historyRange: { ...typography.caption, color: palette.mint },
   historySummary: { color: palette.paperMuted, fontSize: 12, lineHeight: 17 },
   historyMix: { color: palette.sky, fontSize: 11, fontWeight: "700" },
-  historySync: { alignItems: "center", borderLeftColor: palette.line, borderLeftWidth: 1, justifyContent: "center", width: 54 }
+  historySync: { alignItems: "center", backgroundColor: "rgba(45,124,255,0.08)", justifyContent: "center", width: 54 }
 });
