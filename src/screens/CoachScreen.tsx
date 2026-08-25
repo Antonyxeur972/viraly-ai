@@ -1,11 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 import { GlassPanel } from "../components/GlassPanel";
 import { SectionHeader } from "../components/SectionHeader";
 import { coachQuestions } from "../data/viralInsights";
-import { CoachReport, askCoach } from "../services/ai";
+import { CoachReport, ContentPlan, askCoach, listContentPlans } from "../services/ai";
 import { ProfileAnalysisReport } from "../services/profileAnalysis";
 import { palette, radius, spacing, typography } from "../theme";
 import { CreatorOnboardingProfile } from "../types";
@@ -18,8 +18,15 @@ type Props = {
 export function CoachScreen({ profile, accountContext }: Props) {
   const [question, setQuestion] = useState("");
   const [report, setReport] = useState<CoachReport | null>(null);
+  const [currentPlan, setCurrentPlan] = useState<ContentPlan | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const niche = profile.nicheTopic || profile.niche || "ta niche";
+
+  useEffect(() => {
+    listContentPlans(1)
+      .then((plans) => setCurrentPlan(plans[0] || null))
+      .catch(() => {});
+  }, []);
 
   const submit = async (nextQuestion = question) => {
     const cleanQuestion = nextQuestion.trim();
@@ -28,7 +35,7 @@ export function CoachScreen({ profile, accountContext }: Props) {
     setReport(null);
     setIsLoading(true);
     try {
-      setReport(await askCoach(cleanQuestion, profile, accountContext));
+      setReport(await askCoach(cleanQuestion, profile, accountContext, currentPlan));
     } catch (error) {
       Alert.alert("Coach VIRALY", error instanceof Error ? error.message : "Réponse indisponible.");
     } finally {
@@ -52,6 +59,9 @@ export function CoachScreen({ profile, accountContext }: Props) {
         </View>
         <Text numberOfLines={2} style={styles.contextTitle}>{niche}</Text>
         <Text style={styles.contextMeta}>{accountContext ? `Diagnostic compte chargé · score ${accountContext.score}/100` : "Profil créateur chargé · diagnostic compte non disponible"}</Text>
+        {currentPlan ? (
+          <Text style={styles.planMeta}>Plan actif · {currentPlan.contentMix.videos} vidéos · {currentPlan.contentMix.carousels} carrousels · {currentPlan.contentMix.stories} stories</Text>
+        ) : null}
       </GlassPanel>
 
       <GlassPanel style={styles.askCard} textureOpacity={0.16}>
@@ -86,7 +96,7 @@ export function CoachScreen({ profile, accountContext }: Props) {
           <View style={styles.loadingMark}><Ionicons color={palette.ink} name="sparkles" size={20} /></View>
           <View style={styles.loadingCopy}>
             <Text style={styles.loadingTitle}>Le coach construit sa réponse</Text>
-            <Text style={styles.loadingText}>Il compare ta question, ta niche et les données disponibles avant de proposer une action.</Text>
+            <Text style={styles.loadingText}>Il compare ta question, ta niche, ton diagnostic et le plan actif avant de proposer une action.</Text>
           </View>
         </GlassPanel>
       ) : null}
@@ -153,6 +163,7 @@ const styles = StyleSheet.create({
   liveDot: { backgroundColor: palette.mint, borderRadius: radius.pill, height: 8, width: 8 },
   contextTitle: { ...typography.h3, color: palette.white, textTransform: "capitalize" },
   contextMeta: { ...typography.caption, color: palette.muted },
+  planMeta: { ...typography.caption, color: palette.sky, marginTop: spacing.xs },
   askCard: { gap: spacing.md, padding: spacing.lg },
   askLabel: { ...typography.caption, color: palette.mint },
   input: { ...typography.body, backgroundColor: palette.graphite, borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, color: palette.white, minHeight: 110, padding: spacing.md, textAlignVertical: "top" },
