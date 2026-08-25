@@ -67,6 +67,30 @@ export type CalendarEvent = {
   source: "manual" | "ai";
 };
 
+export type ContentPlan = {
+  id: string;
+  createdAt: string;
+  summary: string;
+  strategyDecision: string;
+  contentMix: {
+    videos: number;
+    carousels: number;
+    stories: number;
+  };
+  postingSlots: Array<{
+    dayOffset: number;
+    date?: string;
+    time: string;
+    reason: string;
+  }>;
+  weeklyFocus: string[];
+  events: CalendarEvent[];
+  revenuePotentialAfter: string;
+  profileSnapshot: CreatorOnboardingProfile;
+  accountScore: number | null;
+  source: "openai" | "anthropic" | "fallback_rules";
+};
+
 export type OnboardingAIReport = {
   score: number;
   summary: string;
@@ -112,11 +136,38 @@ export async function generateIdeas(
 export function askCoach(
   question: string,
   profile: CreatorOnboardingProfile,
-  accountContext: Context
+  accountContext: Context,
+  strategyContext: ContentPlan | null = null
 ) {
   return apiRequest<CoachReport>("/api/v1/coach", {
     method: "POST",
-    body: JSON.stringify({ question, profile, account_context: accountContext })
+    body: JSON.stringify({
+      question,
+      profile,
+      account_context: accountContext,
+      strategy_context: strategyContext
+    })
+  });
+}
+
+export async function listContentPlans(limit = 8) {
+  const result = await apiRequest<{ plans: ContentPlan[] }>(`/api/v1/plans?limit=${limit}`);
+  return result.plans;
+}
+
+export function generateContentPlan(
+  profile: CreatorOnboardingProfile,
+  accountContext: Context,
+  startingDate: string
+) {
+  return apiRequest<ContentPlan>("/api/v1/plans/generate", {
+    method: "POST",
+    body: JSON.stringify({
+      profile,
+      account_context: accountContext,
+      starting_date: startingDate,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Paris"
+    })
   });
 }
 
