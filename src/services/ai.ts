@@ -77,6 +77,9 @@ export type ContentPlan = {
     carousels: number;
     stories: number;
   };
+  durationDays?: 7 | 14 | 30;
+  startDate?: string;
+  endDate?: string;
   postingSlots: Array<{
     dayOffset: number;
     date?: string;
@@ -158,7 +161,8 @@ export async function listContentPlans(limit = 8) {
 export function generateContentPlan(
   profile: CreatorOnboardingProfile,
   accountContext: Context,
-  startingDate: string
+  startingDate: string,
+  days: 7 | 14 | 30
 ) {
   return apiRequest<ContentPlan>("/api/v1/plans/generate", {
     method: "POST",
@@ -166,6 +170,7 @@ export function generateContentPlan(
       profile,
       account_context: accountContext,
       starting_date: startingDate,
+      days,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Paris"
     })
   });
