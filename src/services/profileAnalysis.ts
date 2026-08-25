@@ -21,7 +21,7 @@ export type ProfileAnalysisReport = {
   nextAction: string;
   analysisId: string;
   authenticatedTikTokData: boolean;
-  source: "openai";
+  source: "openai" | "anthropic";
 };
 
 export async function requestProfileAnalysis(

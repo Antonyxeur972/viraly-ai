@@ -179,6 +179,13 @@ def test_anthropic_vision_provider_returns_validated_json():
     assert result["_model"].startswith("claude-sonnet")
 
 
+def test_ai_provider_follows_the_model_that_answered():
+    from app.main import ai_provider_for_model
+
+    assert ai_provider_for_model("claude-sonnet-4-5-20250929") == "anthropic"
+    assert ai_provider_for_model("gpt-5-mini") == "openai"
+
+
 def test_onboarding_uses_structured_ai_and_persists_result(client, auth_headers):
     class FakeAI:
         configured = True

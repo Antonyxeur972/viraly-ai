@@ -121,6 +121,10 @@ def compact_context(value: Any) -> str:
     return json.dumps(value or {}, ensure_ascii=False, separators=(",", ":"))[:12000]
 
 
+def ai_provider_for_model(model: str) -> str:
+    return "anthropic" if model.lower().startswith("claude") else "openai"
+
+
 def preferred_format(profile: CreatorProfile) -> str:
     return {
         "camera": "vidéo face caméra",
@@ -815,7 +819,7 @@ async def analyze_profile(
         ],
     )
     used_model = str(report.pop("_model", settings.visual_model))
-    report["source"] = "openai"
+    report["source"] = ai_provider_for_model(used_model)
     db.record_ai_usage(user_id, "profile-analysis", used_model)
     report["analysisId"] = db.save_analysis(user_id, "profile", report)
     report["authenticatedTikTokData"] = False
@@ -904,7 +908,7 @@ async def analyze_content(
         media=media,
     )
     used_model = str(report.pop("_model", settings.visual_model))
-    report["source"] = "openai"
+    report["source"] = ai_provider_for_model(used_model)
     db.record_ai_usage(user_id, "content-analysis", used_model)
     report["analysisId"] = db.save_analysis(user_id, "content", report)
     report["transcriptAvailable"] = bool(transcript)
@@ -936,8 +940,9 @@ async def analyze_idea(
                     "Donne un hook de douze mots maximum et un script directement filmable, avec une fonction claire pour chaque étape."
                 ),
             )
-            report["source"] = "openai"
-            db.record_ai_usage(user_id, "idea-analysis", settings.strategy_model)
+            used_model = str(report.pop("_model", settings.strategy_model))
+            report["source"] = ai_provider_for_model(used_model)
+            db.record_ai_usage(user_id, "idea-analysis", used_model)
         except AIUnavailableError:
             report = None
     if report is None:
@@ -970,8 +975,9 @@ async def analyze_onboarding(
                     "qui correspond au niveau actuel du compte."
                 ),
             )
-            report["source"] = "openai"
-            db.record_ai_usage(user_id, "onboarding", settings.strategy_model)
+            used_model = str(report.pop("_model", settings.strategy_model))
+            report["source"] = ai_provider_for_model(used_model)
+            db.record_ai_usage(user_id, "onboarding", used_model)
         except AIUnavailableError:
             report = None
     if report is None:
@@ -1005,8 +1011,9 @@ async def generate_ideas(
                     "Chaque idée doit avoir une promesse spécifique, un format, un effort réaliste et un chemin de monétisation cohérent."
                 ),
             )
-            report["source"] = "openai"
-            db.record_ai_usage(user_id, "idea-generation", settings.strategy_model)
+            used_model = str(report.pop("_model", settings.strategy_model))
+            report["source"] = ai_provider_for_model(used_model)
+            db.record_ai_usage(user_id, "idea-generation", used_model)
         except AIUnavailableError:
             report = None
     if report is None:
@@ -1046,8 +1053,9 @@ async def coach(
                     "propose un test A/B qui ne change qu'une variable, avec métrique et règle de décision."
                 ),
             )
-            report["source"] = "openai"
-            db.record_ai_usage(user_id, "coach", coach_model)
+            used_model = str(report.pop("_model", coach_model))
+            report["source"] = ai_provider_for_model(used_model)
+            db.record_ai_usage(user_id, "coach", used_model)
         except AIUnavailableError:
             report = None
     if report is None:
@@ -1095,8 +1103,9 @@ async def generate_strategy(
             "Les fourchettes de revenu doivent être indicatives, modestes et accompagnées de leur base de calcul."
         ),
             )
-            strategy["source"] = "openai"
-            db.record_ai_usage(user_id, "strategy", settings.strategy_model)
+            used_model = str(strategy.pop("_model", settings.strategy_model))
+            strategy["source"] = ai_provider_for_model(used_model)
+            db.record_ai_usage(user_id, "strategy", used_model)
         except AIUnavailableError:
             strategy = None
     if strategy is None:
@@ -1180,8 +1189,9 @@ async def generate_calendar(
             "Le calendrier doit alterner acquisition, confiance et conversion sans dépasser la cadence déclarée."
         ),
             )
-            result["source"] = "openai"
-            db.record_ai_usage(user_id, "calendar", settings.fast_model)
+            used_model = str(result.pop("_model", settings.fast_model))
+            result["source"] = ai_provider_for_model(used_model)
+            db.record_ai_usage(user_id, "calendar", used_model)
         except AIUnavailableError:
             result = None
     if result is None:

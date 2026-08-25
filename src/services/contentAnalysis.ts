@@ -23,7 +23,7 @@ export type ContentAnalysisReport = {
   };
   analysisId: string;
   transcriptAvailable: boolean;
-  source: "openai";
+  source: "openai" | "anthropic";
 };
 
 export async function requestContentAnalysis(
