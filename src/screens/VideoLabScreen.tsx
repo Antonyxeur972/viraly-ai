@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Image,
@@ -28,10 +28,14 @@ import {
 import { palette, radius, spacing, typography } from "../theme";
 
 export function VideoLabScreen() {
+  const scrollRef = useRef<ScrollView>(null);
   const [assets, setAssets] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [report, setReport] = useState<ContentAnalysisReport | null>(null);
   const [history, setHistory] = useState<AnalysisHistoryItem<ContentAnalysisReport>[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisTop, setAnalysisTop] = useState(0);
+  const [reportFromHistory, setReportFromHistory] = useState(false);
+  const [shouldRevealReport, setShouldRevealReport] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -40,6 +44,17 @@ export function VideoLabScreen() {
       .catch(() => {});
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!shouldRevealReport || !report || analysisTop <= 0) return;
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({
+        animated: true,
+        y: Math.max(0, analysisTop - spacing.md)
+      });
+    });
+    setShouldRevealReport(false);
+  }, [analysisTop, report, shouldRevealReport]);
 
   const pickContent = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -57,6 +72,7 @@ export function VideoLabScreen() {
     if (!result.canceled) {
       setAssets(result.assets);
       setReport(null);
+      setReportFromHistory(false);
     }
   };
 
@@ -66,6 +82,7 @@ export function VideoLabScreen() {
     try {
       const result = await requestContentAnalysis("carousel", assets);
       setReport(result);
+      setReportFromHistory(false);
       setHistory((items) => [
         { id: result.analysisId, kind: "content", createdAt: new Date().toISOString(), report: result },
         ...items.filter((item) => item.id !== result.analysisId)
@@ -87,7 +104,10 @@ export function VideoLabScreen() {
           deleteAnalysisHistory(item.id)
             .then(() => {
               setHistory((items) => items.filter((entry) => entry.id !== item.id));
-              if (report?.analysisId === item.id) setReport(null);
+              if (report?.analysisId === item.id) {
+                setReport(null);
+                setReportFromHistory(false);
+              }
             })
             .catch((error) => Alert.alert("Historique", error instanceof Error ? error.message : "Suppression impossible."));
         }
@@ -96,7 +116,7 @@ export function VideoLabScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <Text style={styles.kicker}>AUDIT DE CONTENU</Text>
         <Text style={styles.title}>Passe chaque slide au crible.</Text>
@@ -132,20 +152,6 @@ export function VideoLabScreen() {
         </ScrollView>
       ) : null}
 
-      <View style={styles.historySection}>
-        <SectionHeader eyebrow="Bibliothèque" title="Posts déjà analysés" action={`${history.length}`} />
-        <AnalysisHistoryList
-          activeId={report?.analysisId}
-          emptyLabel="Tes posts analysés resteront disponibles ici."
-          items={history}
-          onDelete={removeHistoryItem}
-          onOpen={(item) => {
-            setAssets([]);
-            setReport(item.report);
-          }}
-        />
-      </View>
-
       {assets.length ? (
         <TouchableOpacity disabled={isAnalyzing} onPress={analyze} style={styles.analyzeButton}>
           <Ionicons color={palette.ink} name="sparkles" size={19} />
@@ -154,7 +160,25 @@ export function VideoLabScreen() {
       ) : null}
 
       {report ? (
-        <>
+        <View
+          onLayout={(event) => setAnalysisTop(event.nativeEvent.layout.y)}
+          style={styles.reportSection}
+        >
+          {reportFromHistory ? (
+            <View style={styles.savedReportBanner}>
+              <View style={styles.savedReportIcon}>
+                <Ionicons color={palette.white} name="bookmark" size={18} />
+              </View>
+              <View style={styles.savedReportCopy}>
+                <Text style={styles.savedReportLabel}>ANALYSE ENREGISTRÉE</Text>
+                <Text numberOfLines={2} style={styles.savedReportTitle}>
+                  {report.historyTitle || report.revisedHook}
+                </Text>
+                <Text style={styles.savedReportMeta}>Rapport complet restauré sans relancer l'IA.</Text>
+              </View>
+            </View>
+          ) : null}
+
           <ScoreDial caption={report.summary} color={palette.mint} label="Force du carrousel" score={report.score} />
 
           <GlassPanel style={styles.hookPanel}>
@@ -195,7 +219,7 @@ export function VideoLabScreen() {
             <Text style={styles.panelLabel}>CTA DE CONVERSION</Text>
             <Text style={styles.hookText}>{report.revenueCta}</Text>
           </GlassPanel>
-        </>
+        </View>
       ) : (
         <View style={styles.emptyCard}>
           <Ionicons color={palette.mint} name="scan-circle-outline" size={25} />
@@ -205,6 +229,22 @@ export function VideoLabScreen() {
           </View>
         </View>
       )}
+
+      <View style={styles.historySection}>
+        <SectionHeader eyebrow="Bibliothèque" title="Posts et analyses enregistrés" action={`${history.length}`} />
+        <AnalysisHistoryList
+          activeId={report?.analysisId}
+          emptyLabel="Après ton premier audit, le post et son rapport complet apparaîtront ici."
+          items={history}
+          onDelete={removeHistoryItem}
+          onOpen={(item) => {
+            setAssets([]);
+            setReport(item.report);
+            setReportFromHistory(true);
+            setShouldRevealReport(true);
+          }}
+        />
+      </View>
     </ScrollView>
   );
 }
@@ -212,6 +252,13 @@ export function VideoLabScreen() {
 const styles = StyleSheet.create({
   content: { gap: spacing.xl, padding: spacing.lg, paddingBottom: spacing.xxl, paddingTop: spacing.lg },
   historySection: { gap: spacing.md },
+  reportSection: { gap: spacing.xl },
+  savedReportBanner: { alignItems: "center", backgroundColor: palette.panel, borderColor: palette.mint, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, padding: spacing.md },
+  savedReportIcon: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.sm, height: 40, justifyContent: "center", width: 40 },
+  savedReportCopy: { flex: 1, gap: 2, minWidth: 0 },
+  savedReportLabel: { color: palette.mint, fontSize: 9, fontWeight: "900", lineHeight: 13 },
+  savedReportTitle: { ...typography.caption, color: palette.white },
+  savedReportMeta: { color: palette.muted, fontSize: 10, lineHeight: 14 },
   header: { gap: spacing.sm },
   kicker: { ...typography.caption, color: palette.mint },
   title: { ...typography.title, color: palette.white },
