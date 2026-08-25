@@ -536,11 +536,13 @@ def test_weekly_plan_has_exact_personalized_mix_and_seven_days(client, auth_head
 
     assert response.status_code == 200
     plan = response.json()
-    assert plan["contentMix"] == {"videos": 1, "carousels": 3, "stories": 8}
+    assert plan["contentMix"] == {"videos": 1, "carousels": 4, "stories": 1}
     assert len([event for event in plan["events"] if event["type"] == "video"]) == 1
-    assert len([event for event in plan["events"] if event["type"] == "carousel"]) == 3
-    assert len([event for event in plan["events"] if event["type"] == "story"]) == 8
-    assert len({event["date"] for event in plan["events"]}) == 7
+    assert len([event for event in plan["events"] if event["type"] == "carousel"]) == 4
+    assert len([event for event in plan["events"] if event["type"] == "story"]) == 1
+    assert plan["durationDays"] == 7
+    assert plan["startDate"] == "2026-08-25"
+    assert plan["endDate"] == "2026-08-31"
     assert "recettes antillaises rapides" in plan["strategyDecision"]
     assert plan["revenuePotentialAfter"].endswith("€/mois")
 
@@ -620,8 +622,43 @@ def test_plan_and_coach_reuse_latest_saved_profile_analysis(client, auth_headers
     assert plan_response.status_code == 200
     assert plan_response.json()["accountScore"] == 89
     assert coach_response.status_code == 200
-    assert "3 vidéo(s), 1 carrousel(s) et 8 stories" in coach_response.json()["answer"]
+    assert "3 vidéos, 2 carrousels et 1 story sur 7 jours" in coach_response.json()["answer"]
     assert "score observé 89/100" in coach_response.json()["why"]
+
+
+def test_plan_supports_14_and_30_days_with_one_story_max_per_week(client, auth_headers):
+    profile = {
+        "goal": "community",
+        "niche": "fitness",
+        "followers": "100-1000",
+        "cadence": "3-4",
+        "format": "mixed",
+        "time": "3-5h",
+        "monetization": "product",
+    }
+    expected = {
+        14: {"videos": 5, "carousels": 5, "stories": 2},
+        30: {"videos": 11, "carousels": 11, "stories": 4},
+    }
+
+    for days, mix in expected.items():
+        response = client.post(
+            "/api/v1/plans/generate",
+            headers=auth_headers,
+            json={
+                "profile": profile,
+                "starting_date": "2026-09-01",
+                "days": days,
+                "timezone": "Europe/Paris",
+            },
+        )
+        assert response.status_code == 200
+        plan = response.json()
+        assert plan["durationDays"] == days
+        assert plan["contentMix"] == mix
+        story_dates = [event["date"] for event in plan["events"] if event["type"] == "story"]
+        assert len(story_dates) == mix["stories"]
+        assert len(story_dates) <= days // 7
 
 
 def test_google_state_and_one_time_session_exchange(client, monkeypatch):
