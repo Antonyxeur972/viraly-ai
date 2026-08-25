@@ -38,6 +38,7 @@ import {
   beginTikTokConnection,
   parseTikTokCallback
 } from "./src/services/tiktok";
+import { listAnalysisHistory } from "./src/services/analysisHistory";
 import { ProfileAnalysisReport } from "./src/services/profileAnalysis";
 import { palette } from "./src/theme";
 import {
@@ -140,6 +141,19 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!onboardingComplete || !creatorSetup || !getApiSessionToken()) return;
+    let cancelled = false;
+    listAnalysisHistory<ProfileAnalysisReport>("profile", 1)
+      .then((items) => {
+        if (!cancelled && items[0]?.report) setAccountContext(items[0].report);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [creatorSetup, onboardingComplete]);
 
   const connectGoogle = async () => {
     setGoogleStatus("connecting");
