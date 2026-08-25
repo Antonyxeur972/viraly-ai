@@ -409,8 +409,11 @@ def coach_fallback(request: CoachRequest) -> dict[str, Any]:
     videos = int(mix.get("videos", 0))
     carousels = int(mix.get("carousels", 0))
     stories = int(mix.get("stories", 0))
+    period_days = int(strategy.get("durationDays", 7)) if isinstance(strategy, dict) else 7
     weekly_volume = (
-        f"{videos} vidéo(s), {carousels} carrousel(s) et {stories} stories sur 7 jours"
+        f"{videos} {'vidéo' if videos == 1 else 'vidéos'}, "
+        f"{carousels} {'carrousel' if carousels == 1 else 'carrousels'} et "
+        f"{stories} {'story' if stories == 1 else 'stories'} sur {period_days} jours"
     )
     if "heure" in question or "poster" in question:
         answer = (
@@ -578,26 +581,25 @@ def calendar_fallback(
     return {"events": events, "source": "fallback_rules"}
 
 
-def content_mix_for_profile(profile: CreatorProfile) -> dict[str, int]:
-    cadence_posts = {"1-2": 2, "3-4": 4, "5-7": 6, "multiple": 7}.get(
-        profile.cadence, 4
+def content_mix_for_profile(
+    profile: CreatorProfile, days: int = 7
+) -> dict[str, int]:
+    cadence_posts = {"1-2": 3, "3-4": 5, "5-7": 7, "multiple": 7}.get(
+        profile.cadence, 5
     )
-    time_capacity = {"1-2h": 2, "3-5h": 4, "6-10h": 6, "10h+": 7}.get(
-        profile.time, 4
+    time_capacity = {"1-2h": 3, "3-5h": 5, "6-10h": 7, "10h+": 7}.get(
+        profile.time, 5
     )
-    feed_posts = min(cadence_posts, time_capacity)
+    weekly_posts = min(cadence_posts, time_capacity)
+    feed_posts = (weekly_posts * days + 6) // 7
     if profile.format == "carousel":
-        videos = 1
-        carousels = max(1, feed_posts - videos)
+        carousels = min(feed_posts - 1, max(2, (feed_posts * 2 + 2) // 3))
     elif profile.format == "mixed":
-        videos = max(1, (feed_posts + 1) // 2)
-        carousels = max(1, feed_posts - videos)
+        carousels = (feed_posts + 1) // 2
     else:
-        carousels = 1
-        videos = max(1, feed_posts - carousels)
-    stories = {"1-2h": 7, "3-5h": 8, "6-10h": 10, "10h+": 12}.get(
-        profile.time, 8
-    )
+        carousels = max(1, (feed_posts + 2) // 3)
+    videos = max(1, feed_posts - carousels)
+    stories = {7: 1, 14: 2, 30: 4}.get(days, max(1, days // 7))
     return {"videos": videos, "carousels": carousels, "stories": stories}
 
 
@@ -665,16 +667,16 @@ def fallback_content_plan(
     profile: CreatorProfile,
     account_context: dict[str, Any] | None,
     start: date,
+    days: int = 7,
 ) -> dict[str, Any]:
     niche = niche_label(profile)
-    mix = content_mix_for_profile(profile)
+    mix = content_mix_for_profile(profile, days)
     objective = {
         "reach": "les vues qualifiées",
         "community": "la conversion en abonnés",
         "traffic": "les clics utiles",
         "revenue": "les demandes qualifiées",
     }.get(profile.goal, "la croissance du compte")
-    feed_days = [1, 3, 6, 4, 0, 2, 5]
     feed_times = ["19:30", "12:15", "18:00", "20:00", "12:30", "19:00", "11:30"]
     video_titles = [
         f"3 erreurs en {niche} qui bloquent {objective}",
@@ -720,33 +722,39 @@ def fallback_content_plan(
             feed_types[feed_types.index("video")] = "carousel"
         while feed_types.count("carousel") > mix["carousels"]:
             feed_types[feed_types.index("carousel")] = "video"
+    feed_days = [
+        (index * (days - 1)) // max(1, len(feed_types) - 1)
+        for index in range(len(feed_types))
+    ]
     events: list[dict[str, Any]] = []
     type_indexes = {"video": 0, "carousel": 0}
     for index, event_type in enumerate(feed_types):
         day_offset = feed_days[index]
         type_index = type_indexes[event_type]
         type_indexes[event_type] += 1
-        title = video_titles[type_index] if event_type == "video" else carousel_titles[type_index]
+        titles = video_titles if event_type == "video" else carousel_titles
+        title = titles[type_index % len(titles)]
+        series = type_index // len(titles)
+        if series:
+            title = f"{title} · Partie {series + 1}"
         events.append(
             {
                 "dayOffset": day_offset,
-                "time": feed_times[index],
+                "time": feed_times[index % len(feed_times)],
                 "type": event_type,
                 "title": title,
                 "hook": f"Si tu crées sur {niche}, cette décision peut améliorer {objective} dès ce cycle.",
                 "cta": f"Enregistre puis passe à l'étape liée à {monetization_label(profile)}.",
             }
         )
-    story_times = ["09:00", "18:15", "20:45"]
     for index in range(mix["stories"]):
-        day_offset = index % 7
-        moment_index = index // 7
+        day_offset = min(days - 1, 6 + index * 7)
         events.append(
             {
                 "dayOffset": day_offset,
-                "time": story_times[min(moment_index, len(story_times) - 1)],
+                "time": "18:15",
                 "type": "story",
-                "title": story_titles[index],
+                "title": story_titles[index % len(story_titles)],
                 "hook": f"Une interaction courte pour préciser le prochain contenu {niche}.",
                 "cta": "Réponds, vote ou ouvre le contenu principal du jour.",
             }
@@ -754,8 +762,8 @@ def fallback_content_plan(
     events.sort(key=lambda item: (item["dayOffset"], item["time"]))
     return {
         "summary": (
-            f"Pendant 7 jours, concentre le compte sur {niche} avec {mix['videos']} vidéo(s), "
-            f"{mix['carousels']} carrousel(s) et {mix['stories']} stories adaptés à {profile.time} disponibles."
+            f"Pendant {days} jours, concentre le compte sur {niche} avec {mix['videos']} vidéo(s), "
+            f"{mix['carousels']} carrousel(s) et seulement {mix['stories']} story(s), selon {profile.time} disponibles."
         ),
         "strategyDecision": (
             f"Positionnement retenu: résoudre un problème précis en {niche}, montrer une preuve, "
@@ -772,10 +780,13 @@ def fallback_content_plan(
         "weeklyFocus": [
             f"Répéter une promesse unique autour de {niche}.",
             "Comparer les hooks, sans changer le sujet ni le format du test.",
-            "Transformer les réponses aux stories en prochains contenus.",
+            "Utiliser la story hebdomadaire pour choisir le prochain contenu.",
         ],
         "events": events,
         "contentMix": mix,
+        "durationDays": days,
+        "startDate": start.isoformat(),
+        "endDate": (start + timedelta(days=days - 1)).isoformat(),
         "revenuePotentialAfter": revenue_potential_after(profile, account_context),
         "source": "fallback_rules",
     }
@@ -787,8 +798,9 @@ def normalized_content_plan(
     start: date,
     generated: dict[str, Any] | None,
     source: str,
+    days: int = 7,
 ) -> dict[str, Any]:
-    fallback = fallback_content_plan(profile, account_context, start)
+    fallback = fallback_content_plan(profile, account_context, start, days)
     if not generated:
         generated = fallback
     candidates: dict[str, list[dict[str, Any]]] = {"video": [], "carousel": [], "story": []}
@@ -818,7 +830,7 @@ def normalized_content_plan(
         if not isinstance(slot, dict):
             continue
         try:
-            day_offset = max(0, min(6, int(slot.get("dayOffset", 0))))
+            day_offset = max(0, min(days - 1, int(slot.get("dayOffset", 0))))
         except (TypeError, ValueError):
             day_offset = 0
         normalized_slots.append(
@@ -840,6 +852,9 @@ def normalized_content_plan(
             generated.get("strategyDecision") or fallback["strategyDecision"]
         )[:700],
         "contentMix": fallback["contentMix"],
+        "durationDays": days,
+        "startDate": start.isoformat(),
+        "endDate": (start + timedelta(days=days - 1)).isoformat(),
         "postingSlots": normalized_slots or fallback["postingSlots"],
         "weeklyFocus": weekly_focus or fallback["weeklyFocus"],
         "events": events,
@@ -1433,7 +1448,7 @@ async def generate_content_plan(
         raise HTTPException(422, "Date de départ invalide.") from error
 
     account_context = request.account_context or db.latest_analysis(user_id, "profile")
-    mix = content_mix_for_profile(request.profile)
+    mix = content_mix_for_profile(request.profile, request.days)
     generated = None
     source = "fallback_rules"
     if has_ai_budget(db, user_id):
@@ -1446,12 +1461,13 @@ async def generate_content_plan(
                     verbosity="low",
                     schema=CONTENT_PLAN_SCHEMA,
                     prompt=(
-                        f"Construis un plan TikTok du {start.isoformat()} sur exactement 7 jours. "
+                        f"Construis un plan TikTok du {start.isoformat()} sur exactement {request.days} jours. "
                         f"Profil déclaré: {compact_context(request.profile.model_dump())}. "
                         f"Analyse visuelle du compte: {compact_context(account_context)}. "
                         f"Volume imposé: exactement {mix['videos']} vidéos, {mix['carousels']} carrousels "
-                        f"et {mix['stories']} stories. Fuseau: {request.timezone}. "
-                        "Chaque jour doit apparaître avec au moins un contenu ou une story. Les dayOffset vont de 0 à 6. "
+                        f"et {mix['stories']} story(s), avec une story maximum par semaine. Fuseau: {request.timezone}. "
+                        f"Répartis les contenus sur toute la période. Les dayOffset vont de 0 à {request.days - 1}. "
+                        "Les carrousels doivent être concrets, sauvegardables et plus nombreux qu'avant. "
                         "Prends parti pour une seule stratégie cohérente avec la niche, le niveau du compte, l'objectif, "
                         "le format naturel, le temps disponible et la monétisation. Donne des titres spécifiques à cette niche, "
                         "des hooks prononçables et des CTA directement exécutables. Utilise des moments réalistes de la journée. "
@@ -1473,6 +1489,7 @@ async def generate_content_plan(
         start,
         generated,
         source,
+        request.days,
     )
     plan["events"] = db.replace_ai_events(user_id, plan["events"])
     db.save_strategy(user_id, plan)

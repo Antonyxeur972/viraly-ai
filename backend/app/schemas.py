@@ -51,6 +51,7 @@ class StrategyRequest(BaseModel):
 
 class PlanGenerationRequest(StrategyRequest):
     starting_date: str
+    days: Literal[7, 14, 30] = 7
 
 
 class CalendarGenerationRequest(BaseModel):
@@ -285,7 +286,7 @@ CONTENT_PLAN_SCHEMA = {
                 "additionalProperties": False,
                 "required": ["dayOffset", "time", "reason"],
                 "properties": {
-                    "dayOffset": {"type": "integer", "minimum": 0, "maximum": 6},
+                    "dayOffset": {"type": "integer", "minimum": 0, "maximum": 29},
                     "time": {"type": "string"},
                     "reason": {"type": "string"},
                 },
@@ -299,14 +300,14 @@ CONTENT_PLAN_SCHEMA = {
         },
         "events": {
             "type": "array",
-            "minItems": 7,
-            "maxItems": 21,
+            "minItems": 3,
+            "maxItems": 40,
             "items": {
                 "type": "object",
                 "additionalProperties": False,
                 "required": ["dayOffset", "time", "type", "title", "hook", "cta"],
                 "properties": {
-                    "dayOffset": {"type": "integer", "minimum": 0, "maximum": 6},
+                    "dayOffset": {"type": "integer", "minimum": 0, "maximum": 29},
                     "time": {"type": "string"},
                     "type": {"type": "string", "enum": ["video", "carousel", "story"]},
                     "title": {"type": "string"},
