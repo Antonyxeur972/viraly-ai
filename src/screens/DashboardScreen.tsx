@@ -13,8 +13,11 @@ import {
 
 import { GlassPanel } from "../components/GlassPanel";
 import { AnalysisHistoryList } from "../components/AnalysisHistoryList";
+import { GrowthChart } from "../components/AnalyticsCharts";
+import { NeonButton } from "../components/NeonButton";
 import { ProgressBar } from "../components/ProgressBar";
 import { ScoreDial } from "../components/ScoreDial";
+import { ScreenHero } from "../components/ScreenHero";
 import { SectionHeader } from "../components/SectionHeader";
 import {
   ProfileAnalysisReport,
@@ -151,16 +154,19 @@ export function DashboardScreen({
             </Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.eyebrow}>TON BRIEFING DE CROISSANCE</Text>
-        <Text style={styles.title}>{report ? "Ton profil dit déjà beaucoup." : "Décide à partir du réel."}</Text>
-        <Text style={styles.subtitle}>
-          {report
+        <ScreenHero
+          eyebrow="Intelligence de croissance"
+          icon="analytics-outline"
+          subtitle={report
             ? report.summary
-            : "Une capture suffit pour transformer ton profil en priorités de contenu, de conversion et de revenu."}
-        </Text>
+            : "Analyses avancées, recommandations concrètes et actions mesurables pour faire progresser ton contenu et tes revenus."}
+          title={report
+            ? <>Ton profil révèle <Text style={styles.titleAccent}>le prochain levier.</Text></>
+            : <>L'intelligence de ta <Text style={styles.titleAccent}>croissance.</Text></>}
+        />
       </View>
 
-      <GlassPanel style={styles.revenuePanel} textureOpacity={0.24}>
+      <GlassPanel glow style={styles.revenuePanel} textureOpacity={0.24}>
         <View style={styles.revenueAccent} />
         <View style={styles.revenueTop}>
           <View style={styles.revenueIcon}>
@@ -175,15 +181,35 @@ export function DashboardScreen({
           <Text adjustsFontSizeToFit numberOfLines={1} style={styles.revenueAmount}>
             {euro(revenue.monthlyLow)} – {euro(revenue.monthlyHigh)}
           </Text>
-          <Text style={styles.revenueCaption}>par mois avec une exécution optimisée et mesurée</Text>
+          <Text style={styles.revenueCaption}>Revenu potentiel après optimisations · estimation indicative</Text>
         </View>
-        <View style={styles.revenueDivider} />
-        <Text style={styles.revenueAction}>{revenue.action}</Text>
-        <View style={styles.revenueMetaRow}>
-          <View style={styles.revenueMeta}><Ionicons color={palette.mint} name="locate-outline" size={14} /><Text style={styles.revenueMetaText}>{revenue.niche}</Text></View>
-          <View style={styles.revenueMeta}><Ionicons color={palette.mint} name="calculator-outline" size={14} /><Text style={styles.revenueMetaText}>{revenue.basis}</Text></View>
+      </GlassPanel>
+
+      <GlassPanel glow style={styles.projectionPanel} textureOpacity={0.11}>
+        <View style={styles.projectionTop}>
+          <View>
+            <Text style={styles.projectionEyebrow}>VUE D'ENSEMBLE</Text>
+            <Text style={styles.projectionTitle}>Projection d'exécution</Text>
+          </View>
+          <View style={styles.periodPill}><Text style={styles.periodText}>28 JOURS</Text></View>
         </View>
-        <Text style={styles.revenueDisclaimer}>Estimation indicative, jamais garantie. Elle évolue avec les vues, la conversion, l'offre et les données réellement observées.</Text>
+        <GrowthChart />
+        <View style={styles.projectionMetrics}>
+          <View style={styles.projectionMetric}>
+            <Text style={styles.projectionLabel}>Profil</Text>
+            <Text style={styles.projectionValue}>{report ? `${report.score}/100` : "À analyser"}</Text>
+          </View>
+          <View style={styles.metricRule} />
+          <View style={styles.projectionMetric}>
+            <Text style={styles.projectionLabel}>Cadence</Text>
+            <Text numberOfLines={1} style={styles.projectionValue}>{profile.cadence}</Text>
+          </View>
+          <View style={styles.metricRule} />
+          <View style={styles.projectionMetric}>
+            <Text style={styles.projectionLabel}>Signal</Text>
+            <Text style={[styles.projectionValue, styles.signalValue]}>{report ? "Mesuré" : "Initial"}</Text>
+          </View>
+        </View>
       </GlassPanel>
 
       {!report ? (
@@ -203,7 +229,7 @@ export function DashboardScreen({
       ) : null}
 
       {!connected ? (
-        <GlassPanel style={styles.importPanel} textureOpacity={0.2}>
+        <GlassPanel glow style={styles.importPanel} textureOpacity={0.2}>
           <View style={styles.panelAccent} />
           <View style={styles.importTop}>
             <View style={styles.importIcon}><Ionicons color={palette.ink} name="scan-outline" size={23} /></View>
@@ -224,10 +250,9 @@ export function DashboardScreen({
               <Text style={styles.secondaryText}>{screenshot ? "Remplacer" : "Choisir une capture"}</Text>
             </TouchableOpacity>
             {screenshot ? (
-              <TouchableOpacity disabled={isAnalyzing} onPress={analyze} style={styles.primaryButton}>
-                <Ionicons color={palette.ink} name="sparkles" size={18} />
-                <Text style={styles.primaryText}>{isAnalyzing ? "Analyse en cours" : "Lancer l'analyse"}</Text>
-              </TouchableOpacity>
+              <View style={styles.primaryGrow}>
+                <NeonButton compact disabled={isAnalyzing} onPress={analyze} title={isAnalyzing ? "Analyse en cours" : "Lancer l'analyse"} />
+              </View>
             ) : null}
           </View>
           {isAnalyzing ? (
@@ -339,9 +364,22 @@ const styles = StyleSheet.create({
   revenueMeta: { alignItems: "center", flexDirection: "row", gap: spacing.xs, minWidth: 0 },
   revenueMetaText: { color: palette.paperMuted, flex: 1, fontSize: 11, fontWeight: "700", lineHeight: 16 },
   revenueDisclaimer: { color: palette.muted, fontSize: 9, lineHeight: 13 },
+  projectionPanel: { gap: spacing.sm, padding: spacing.lg },
+  projectionTop: { alignItems: "center", flexDirection: "row", gap: spacing.md, justifyContent: "space-between" },
+  projectionEyebrow: { ...typography.caption, color: palette.electric, fontSize: 10 },
+  projectionTitle: { ...typography.h3, color: palette.white, marginTop: 3 },
+  periodPill: { backgroundColor: "rgba(24,91,201,0.18)", borderColor: palette.lineStrong, borderRadius: radius.pill, borderWidth: 1, paddingHorizontal: spacing.sm, paddingVertical: 6 },
+  periodText: { color: palette.sky, fontSize: 9, fontWeight: "900" },
+  projectionMetrics: { alignItems: "stretch", flexDirection: "row" },
+  projectionMetric: { flex: 1, gap: 3, minWidth: 0 },
+  projectionLabel: { color: palette.muted, fontSize: 9, fontWeight: "800", textTransform: "uppercase" },
+  projectionValue: { color: palette.white, fontSize: 13, fontWeight: "800" },
+  metricRule: { backgroundColor: palette.line, marginHorizontal: spacing.sm, width: 1 },
+  signalValue: { color: palette.positive },
   brandRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginBottom: spacing.lg },
   brand: { color: palette.white, fontSize: 26, fontWeight: "800" },
   brandAccent: { color: palette.mint },
+  titleAccent: { color: palette.electric },
   handle: { ...typography.caption, color: palette.paperMuted, marginTop: 2 },
   eyebrow: { ...typography.caption, color: palette.mint },
   title: { ...typography.title, color: palette.white, maxWidth: 350 },
@@ -373,6 +411,7 @@ const styles = StyleSheet.create({
   secondaryText: { ...typography.caption, color: palette.white },
   primaryButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, flex: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 50, minWidth: 150, paddingHorizontal: spacing.lg },
   primaryText: { ...typography.caption, color: palette.ink },
+  primaryGrow: { flex: 1, minWidth: 170 },
   analysisStatus: { alignItems: "center", flexDirection: "row", gap: spacing.sm },
   statusDot: { backgroundColor: palette.mint, borderRadius: radius.pill, height: 8, width: 8 },
   analysisStatusText: { ...typography.caption, color: palette.paperMuted, flex: 1 },

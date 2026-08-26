@@ -11,7 +11,9 @@ import {
 } from "react-native";
 
 import { GlassPanel } from "../components/GlassPanel";
+import { NeonButton } from "../components/NeonButton";
 import { ReadableText } from "../components/ReadableText";
+import { ScreenHero } from "../components/ScreenHero";
 import { SectionHeader } from "../components/SectionHeader";
 import {
   CalendarEvent,
@@ -243,13 +245,12 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <Text style={styles.kicker}>PLAN DE PUBLICATION</Text>
-        <Text style={styles.title}>Le bon contenu, au bon moment.</Text>
-        <Text style={styles.subtitle}>
-          Un rythme calculé à partir de ton profil, de tes réponses et de l’analyse réelle du compte.
-        </Text>
-      </View>
+      <ScreenHero
+        eyebrow="Plan de publication"
+        icon="calendar-clear-outline"
+        subtitle="Un rythme calculé à partir de ton profil, de tes réponses et de l’analyse réelle du compte."
+        title={<>Le bon contenu, au <Text style={styles.titleAccent}>bon moment.</Text></>}
+      />
 
       <View style={styles.durationControl}>
         {planDurations.map((value) => {
@@ -286,12 +287,11 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
         </View>
       </View>
 
-      <TouchableOpacity disabled={isGenerating} onPress={buildPlan} style={[styles.primaryButton, isGenerating && styles.disabled]}>
-        {isGenerating ? <ActivityIndicator color={palette.ink} /> : <Ionicons color={palette.ink} name="sparkles" size={20} />}
-        <Text style={styles.primaryText}>
-          {isGenerating ? `Construction sur ${duration} jours...` : activePlan ? `Ajouter un plan de ${duration} jours` : `Construire mon plan sur ${duration} jours`}
-        </Text>
-      </TouchableOpacity>
+      <NeonButton
+        disabled={isGenerating}
+        onPress={buildPlan}
+        title={isGenerating ? `Construction sur ${duration} jours...` : activePlan ? `Ajouter un plan de ${duration} jours` : `Construire mon plan sur ${duration} jours`}
+      />
 
       <TouchableOpacity onPress={confirmProfileReset} style={styles.resetButton}>
         <Ionicons color={palette.sky} name="refresh-outline" size={18} />
@@ -312,7 +312,7 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
         <>
           <SectionHeader eyebrow={planRange(activePlan)} title="Plan recommandé" action={activePlan.source === "fallback_rules" ? "Plan immédiat" : "Plan IA"} />
 
-          <GlassPanel style={styles.decisionPanel} textureOpacity={0.2}>
+          <GlassPanel glow style={styles.decisionPanel} textureOpacity={0.2}>
             <Text style={styles.decisionLabel}>STRATÉGIE RETENUE</Text>
             <ReadableText text={activePlan.strategyDecision} textStyle={styles.decision} />
             <ReadableText text={activePlan.summary} textStyle={styles.summary} />
@@ -500,6 +500,7 @@ const styles = StyleSheet.create({
   header: { gap: spacing.sm },
   kicker: { ...typography.caption, color: palette.mint },
   title: { ...typography.title, color: palette.white },
+  titleAccent: { color: palette.electric },
   subtitle: { ...typography.body, color: palette.paperMuted },
   durationControl: { backgroundColor: "rgba(3,10,27,0.62)", borderRadius: radius.md, flexDirection: "row", gap: spacing.xs, padding: spacing.xs },
   durationOption: { alignItems: "center", borderRadius: radius.sm, flex: 1, gap: 1, justifyContent: "center", minHeight: 58 },

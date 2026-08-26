@@ -11,7 +11,9 @@ import {
 } from "react-native";
 
 import { GlassPanel } from "../components/GlassPanel";
+import { NeonButton } from "../components/NeonButton";
 import { ProgressBar } from "../components/ProgressBar";
+import { ScreenHero } from "../components/ScreenHero";
 import { analyzeOnboarding, OnboardingAIReport } from "../services/ai";
 import { palette, radius, spacing, typography } from "../theme";
 import {
@@ -201,8 +203,12 @@ export function OnboardingScreen({
       <ScrollView contentContainerStyle={styles.authContent} showsVerticalScrollIndicator={false}>
         <View style={styles.authHero}>
           <Text style={styles.brand}>VIRALY <Text style={styles.brandAccent}>AI</Text></Text>
-          <Text style={styles.authTitle}>Ton studio de croissance commence ici.</Text>
-          <Text style={styles.authBody}>Connecte Google pour retrouver ton diagnostic, ta niche et ton calendrier sur chaque session.</Text>
+          <ScreenHero
+            eyebrow="Studio de croissance"
+            icon="sparkles-outline"
+            subtitle="Connecte Google pour retrouver ton diagnostic, ta niche et ton calendrier sur chaque session."
+            title={<>Transforme ton contenu en <Text style={styles.titleAccent}>système.</Text></>}
+          />
         </View>
         <GlassPanel style={styles.authPanel}>
           <View style={styles.authMark}>
@@ -228,11 +234,12 @@ export function OnboardingScreen({
   if (showingReport && report) {
     return (
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <Text style={styles.kicker}>PREMIER BILAN</Text>
-          <Text style={styles.title}>Ton système peut commencer.</Text>
-          <Text style={styles.subtitle}>{googleName ? `${googleName}, voici` : "Voici"} le point de départ calculé à partir de tes réponses.</Text>
-        </View>
+        <ScreenHero
+          eyebrow="Premier bilan"
+          icon="analytics-outline"
+          subtitle={`${googleName ? `${googleName}, voici` : "Voici"} le point de départ calculé à partir de tes réponses.`}
+          title={<>Ton système peut <Text style={styles.titleAccent}>commencer.</Text></>}
+        />
         <GlassPanel style={styles.reportPanel}>
           <View style={styles.reportTop}>
             <View>
@@ -262,10 +269,7 @@ export function OnboardingScreen({
             <Text style={styles.revenueText}>{report.revenueDirection}</Text>
           </View>
         </GlassPanel>
-        <TouchableOpacity onPress={() => onComplete(answers as CreatorOnboardingProfile)} style={styles.primaryButton}>
-          <Text style={styles.primaryButtonText}>Entrer dans VIRALY AI</Text>
-          <Ionicons color={palette.ink} name="arrow-forward" size={20} />
-        </TouchableOpacity>
+        <NeonButton onPress={() => onComplete(answers as CreatorOnboardingProfile)} title="Entrer dans VIRALY AI" />
       </ScrollView>
     );
   }
@@ -277,11 +281,7 @@ export function OnboardingScreen({
         <Text style={styles.accountName}>{googleName || "Espace Google connecté"}</Text>
       </View>
       <ProgressBar color={palette.mint} value={((step + 1) / questions.length) * 100} />
-      <View style={styles.header}>
-        <Text style={styles.kicker}>{current.eyebrow}</Text>
-        <Text style={styles.title}>{current.title}</Text>
-        <Text style={styles.subtitle}>{current.subtitle}</Text>
-      </View>
+      <ScreenHero eyebrow={current.eyebrow} icon="navigate-outline" subtitle={current.subtitle} title={current.title} />
       <View style={styles.options}>
         {current.options.map((option) => {
           const active = selected === option.id;
@@ -333,10 +333,13 @@ export function OnboardingScreen({
             <Ionicons color={palette.white} name="arrow-back" size={20} />
           </TouchableOpacity>
         ) : <View style={styles.backPlaceholder} />}
-        <TouchableOpacity disabled={!selected || isAnalyzing} onPress={continueOnboarding} style={[styles.continueButton, (!selected || isAnalyzing) && styles.continueDisabled]}>
-          <Text style={styles.continueText}>{isAnalyzing ? "Analyse en cours..." : step === questions.length - 1 ? "Générer mon bilan" : "Continuer"}</Text>
-          <Ionicons color={palette.ink} name="arrow-forward" size={20} />
-        </TouchableOpacity>
+        <View style={styles.continueGrow}>
+          <NeonButton
+            disabled={!selected || isAnalyzing}
+            onPress={continueOnboarding}
+            title={isAnalyzing ? "Analyse en cours..." : step === questions.length - 1 ? "Générer mon bilan" : "Continuer"}
+          />
+        </View>
       </View>
     </ScrollView>
   );
@@ -347,6 +350,7 @@ const styles = StyleSheet.create({
   authHero: { gap: spacing.md },
   brand: { color: palette.white, fontSize: 25, fontWeight: "800" },
   brandAccent: { color: palette.mint },
+  titleAccent: { color: palette.electric },
   authTitle: { color: palette.white, fontSize: 39, fontWeight: "800", lineHeight: 43, maxWidth: 360 },
   authBody: { ...typography.body, color: palette.paperMuted, maxWidth: 360 },
   authPanel: { alignItems: "center", borderColor: palette.lineStrong, gap: spacing.md, padding: spacing.xl },
@@ -385,6 +389,7 @@ const styles = StyleSheet.create({
   continueButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, flex: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 54 },
   continueDisabled: { opacity: 0.28 },
   continueText: { ...typography.body, color: palette.ink, fontWeight: "900" },
+  continueGrow: { flex: 1 },
   reportPanel: { gap: spacing.md, padding: spacing.lg },
   reportTop: { alignItems: "flex-start", flexDirection: "row", gap: spacing.md, justifyContent: "space-between" },
   reportLabel: { ...typography.caption, color: palette.muted },
