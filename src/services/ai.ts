@@ -22,6 +22,8 @@ export type GeneratedIdea = {
 };
 
 export type CoachReport = {
+  analysisId: string;
+  question?: string;
   answer: string;
   why: string;
   actions: string[];
@@ -156,6 +158,10 @@ export function askCoach(
 export async function listContentPlans(limit = 8) {
   const result = await apiRequest<{ plans: ContentPlan[] }>(`/api/v1/plans?limit=${limit}`);
   return result.plans;
+}
+
+export function deleteContentPlan(planId: string) {
+  return apiRequest<void>(`/api/v1/plans/${planId}`, { method: "DELETE" });
 }
 
 export function generateContentPlan(

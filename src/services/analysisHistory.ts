@@ -7,7 +7,10 @@ export type AnalysisHistoryItem<T> = {
   report: T;
 };
 
-export async function listAnalysisHistory<T>(kind: "profile" | "content", limit = 12) {
+export async function listAnalysisHistory<T>(
+  kind: "profile" | "content" | "idea" | "ideas" | "onboarding" | "coach",
+  limit = 12
+) {
   const result = await apiRequest<{ analyses: AnalysisHistoryItem<T>[] }>(
     `/api/v1/analyses?kind=${kind}&limit=${limit}`
   );
