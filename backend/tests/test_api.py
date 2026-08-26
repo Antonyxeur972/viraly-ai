@@ -577,6 +577,17 @@ def test_old_plans_are_kept_while_active_ai_calendar_is_replaced(client, auth_he
         event["date"] for event in second.json()["events"]
     }
 
+    deleted = client.delete(
+        f"/api/v1/plans/{first.json()['id']}", headers=auth_headers
+    )
+    assert deleted.status_code == 204
+    remaining_ids = {
+        plan["id"]
+        for plan in client.get("/api/v1/plans?limit=30", headers=auth_headers).json()["plans"]
+    }
+    assert first.json()["id"] not in remaining_ids
+    assert second.json()["id"] in remaining_ids
+
 
 def test_plan_and_coach_reuse_latest_saved_profile_analysis(client, auth_headers):
     client.app.state.db.save_analysis(
@@ -624,6 +635,27 @@ def test_plan_and_coach_reuse_latest_saved_profile_analysis(client, auth_headers
     assert coach_response.status_code == 200
     assert "3 vidéos, 2 carrousels et 1 story sur 7 jours" in coach_response.json()["answer"]
     assert "score observé 89/100" in coach_response.json()["why"]
+    assert coach_response.json()["question"] == "Combien dois-je publier cette semaine ?"
+    assert coach_response.json()["analysisId"].startswith("ana_")
+
+    coach_history = client.get(
+        "/api/v1/analyses?kind=coach&limit=20", headers=auth_headers
+    ).json()["analyses"]
+    assert coach_history[0]["report"]["question"] == coach_response.json()["question"]
+    assert coach_history[0]["report"]["answer"] == coach_response.json()["answer"]
+
+    deleted_coach = client.delete(
+        f"/api/v1/analyses/{coach_response.json()['analysisId']}",
+        headers=auth_headers,
+    )
+    assert deleted_coach.status_code == 204
+    remaining_coach_ids = {
+        item["id"]
+        for item in client.get(
+        "/api/v1/analyses?kind=coach&limit=20", headers=auth_headers
+        ).json()["analyses"]
+    }
+    assert coach_response.json()["analysisId"] not in remaining_coach_ids
 
 
 def test_plan_supports_14_and_30_days_with_one_story_max_per_week(client, auth_headers):
