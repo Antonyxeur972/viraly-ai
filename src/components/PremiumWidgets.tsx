@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useRef } from "react";
-import { Animated, Easing, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Path, Stop } from "react-native-svg";
 
 import { palette, radius, spacing, typography } from "../theme";
@@ -15,11 +15,19 @@ export type Recommendation = {
   color: string;
 };
 
-export function RecommendationRail({ items }: { items: Recommendation[] }) {
+export function RecommendationRail({
+  items,
+  onSelect
+}: {
+  items: Recommendation[];
+  onSelect?: (item: Recommendation, index: number) => void;
+}) {
   return (
     <ScrollView contentContainerStyle={styles.recommendationContent} horizontal showsHorizontalScrollIndicator={false} style={styles.rail}>
       {items.map((item, index) => (
-        <RecommendationCard featured={index === 0} item={item} key={item.title} />
+        <TouchableOpacity accessibilityRole="button" key={item.title} onPress={() => onSelect?.(item, index)}>
+          <RecommendationCard featured={index === 0} item={item} />
+        </TouchableOpacity>
       ))}
     </ScrollView>
   );

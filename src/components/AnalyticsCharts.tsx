@@ -25,8 +25,8 @@ export function GrowthChart() {
       <Svg height={184} viewBox="0 0 360 184" width="100%">
         <Defs>
           <LinearGradient id="area" x1="0" x2="0" y1="0" y2="1">
-            <Stop offset="0" stopColor={palette.mint} stopOpacity="0.34" />
-            <Stop offset="1" stopColor={palette.mint} stopOpacity="0" />
+            <Stop offset="0" stopColor={palette.electric} stopOpacity="0.28" />
+            <Stop offset="1" stopColor={palette.electric} stopOpacity="0" />
           </LinearGradient>
         </Defs>
         {[28, 68, 108, 148].map((y) => (
@@ -48,12 +48,29 @@ export function GrowthChart() {
         <Path
           d="M26 130 C52 126, 54 151, 84 142 C106 135, 111 93, 139 94 C164 95, 170 111, 195 101 C223 90, 235 66, 264 75 C291 83, 305 91, 348 30"
           fill="none"
-          stroke={palette.mint}
+          stroke={palette.electric}
           strokeLinecap="round"
           strokeWidth="3"
         />
-        <Circle cx="348" cy="30" fill={palette.mint} opacity="0.24" r="10" />
+        <Path
+          d="M26 143 C62 141, 86 132, 116 128 C151 124, 180 113, 210 106 C254 95, 295 83, 348 65"
+          fill="none"
+          stroke={palette.cyan}
+          strokeLinecap="round"
+          strokeWidth="2"
+        />
+        <Path
+          d="M26 150 C72 149, 95 146, 130 142 C178 138, 207 127, 246 119 C286 109, 316 97, 348 87"
+          fill="none"
+          stroke={palette.violet}
+          strokeDasharray="4 4"
+          strokeLinecap="round"
+          strokeWidth="2"
+        />
+        <Circle cx="348" cy="30" fill={palette.electric} opacity="0.24" r="10" />
         <Circle cx="348" cy="30" fill={palette.white} r="4" />
+        <Circle cx="348" cy="65" fill={palette.cyan} r="3" />
+        <Circle cx="348" cy="87" fill={palette.violet} r="3" />
         {[
           ["03/06", 26],
           ["04/06", 80],
