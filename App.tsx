@@ -14,6 +14,8 @@ import {
 } from "react-native";
 
 import { BottomTabs, TabItem } from "./src/components/BottomTabs";
+import { AmbientMotion } from "./src/components/AmbientMotion";
+import { ScreenTransition } from "./src/components/ScreenTransition";
 import { CoachScreen } from "./src/screens/CoachScreen";
 import { DashboardScreen } from "./src/screens/DashboardScreen";
 import { IdeaLabScreen } from "./src/screens/IdeaLabScreen";
@@ -264,17 +266,18 @@ export default function App() {
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       <ImageBackground
         resizeMode="cover"
-        source={require("./assets/viraly-rainforest.png")}
+        source={require("./assets/viraly-neural-field.png")}
         style={styles.background}
       >
         <View style={styles.scrim} testID="viraly-shell">
+          <AmbientMotion />
           <LinearGradient
             colors={[
-              "rgba(2,8,22,0.28)",
-              "rgba(3,13,36,0.52)",
-              "rgba(2,7,18,0.96)"
+              "rgba(0,3,12,0.16)",
+              "rgba(1,6,19,0.54)",
+              "rgba(1,4,13,0.90)"
             ]}
-            locations={[0, 0.48, 1]}
+            locations={[0, 0.52, 1]}
             pointerEvents="none"
             style={StyleSheet.absoluteFill}
           />
@@ -287,7 +290,7 @@ export default function App() {
           </View>
           {onboardingComplete && creatorSetup ? (
             <>
-              <View key={activeTab} style={styles.screen}>{screen}</View>
+              <View key={activeTab} style={styles.screen}><ScreenTransition>{screen}</ScreenTransition></View>
               <BottomTabs
                 activeTab={activeTab}
                 items={tabs}
@@ -336,7 +339,7 @@ const styles = StyleSheet.create({
   },
   screenTexture: {
     ...StyleSheet.absoluteFillObject,
-    opacity: 0.10
+    opacity: 0.07
   },
   screen: {
     flex: 1,
