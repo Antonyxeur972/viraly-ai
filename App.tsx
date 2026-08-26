@@ -51,9 +51,9 @@ type TabKey = "dashboard" | "video" | "ideas" | "strategy" | "coach";
 
 const tabs: TabItem<TabKey>[] = [
   { key: "dashboard", label: "Accueil", icon: "home-outline" },
+  { key: "strategy", label: "Plan", icon: "calendar-clear-outline" },
   { key: "video", label: "Analyse", icon: "scan-outline" },
   { key: "ideas", label: "Idées", icon: "sparkles-outline" },
-  { key: "strategy", label: "Plan", icon: "calendar-clear-outline" },
   { key: "coach", label: "Coach", icon: "chatbubble-ellipses-outline" }
 ];
 
