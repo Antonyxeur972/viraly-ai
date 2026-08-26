@@ -5,9 +5,9 @@ import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View 
 import { GlassPanel } from "../components/GlassPanel";
 import { NeonButton } from "../components/NeonButton";
 import { ProgressBar } from "../components/ProgressBar";
+import { MiniSparkline } from "../components/PremiumWidgets";
 import { ScreenHero } from "../components/ScreenHero";
 import { SectionHeader } from "../components/SectionHeader";
-import { Tag } from "../components/Tag";
 import {
   GeneratedIdea,
   IdeaAnalysisReport,
@@ -61,6 +61,7 @@ export function IdeaLabScreen({ profile, accountContext }: Props) {
         icon="bulb-outline"
         subtitle="VIRALY cherche une promesse claire, une tension utile et un chemin logique vers ton objectif."
         title={<>Valide l'idée avant de <Text style={styles.titleAccent}>filmer.</Text></>}
+        variant="ideas"
       />
 
       <View style={styles.contextStrip}>
@@ -82,6 +83,10 @@ export function IdeaLabScreen({ profile, accountContext }: Props) {
           style={styles.input}
           value={idea}
         />
+        <View style={styles.qualityRow}>
+          <View style={styles.qualityLabel}><Ionicons color={palette.electric} name="sparkles-outline" size={16} /><Text style={styles.qualityText}>Qualité de l'idée</Text></View>
+          <Text style={styles.qualityScore}>{report?.score || "--"}<Text style={styles.qualityMax}> /100</Text></Text>
+        </View>
         <ProgressBar color={palette.mint} value={report?.score || 0} />
         <NeonButton
           disabled={idea.trim().length < 5 || loading !== null}
@@ -142,26 +147,25 @@ export function IdeaLabScreen({ profile, accountContext }: Props) {
       />
 
       {ideas.length ? (
-        <View style={styles.stack}>
+        <ScrollView contentContainerStyle={styles.ideaRailContent} horizontal showsHorizontalScrollIndicator={false} style={styles.ideaRail}>
           {ideas.map((item, index) => (
-            <TouchableOpacity key={`${item.title}-${index}`} onPress={() => { setIdea(item.title); setReport(null); }} style={styles.ideaCard}>
+            <TouchableOpacity key={`${item.title}-${index}`} onPress={() => { setIdea(item.title); setReport(null); }} style={styles.ideaTouch}>
+              <GlassPanel glow={index === 0} style={styles.ideaCard} textureOpacity={0.12}>
               <View style={styles.ideaTop}>
-                <View style={styles.rank}><Text style={styles.rankText}>0{index + 1}</Text></View>
-                <View style={styles.ideaCopy}>
-                  <Text style={styles.ideaFormat}>{item.format.toUpperCase()}</Text>
-                  <Text style={styles.ideaTitle}>{item.title}</Text>
+                <View style={[styles.rank, index === 1 && styles.rankViolet, index > 1 && styles.rankCyan]}>
+                  <Ionicons color={index === 1 ? palette.violet : index > 1 ? palette.cyan : palette.white} name={index === 0 ? "flash" : index === 1 ? "magnet" : "locate"} size={20} />
                 </View>
-                <View style={styles.scorePill}><Text style={styles.ideaScore}>{item.score}</Text></View>
+                <View style={styles.scorePill}><Text style={styles.ideaScore}>{item.score}</Text><Text style={styles.ideaScoreMax}>/100</Text></View>
               </View>
-              <Text style={styles.ideaPromise}>{item.promise}</Text>
-              <View style={styles.tags}>
-                <Tag label={`effort ${item.effort}`} color={palette.paperMuted} />
-                <Tag label={item.revenuePath} color={palette.mint} />
-              </View>
+              <Text style={styles.ideaFormat}>{item.format.toUpperCase()}</Text>
+              <Text numberOfLines={3} style={styles.ideaTitle}>{item.title}</Text>
+              <Text numberOfLines={3} style={styles.ideaPromise}>{item.promise}</Text>
+              <MiniSparkline color={index === 1 ? palette.violet : index > 1 ? palette.cyan : palette.electric} variant={index % 3} />
               <View style={styles.useLine}><Text style={styles.useText}>Développer cette idée</Text><Ionicons color={palette.mint} name="arrow-forward" size={16} /></View>
+              </GlassPanel>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       ) : (
         <GlassPanel style={styles.emptyPanel} textureOpacity={0.08}>
           <Ionicons color={palette.mint} name="bulb-outline" size={22} />
@@ -189,6 +193,11 @@ const styles = StyleSheet.create({
   scoreValue: { color: palette.white, fontSize: 26, fontWeight: "800" },
   scoreMax: { color: palette.muted, fontSize: 12, fontWeight: "600" },
   input: { ...typography.body, backgroundColor: palette.graphite, borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, color: palette.white, minHeight: 118, padding: spacing.md, textAlignVertical: "top" },
+  qualityRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
+  qualityLabel: { alignItems: "center", flexDirection: "row", gap: spacing.xs },
+  qualityText: { ...typography.caption, color: palette.paperMuted },
+  qualityScore: { color: palette.electric, fontSize: 13, fontWeight: "900" },
+  qualityMax: { color: palette.muted, fontSize: 10, fontWeight: "700" },
   primaryButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 52, paddingHorizontal: spacing.lg },
   primaryText: { ...typography.caption, color: palette.ink, textAlign: "center" },
   disabled: { opacity: 0.42 },
@@ -213,16 +222,22 @@ const styles = StyleSheet.create({
   generateButton: { alignItems: "center", borderColor: palette.lineStrong, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 50 },
   generateText: { ...typography.caption, color: palette.mint, textAlign: "center" },
   stack: { gap: spacing.md },
-  ideaCard: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, gap: spacing.md, padding: spacing.lg },
+  ideaRail: { marginHorizontal: -spacing.lg },
+  ideaRailContent: { gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: 3 },
+  ideaTouch: { width: 220 },
+  ideaCard: { gap: spacing.sm, height: 274, padding: spacing.md },
   ideaTop: { alignItems: "flex-start", flexDirection: "row", gap: spacing.md },
-  rank: { alignItems: "center", borderColor: palette.lineStrong, borderRadius: radius.pill, borderWidth: 1, height: 38, justifyContent: "center", width: 38 },
+  rank: { alignItems: "center", backgroundColor: "rgba(22,94,232,0.56)", borderColor: palette.lineStrong, borderRadius: radius.sm, borderWidth: 1, height: 42, justifyContent: "center", shadowColor: palette.electric, shadowOpacity: 0.46, shadowRadius: 9, width: 42 },
+  rankViolet: { backgroundColor: "rgba(91,63,202,0.44)", borderColor: "rgba(137,104,255,0.42)" },
+  rankCyan: { backgroundColor: "rgba(10,107,129,0.42)", borderColor: "rgba(69,214,255,0.42)" },
   rankText: { color: palette.mint, fontSize: 11, fontWeight: "800" },
   ideaCopy: { flex: 1, gap: 3 },
-  ideaTitle: { ...typography.h3, color: palette.white },
+  ideaTitle: { color: palette.white, fontSize: 16, fontWeight: "800", lineHeight: 21, minHeight: 63 },
   ideaFormat: { ...typography.caption, color: palette.muted, fontSize: 10 },
-  scorePill: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, height: 38, justifyContent: "center", width: 38 },
-  ideaScore: { color: palette.ink, fontSize: 14, fontWeight: "800" },
-  ideaPromise: { ...typography.body, color: palette.paperMuted },
+  scorePill: { alignItems: "baseline", flexDirection: "row", marginLeft: "auto" },
+  ideaScore: { color: palette.electric, fontSize: 17, fontWeight: "900" },
+  ideaScoreMax: { color: palette.muted, fontSize: 8, fontWeight: "800" },
+  ideaPromise: { color: palette.paperMuted, fontSize: 12, lineHeight: 17, minHeight: 51 },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   useLine: { alignItems: "center", borderTopColor: palette.line, borderTopWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingTop: spacing.sm },
   useText: { ...typography.caption, color: palette.mint },
