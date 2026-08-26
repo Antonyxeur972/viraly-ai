@@ -102,23 +102,37 @@ export function CoachScreen({ profile, accountContext }: Props) {
         icon="chatbubble-ellipses-outline"
         subtitle="Le coach relie chaque conseil à ton profil, aux signaux observés et à un test mesurable."
         title={<>Une réponse qui <Text style={styles.titleAccent}>tranche.</Text></>}
+        variant="coach"
       />
 
       <GlassPanel style={styles.contextPanel} textureOpacity={0.08}>
-        <View style={styles.contextTop}>
-          <Text style={styles.contextLabel}>CONTEXTE ACTIF</Text>
-          <View style={styles.liveDot} />
+        <View style={styles.contextRadar}>
+          <View style={styles.radarRingOuter} />
+          <View style={styles.radarRingInner} />
+          <View style={styles.radarAxisH} />
+          <View style={styles.radarAxisV} />
+          <Ionicons color={palette.electric} name="person" size={20} />
         </View>
-        <Text numberOfLines={2} style={styles.contextTitle}>{niche}</Text>
-        <Text style={styles.contextMeta}>{accountContext ? `Diagnostic compte chargé · score ${accountContext.score}/100` : "Profil créateur chargé · diagnostic compte non disponible"}</Text>
-        {currentPlan ? (
-          <Text style={styles.planMeta}>Plan actif · {currentPlan.contentMix.videos} vidéos · {currentPlan.contentMix.carousels} carrousels · {currentPlan.contentMix.stories} stories</Text>
-        ) : null}
+        <View style={styles.contextCopy}>
+          <View style={styles.contextTop}>
+            <Text style={styles.contextLabel}>CONTEXTE ACTIF</Text>
+            <View style={styles.liveDot} />
+          </View>
+          <Text numberOfLines={2} style={styles.contextTitle}>{niche}</Text>
+          <Text style={styles.contextMeta}>{accountContext ? `Diagnostic compte chargé · score ${accountContext.score}/100` : "Profil créateur chargé · diagnostic compte non disponible"}</Text>
+          {currentPlan ? (
+            <Text style={styles.planMeta}>Plan actif · {currentPlan.contentMix.videos} vidéos · {currentPlan.contentMix.carousels} carrousels · {currentPlan.contentMix.stories} stories</Text>
+          ) : null}
+        </View>
       </GlassPanel>
 
       <GlassPanel glow style={styles.askCard} textureOpacity={0.16}>
-        <Text style={styles.askLabel}>TA QUESTION</Text>
+        <View style={styles.askTop}>
+          <Text style={styles.askLabel}>TA QUESTION</Text>
+          <View style={styles.analyzingPill}><Ionicons color={palette.violet} name="sparkles" size={14} /><Text style={styles.analyzingText}>Le coach analyse</Text></View>
+        </View>
         <TextInput
+          maxLength={300}
           multiline
           onChangeText={setQuestion}
           placeholder="Ex : quel angle dois-je publier cette semaine pour obtenir plus de sauvegardes ?"
@@ -126,6 +140,7 @@ export function CoachScreen({ profile, accountContext }: Props) {
           style={styles.input}
           value={question}
         />
+        <Text style={styles.characterCount}>{question.length} / 300</Text>
         <NeonButton
           disabled={isLoading || question.trim().length < 3}
           icon="arrow-up"
@@ -136,14 +151,20 @@ export function CoachScreen({ profile, accountContext }: Props) {
 
       <SectionHeader eyebrow="Raccourcis utiles" title="Choisir une décision" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickRail}>
-        {coachQuestions.map((item) => (
-          <TouchableOpacity disabled={isLoading} key={item.question} onPress={() => submit(item.question)} style={styles.quickCard}>
-            <View style={styles.quickIcon}><Ionicons color={palette.mint} name={item.icon} size={20} /></View>
+        {coachQuestions.slice(0, 3).map((item, index) => (
+          <TouchableOpacity disabled={isLoading} key={item.question} onPress={() => submit(item.question)} style={[styles.quickCard, index === 1 && styles.quickCardCyan, index === 2 && styles.quickCardViolet]}>
+            <View style={[styles.quickIcon, index === 1 && styles.quickIconCyan, index === 2 && styles.quickIconViolet]}><Ionicons color={index === 1 ? palette.cyan : index === 2 ? palette.violet : palette.electric} name={item.icon} size={20} /></View>
             <Text style={styles.quickText}>{item.question}</Text>
-            <Ionicons color={palette.muted} name="arrow-forward" size={17} />
+            <Ionicons color={index === 1 ? palette.cyan : index === 2 ? palette.violet : palette.electric} name="arrow-forward" size={19} />
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      <View style={styles.intelligenceStrip}>
+        <Ionicons color={palette.violet} name="sparkles" size={19} />
+        <Text style={styles.intelligenceText}>Le coach s'appuie sur ton activité, ta niche et les signaux récents. Plus tu interagis, plus ses réponses sont précises.</Text>
+        <Ionicons color={palette.cyan} name="pulse-outline" size={25} />
+      </View>
 
       {isLoading ? (
         <GlassPanel style={styles.loadingPanel} textureOpacity={0.18}>
@@ -241,7 +262,13 @@ const styles = StyleSheet.create({
   title: { ...typography.title, color: palette.white },
   titleAccent: { color: palette.electric },
   subtitle: { ...typography.body, color: palette.paperMuted },
-  contextPanel: { gap: spacing.xs, padding: spacing.lg },
+  contextPanel: { alignItems: "center", flexDirection: "row", gap: spacing.md, minHeight: 112, padding: spacing.lg },
+  contextRadar: { alignItems: "center", height: 68, justifyContent: "center", position: "relative", width: 68 },
+  radarRingOuter: { borderColor: "rgba(44,139,255,0.64)", borderRadius: radius.pill, borderWidth: 1, height: 62, position: "absolute", width: 62 },
+  radarRingInner: { borderColor: "rgba(62,193,255,0.34)", borderRadius: radius.pill, borderWidth: 1, height: 40, position: "absolute", width: 40 },
+  radarAxisH: { backgroundColor: palette.electric, height: 1, left: 2, opacity: 0.7, position: "absolute", right: 2 },
+  radarAxisV: { backgroundColor: palette.electric, bottom: 2, opacity: 0.7, position: "absolute", top: 2, width: 1 },
+  contextCopy: { flex: 1, gap: spacing.xs, minWidth: 0 },
   contextTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   contextLabel: { ...typography.caption, color: palette.mint },
   liveDot: { backgroundColor: palette.mint, borderRadius: radius.pill, height: 8, width: 8 },
@@ -249,15 +276,25 @@ const styles = StyleSheet.create({
   contextMeta: { ...typography.caption, color: palette.muted },
   planMeta: { ...typography.caption, color: palette.sky, marginTop: spacing.xs },
   askCard: { gap: spacing.md, padding: spacing.lg },
+  askTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   askLabel: { ...typography.caption, color: palette.mint },
-  input: { ...typography.body, backgroundColor: palette.graphite, borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, color: palette.white, minHeight: 110, padding: spacing.md, textAlignVertical: "top" },
+  analyzingPill: { alignItems: "center", backgroundColor: "rgba(70,35,145,0.30)", borderColor: "rgba(130,87,255,0.42)", borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: 5, paddingHorizontal: 9, paddingVertical: 6 },
+  analyzingText: { color: "#B79AFF", fontSize: 9, fontWeight: "800" },
+  input: { ...typography.body, backgroundColor: palette.graphite, borderColor: palette.lineStrong, borderRadius: radius.sm, borderWidth: 1, color: palette.white, minHeight: 126, padding: spacing.md, textAlignVertical: "top" },
+  characterCount: { color: palette.electric, fontSize: 10, fontWeight: "800", marginTop: -30, paddingBottom: 7, paddingRight: 7, textAlign: "right" },
   askButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 52, paddingHorizontal: spacing.lg },
   askText: { ...typography.caption, color: palette.ink, textAlign: "center" },
   disabled: { opacity: 0.42 },
   quickRail: { marginHorizontal: -spacing.lg, paddingHorizontal: spacing.lg },
-  quickCard: { alignItems: "center", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.sm, marginRight: spacing.sm, minHeight: 88, padding: spacing.md, width: 250 },
-  quickIcon: { alignItems: "center", borderColor: palette.lineStrong, borderRadius: radius.pill, borderWidth: 1, height: 38, justifyContent: "center", width: 38 },
-  quickText: { color: palette.white, flex: 1, fontSize: 14, fontWeight: "600", lineHeight: 19 },
+  quickCard: { alignItems: "flex-start", backgroundColor: "rgba(6,18,43,0.86)", borderColor: "rgba(53,129,255,0.48)", borderRadius: radius.md, borderWidth: 1, gap: spacing.md, justifyContent: "space-between", marginRight: spacing.sm, minHeight: 166, padding: spacing.md, width: 136 },
+  quickCardCyan: { borderColor: "rgba(48,204,255,0.48)" },
+  quickCardViolet: { borderColor: "rgba(139,87,255,0.48)" },
+  quickIcon: { alignItems: "center", backgroundColor: "rgba(25,92,211,0.28)", borderColor: palette.lineStrong, borderRadius: radius.sm, borderWidth: 1, height: 39, justifyContent: "center", width: 39 },
+  quickIconCyan: { backgroundColor: "rgba(11,118,143,0.28)", borderColor: "rgba(60,216,255,0.42)" },
+  quickIconViolet: { backgroundColor: "rgba(79,42,158,0.34)", borderColor: "rgba(143,93,255,0.42)" },
+  quickText: { color: palette.white, fontSize: 13, fontWeight: "700", lineHeight: 18, minHeight: 73 },
+  intelligenceStrip: { alignItems: "center", backgroundColor: "rgba(11,20,48,0.68)", borderColor: "rgba(111,70,255,0.30)", borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.sm, padding: spacing.md },
+  intelligenceText: { color: palette.paperMuted, flex: 1, fontSize: 11, lineHeight: 16 },
   loadingPanel: { alignItems: "center", flexDirection: "row", gap: spacing.md, padding: spacing.lg },
   loadingMark: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, height: 44, justifyContent: "center", width: 44 },
   loadingCopy: { flex: 1, gap: 4 },

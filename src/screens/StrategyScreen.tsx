@@ -12,6 +12,7 @@ import {
 
 import { GlassPanel } from "../components/GlassPanel";
 import { NeonButton } from "../components/NeonButton";
+import { PlanJourney } from "../components/PlanJourney";
 import { ReadableText } from "../components/ReadableText";
 import { ScreenHero } from "../components/ScreenHero";
 import { SectionHeader } from "../components/SectionHeader";
@@ -250,6 +251,8 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
         icon="calendar-clear-outline"
         subtitle="Un rythme calculé à partir de ton profil, de tes réponses et de l’analyse réelle du compte."
         title={<>Le bon contenu, au <Text style={styles.titleAccent}>bon moment.</Text></>}
+        variant="plan"
+        wide
       />
 
       <View style={styles.durationControl}>
@@ -286,6 +289,8 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
           </Text>
         </View>
       </View>
+
+      <PlanJourney duration={duration} />
 
       <NeonButton
         disabled={isGenerating}
@@ -502,20 +507,20 @@ const styles = StyleSheet.create({
   title: { ...typography.title, color: palette.white },
   titleAccent: { color: palette.electric },
   subtitle: { ...typography.body, color: palette.paperMuted },
-  durationControl: { backgroundColor: "rgba(3,10,27,0.62)", borderRadius: radius.md, flexDirection: "row", gap: spacing.xs, padding: spacing.xs },
-  durationOption: { alignItems: "center", borderRadius: radius.sm, flex: 1, gap: 1, justifyContent: "center", minHeight: 58 },
-  durationOptionActive: { backgroundColor: palette.mint },
-  durationValue: { color: palette.paperMuted, fontSize: 19, fontWeight: "800" },
-  durationValueActive: { color: palette.ink },
-  durationLabel: { color: palette.muted, fontSize: 9, fontWeight: "800" },
-  durationLabelActive: { color: "rgba(3,7,17,0.68)" },
+  durationControl: { backgroundColor: "rgba(3,10,27,0.74)", borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.xs, padding: spacing.xs },
+  durationOption: { alignItems: "center", borderRadius: radius.sm, flex: 1, gap: 1, justifyContent: "center", minHeight: 72 },
+  durationOptionActive: { backgroundColor: palette.mint, borderColor: palette.cyan, borderWidth: 1, shadowColor: palette.electric, shadowOpacity: 0.74, shadowRadius: 13 },
+  durationValue: { color: palette.paperMuted, fontSize: 24, fontWeight: "900" },
+  durationValueActive: { color: palette.white },
+  durationLabel: { color: palette.muted, fontSize: 9, fontWeight: "900" },
+  durationLabelActive: { color: "rgba(255,255,255,0.78)" },
   contextStrip: { alignItems: "center", backgroundColor: "rgba(3,10,27,0.54)", borderRadius: radius.pill, flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   contextItem: { alignItems: "center", flex: 1, flexDirection: "row", gap: spacing.xs, minWidth: 0 },
   contextText: { ...typography.caption, color: palette.paperMuted, flexShrink: 1 },
   contextDivider: { backgroundColor: palette.line, height: 21, width: 1 },
   primaryButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 54, paddingHorizontal: spacing.lg },
   primaryText: { ...typography.caption, color: palette.ink, textAlign: "center" },
-  resetButton: { alignItems: "center", alignSelf: "flex-start", backgroundColor: "rgba(13,28,57,0.62)", borderRadius: radius.pill, flexDirection: "row", gap: spacing.sm, minHeight: 42, paddingHorizontal: spacing.md },
+  resetButton: { alignItems: "center", alignSelf: "stretch", backgroundColor: "rgba(5,14,33,0.54)", borderColor: palette.lineStrong, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 48, paddingHorizontal: spacing.md },
   resetText: { ...typography.caption, color: palette.sky },
   disabled: { opacity: 0.5 },
   flex: { flex: 1 },

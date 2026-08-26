@@ -124,6 +124,7 @@ export function VideoLabScreen() {
         icon="scan-outline"
         subtitle="L'IA vérifie la couverture, la progression, la preuve et la conversion dans l'ordre réel du carrousel."
         title={<>Passe chaque slide au <Text style={styles.titleAccent}>crible.</Text></>}
+        variant="audit"
       />
 
       <View style={styles.modeCard}>
@@ -222,7 +223,7 @@ export function VideoLabScreen() {
         </View>
       ) : (
         <View style={styles.emptyCard}>
-          <Ionicons color={palette.mint} name="scan-circle-outline" size={25} />
+          <View style={styles.emptyIcon}><Ionicons color={palette.mint} name="scan-circle-outline" size={27} /></View>
           <View style={styles.emptyCopy}>
             <Text style={styles.emptyTitle}>Dépose un carrousel à analyser</Text>
             <Text style={styles.emptyText}>Aucun score de démonstration : le verdict apparaît uniquement après lecture de tes images.</Text>
@@ -264,13 +265,13 @@ const styles = StyleSheet.create({
   title: { ...typography.title, color: palette.white },
   titleAccent: { color: palette.electric },
   subtitle: { ...typography.body, color: palette.paperMuted },
-  modeCard: { alignItems: "center", backgroundColor: "rgba(3,10,27,0.68)", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, minHeight: 52, paddingHorizontal: spacing.md },
+  modeCard: { alignItems: "center", backgroundColor: "rgba(3,10,27,0.76)", borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, minHeight: 72, paddingHorizontal: spacing.lg },
   modeCopy: { flex: 1, gap: 1 },
   modeText: { ...typography.caption, color: palette.white },
   modeMeta: { color: palette.muted, fontSize: 10, lineHeight: 14 },
   activeDot: { backgroundColor: palette.mint, borderRadius: radius.pill, height: 8, width: 8 },
-  uploadButton: { alignItems: "center", backgroundColor: palette.panel, borderColor: palette.lineStrong, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, minHeight: 88, padding: spacing.lg },
-  uploadIcon: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, height: 48, justifyContent: "center", width: 48 },
+  uploadButton: { alignItems: "center", backgroundColor: "rgba(7,24,60,0.92)", borderColor: palette.electric, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, minHeight: 104, padding: spacing.lg, shadowColor: palette.electric, shadowOpacity: 0.58, shadowRadius: 18 },
+  uploadIcon: { alignItems: "center", backgroundColor: palette.mint, borderColor: palette.cyan, borderRadius: radius.pill, borderWidth: 1, height: 58, justifyContent: "center", shadowColor: palette.cyan, shadowOpacity: 0.65, shadowRadius: 12, width: 58 },
   uploadCopy: { flex: 1, gap: 4 },
   uploadTitle: { ...typography.h3, color: palette.white },
   uploadMeta: { ...typography.caption, color: palette.muted },
@@ -298,7 +299,8 @@ const styles = StyleSheet.create({
   storyIndex: { ...typography.caption, color: palette.lemon, width: 18 },
   storyText: { ...typography.body, color: palette.white, flex: 1 },
   ctaPanel: { gap: spacing.sm, padding: spacing.lg },
-  emptyCard: { alignItems: "center", backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, padding: spacing.lg },
+  emptyCard: { alignItems: "center", backgroundColor: "rgba(4,14,35,0.54)", borderColor: palette.electric, borderRadius: radius.md, borderStyle: "dashed", borderWidth: 1, flexDirection: "row", gap: spacing.lg, minHeight: 144, padding: spacing.lg },
+  emptyIcon: { alignItems: "center", borderColor: palette.lineStrong, borderRadius: radius.pill, borderWidth: 1, height: 54, justifyContent: "center", width: 54 },
   emptyCopy: { flex: 1, gap: 4 },
   emptyTitle: { ...typography.h3, color: palette.white },
   emptyText: { ...typography.body, color: palette.paperMuted, flex: 1 }
