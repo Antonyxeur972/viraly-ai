@@ -1,21 +1,25 @@
 export const palette = {
-  ink: "#030711",
-  graphite: "rgba(3, 8, 20, 0.97)",
-  panel: "rgba(5, 13, 31, 0.86)",
-  panelSoft: "rgba(11, 23, 50, 0.72)",
-  line: "rgba(255, 255, 255, 0.07)",
-  lineStrong: "rgba(66, 139, 255, 0.16)",
-  paper: "#F4F7FF",
-  paperMuted: "rgba(255, 255, 255, 0.72)",
+  ink: "#01030A",
+  graphite: "rgba(2, 7, 18, 0.97)",
+  panel: "rgba(5, 14, 34, 0.84)",
+  panelSoft: "rgba(10, 24, 52, 0.70)",
+  panelElevated: "rgba(7, 18, 43, 0.94)",
+  line: "rgba(129, 177, 255, 0.11)",
+  lineStrong: "rgba(61, 145, 255, 0.40)",
+  paper: "#F7F9FF",
+  paperMuted: "rgba(239, 244, 255, 0.74)",
   white: "#FFFFFF",
-  muted: "rgba(255, 255, 255, 0.42)",
-  mint: "#2D7CFF",
-  mintDark: "#0B3F9A",
-  coral: "#D1D8E8",
-  lemon: "#E5ECF8",
-  sky: "#77C7FF",
-  violet: "#AAB8D8",
-  green: "#2D7CFF"
+  muted: "rgba(216, 226, 247, 0.44)",
+  mint: "#2388FF",
+  mintDark: "#082D75",
+  electric: "#149CFF",
+  cyan: "#45D6FF",
+  violet: "#765CFF",
+  positive: "#2BD994",
+  coral: "#FF7A9F",
+  lemon: "#F5D36B",
+  sky: "#80C8FF",
+  green: "#2BD994"
 };
 
 export const shadow = {
@@ -28,10 +32,17 @@ export const shadow = {
   },
   md: {
     elevation: 10,
-    shadowColor: "#000000",
+    shadowColor: "#051A45",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.48,
-    shadowRadius: 22
+    shadowOpacity: 0.62,
+    shadowRadius: 26
+  },
+  electric: {
+    elevation: 14,
+    shadowColor: palette.electric,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.42,
+    shadowRadius: 18
   }
 };
 
@@ -53,14 +64,14 @@ export const radius = {
 
 export const typography = {
   title: {
-    fontSize: 34,
-    lineHeight: 39,
-    fontWeight: "800" as const,
+    fontSize: 38,
+    lineHeight: 43,
+    fontWeight: "900" as const,
     letterSpacing: 0
   },
   h2: {
-    fontSize: 24,
-    lineHeight: 29,
+    fontSize: 25,
+    lineHeight: 31,
     fontWeight: "800" as const,
     letterSpacing: 0
   },
