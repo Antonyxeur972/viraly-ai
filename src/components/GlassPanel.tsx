@@ -1,7 +1,9 @@
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { PropsWithChildren } from "react";
+import React, { PropsWithChildren, useEffect, useRef } from "react";
 import {
+  Animated,
+  Easing,
   Image,
   StyleProp,
   StyleSheet,
@@ -43,8 +45,35 @@ export function GlassPanel({ children, style, textureOpacity = 0.13, glow = fals
         style={styles.topLight}
       />
       <View pointerEvents="none" style={styles.innerLine} />
+      {glow ? <OpticalSweep /> : null}
       {children}
     </BlurView>
+  );
+}
+
+function OpticalSweep() {
+  const value = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(1450),
+        Animated.timing(value, { duration: 2300, easing: Easing.inOut(Easing.cubic), toValue: 1, useNativeDriver: true }),
+        Animated.timing(value, { duration: 0, toValue: 0, useNativeDriver: true })
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [value]);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.opticalSweep,
+        { transform: [{ translateX: value.interpolate({ inputRange: [0, 1], outputRange: [-90, 620] }) }, { rotate: "16deg" }] }
+      ]}
+    />
   );
 }
 
@@ -83,5 +112,13 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 2,
     top: 2
+  },
+  opticalSweep: {
+    backgroundColor: "rgba(157,218,255,0.055)",
+    bottom: -80,
+    position: "absolute",
+    top: -80,
+    width: 54,
+    zIndex: 0
   }
 });

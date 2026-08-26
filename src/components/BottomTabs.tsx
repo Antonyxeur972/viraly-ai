@@ -72,7 +72,7 @@ function TabButton<T extends string>({
     >
       {focused ? (
         <LinearGradient
-          colors={["rgba(19,95,224,0.78)", "rgba(21,137,255,0.28)", "rgba(14,33,76,0.16)"]}
+          colors={["rgba(23,111,255,0.96)", "rgba(18,83,215,0.72)", "rgba(6,28,74,0.56)"]}
           style={styles.activeSurface}
         />
       ) : null}
@@ -100,16 +100,16 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(2,7,20,0.92)",
     marginBottom: spacing.xs,
     marginHorizontal: spacing.sm,
-    minHeight: 72,
-    paddingBottom: 5,
-    paddingHorizontal: 5,
-    paddingTop: 5
+    minHeight: 78,
+    paddingBottom: 6,
+    paddingHorizontal: 6,
+    paddingTop: 6
   },
   tab: {
     alignItems: "center",
     borderRadius: radius.sm,
     gap: 1,
-    minHeight: 60,
+    minHeight: 64,
     justifyContent: "center",
     overflow: "hidden",
     paddingHorizontal: 4,
@@ -120,9 +120,9 @@ const styles = StyleSheet.create({
   iconWrap: {
     alignItems: "center",
     borderRadius: radius.sm,
-    height: 36,
+    height: 38,
     justifyContent: "center",
-    width: 44
+    width: 46
   },
   iconWrapActive: {
     elevation: 10,
@@ -137,18 +137,20 @@ const styles = StyleSheet.create({
     fontSize: 11
   },
   labelActive: {
-    color: palette.white
+    color: palette.white,
+    textShadowColor: palette.cyan,
+    textShadowRadius: 7
   },
   activeSurface: {
     ...StyleSheet.absoluteFillObject,
-    borderColor: "rgba(84,169,255,0.26)",
+    borderColor: "rgba(96,188,255,0.58)",
     borderRadius: radius.sm,
     borderWidth: 1
   },
   activeIndicator: {
     backgroundColor: palette.cyan,
     borderRadius: radius.pill,
-    bottom: 2,
+    bottom: 1,
     height: 2,
     position: "absolute",
     shadowColor: palette.cyan,
