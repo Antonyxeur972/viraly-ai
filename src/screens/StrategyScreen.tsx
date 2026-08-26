@@ -11,10 +11,12 @@ import {
 } from "react-native";
 
 import { GlassPanel } from "../components/GlassPanel";
+import { ReadableText } from "../components/ReadableText";
 import { SectionHeader } from "../components/SectionHeader";
 import {
   CalendarEvent,
   ContentPlan,
+  deleteContentPlan,
   generateContentPlan,
   listContentPlans
 } from "../services/ai";
@@ -114,17 +116,27 @@ function groupEvents(events: CalendarEvent[]) {
 export function StrategyScreen({ profile, accountContext, onResetCreatorProfile }: Props) {
   const [plans, setPlans] = useState<ContentPlan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [syncingPlanId, setSyncingPlanId] = useState<string | null>(null);
   const [schedulingPlanId, setSchedulingPlanId] = useState<string | null>(null);
+  const [remindersActive, setRemindersActive] = useState(false);
   const [duration, setDuration] = useState<PlanDuration>(7);
 
   useEffect(() => {
-    listContentPlans(12)
+    listContentPlans(20)
       .then((savedPlans) => {
         setPlans(savedPlans);
         setSelectedPlanId(savedPlans[0]?.id || null);
+        if (savedPlans[0]?.events.length) {
+          import("../services/postNotifications")
+            .then(({ schedulePostNotifications }) =>
+              schedulePostNotifications(savedPlans[0].events, { requestPermission: false })
+            )
+            .then((result) => setRemindersActive(result.permissionGranted && result.scheduled > 0))
+            .catch(() => {});
+        }
       })
       .catch(() => {})
       .finally(() => setIsLoadingHistory(false));
@@ -144,8 +156,12 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
     setIsGenerating(true);
     try {
       const plan = await generateContentPlan(profile, accountContext, localToday(), duration);
-      setPlans((current) => [plan, ...current.filter((item) => item.id !== plan.id)].slice(0, 12));
+      setPlans((current) => [plan, ...current.filter((item) => item.id !== plan.id)].slice(0, 20));
       setSelectedPlanId(plan.id);
+      import("../services/postNotifications")
+        .then(({ schedulePostNotifications }) => schedulePostNotifications(plan.events))
+        .then((result) => setRemindersActive(result.scheduled > 0))
+        .catch(() => setRemindersActive(false));
     } catch (error) {
       Alert.alert("Plan VIRALY", error instanceof Error ? error.message : "Construction impossible.");
     } finally {
@@ -178,8 +194,9 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
       const result = await schedulePostNotifications(plan.events);
       Alert.alert(
         "Rappels activés",
-        `${result.scheduled} notification${result.scheduled > 1 ? "s" : ""} programmée${result.scheduled > 1 ? "s" : ""} 20 minutes avant publication.`
+        `${result.scheduled} relance${result.scheduled > 1 ? "s" : ""} programmée${result.scheduled > 1 ? "s" : ""} pour ${result.publishingMoments} publication${result.publishingMoments > 1 ? "s" : ""} : préparation 2 h avant, puis alerte 20 min avant.`
       );
+      setRemindersActive(result.scheduled > 0);
     } catch (error) {
       Alert.alert("Notifications", error instanceof Error ? error.message : "Activation impossible.");
     } finally {
@@ -194,6 +211,32 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
       [
         { text: "Annuler", style: "cancel" },
         { text: "Recommencer", style: "destructive", onPress: onResetCreatorProfile }
+      ]
+    );
+  };
+
+  const confirmDeletePlan = (plan: ContentPlan) => {
+    Alert.alert(
+      "Supprimer ce plan ?",
+      "Le calendrier détaillé et tous ses conseils seront retirés de l’historique.",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Supprimer",
+          style: "destructive",
+          onPress: () => {
+            deleteContentPlan(plan.id)
+              .then(() => {
+                setPlans((current) => {
+                  const next = current.filter((item) => item.id !== plan.id);
+                  if (selectedPlanId === plan.id) setSelectedPlanId(next[0]?.id || null);
+                  return next;
+                });
+                if (expandedPlanId === plan.id) setExpandedPlanId(null);
+              })
+              .catch((error) => Alert.alert("Historique", error instanceof Error ? error.message : "Suppression impossible."));
+          }
+        }
       ]
     );
   };
@@ -271,8 +314,8 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
 
           <GlassPanel style={styles.decisionPanel} textureOpacity={0.2}>
             <Text style={styles.decisionLabel}>STRATÉGIE RETENUE</Text>
-            <Text style={styles.decision}>{activePlan.strategyDecision}</Text>
-            <Text style={styles.summary}>{activePlan.summary}</Text>
+            <ReadableText text={activePlan.strategyDecision} textStyle={styles.decision} />
+            <ReadableText text={activePlan.summary} textStyle={styles.summary} />
           </GlassPanel>
 
           <View style={styles.mixRow}>
@@ -305,7 +348,7 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
             </TouchableOpacity>
             <TouchableOpacity disabled={schedulingPlanId !== null} onPress={() => schedulePlan(activePlan)} style={styles.actionButton}>
               {schedulingPlanId === activePlan.id ? <ActivityIndicator color={palette.sky} /> : <Ionicons color={palette.sky} name="notifications-outline" size={19} />}
-              <Text style={styles.actionText}>Activer les rappels</Text>
+              <Text style={styles.actionText}>{remindersActive ? "Relances actives" : "Activer les relances"}</Text>
             </TouchableOpacity>
           </View>
 
@@ -377,18 +420,72 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
           <SectionHeader eyebrow="Archives" title="Anciens plans" action={`${plans.length} enregistré${plans.length > 1 ? "s" : ""}`} />
           <View style={styles.historyList}>
             {plans.map((plan, index) => (
-              <View key={plan.id} style={[styles.historyRow, plan.id === activePlan?.id && styles.historySelected]}>
-                <TouchableOpacity onPress={() => setSelectedPlanId(plan.id)} style={styles.historyMain}>
-                  <View style={styles.historyTop}>
-                    <Text style={styles.historyTitle}>{index === 0 ? `Dernier plan · ${plan.durationDays || 7} j` : `Plan ${plan.durationDays || 7} j · ${createdLabel(plan.createdAt)}`}</Text>
-                    <Text style={styles.historyRange}>{planRange(plan)}</Text>
+              <View key={plan.id} style={[styles.historyCard, plan.id === activePlan?.id && styles.historySelected]}>
+                <View style={styles.historyRow}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setSelectedPlanId(plan.id);
+                      setExpandedPlanId((current) => current === plan.id ? null : plan.id);
+                    }}
+                    style={styles.historyMain}
+                  >
+                    <View style={styles.historyTop}>
+                      <Text style={styles.historyTitle}>{index === 0 ? `Dernier plan · ${plan.durationDays || 7} j` : `Plan ${plan.durationDays || 7} j · ${createdLabel(plan.createdAt)}`}</Text>
+                      <Text style={styles.historyRange}>{planRange(plan)}</Text>
+                    </View>
+                    <Text numberOfLines={2} style={styles.historySummary}>{plan.strategyDecision}</Text>
+                    <Text style={styles.historyMix}>{plan.contentMix.videos} vidéos · {plan.contentMix.carousels} carrousels · {plan.contentMix.stories} stories</Text>
+                    <View style={styles.historyReadLine}>
+                      <Ionicons color={palette.mint} name={expandedPlanId === plan.id ? "chevron-up" : "reader-outline"} size={14} />
+                      <Text style={styles.historyRead}>{expandedPlanId === plan.id ? "Réduire les détails" : "Lire tous les conseils"}</Text>
+                    </View>
+                  </TouchableOpacity>
+                  <View style={styles.historyTools}>
+                    <TouchableOpacity accessibilityLabel="Synchroniser ce plan" disabled={syncingPlanId !== null} onPress={() => syncPlan(plan)} style={styles.historyToolButton}>
+                      {syncingPlanId === plan.id ? <ActivityIndicator color={palette.mint} /> : <Ionicons color={palette.mint} name="sync-outline" size={19} />}
+                    </TouchableOpacity>
+                    <TouchableOpacity accessibilityLabel="Supprimer ce plan" onPress={() => confirmDeletePlan(plan)} style={styles.historyToolButton}>
+                      <Ionicons color={palette.muted} name="trash-outline" size={18} />
+                    </TouchableOpacity>
                   </View>
-                  <Text numberOfLines={2} style={styles.historySummary}>{plan.strategyDecision}</Text>
-                  <Text style={styles.historyMix}>{plan.contentMix.videos} vidéos · {plan.contentMix.carousels} carrousels · {plan.contentMix.stories} stories</Text>
-                </TouchableOpacity>
-                <TouchableOpacity accessibilityLabel="Synchroniser ce plan" disabled={syncingPlanId !== null} onPress={() => syncPlan(plan)} style={styles.historySync}>
-                  {syncingPlanId === plan.id ? <ActivityIndicator color={palette.mint} /> : <Ionicons color={palette.mint} name="sync-outline" size={20} />}
-                </TouchableOpacity>
+                </View>
+                {expandedPlanId === plan.id ? (
+                  <View style={styles.historyDetails}>
+                    <Text style={styles.detailLabel}>DÉCISION</Text>
+                    <ReadableText text={plan.strategyDecision} textStyle={styles.detailText} />
+                    <Text style={styles.detailLabel}>POURQUOI CE RYTHME</Text>
+                    <ReadableText text={plan.summary} textStyle={styles.detailText} />
+                    <Text style={styles.detailLabel}>CONSEILS À MESURER</Text>
+                    <View style={styles.detailFocusList}>
+                      {plan.weeklyFocus.map((focus, focusIndex) => (
+                        <View key={`${focus}-${focusIndex}`} style={styles.detailFocusRow}>
+                          <Text style={styles.detailFocusNumber}>{focusIndex + 1}</Text>
+                          <Text style={styles.detailText}>{focus}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    <Text style={styles.detailLabel}>CALENDRIER COMPLET</Text>
+                    <View style={styles.detailEvents}>
+                      {plan.events
+                        .slice()
+                        .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
+                        .map((event) => {
+                          const meta = formatMeta[event.type];
+                          return (
+                            <View key={event.id} style={styles.detailEventRow}>
+                              <View style={styles.detailEventMeta}>
+                                <Ionicons color={palette.mint} name={meta.icon} size={15} />
+                                <Text style={styles.detailEventDate}>{shortDate(event.date)} · {event.time}</Text>
+                              </View>
+                              <Text style={styles.detailEventTitle}>{event.title}</Text>
+                              <Text style={styles.detailText}>Hook : {event.hook}</Text>
+                              <Text style={styles.detailCta}>CTA : {event.cta}</Text>
+                            </View>
+                          );
+                        })}
+                    </View>
+                  </View>
+                ) : null}
               </View>
             ))}
           </View>
@@ -427,7 +524,7 @@ const styles = StyleSheet.create({
   loadingText: { ...typography.caption, color: palette.paperMuted, marginTop: 3 },
   decisionPanel: { gap: spacing.sm, padding: spacing.xl },
   decisionLabel: { ...typography.caption, color: palette.mint },
-  decision: { ...typography.h2, color: palette.white },
+  decision: { color: palette.white, fontSize: 18, fontWeight: "700", lineHeight: 25 },
   summary: { ...typography.body, color: palette.paperMuted },
   mixRow: { flexDirection: "row", gap: spacing.sm },
   mixItem: { alignItems: "center", backgroundColor: "rgba(7,17,38,0.82)", borderRadius: radius.md, flex: 1, gap: 4, minHeight: 112, paddingHorizontal: spacing.xs, paddingVertical: spacing.md },
@@ -466,7 +563,8 @@ const styles = StyleSheet.create({
   emptyTitle: { ...typography.h3, color: palette.white },
   emptyText: { ...typography.body, color: palette.paperMuted, marginTop: 4 },
   historyList: { gap: spacing.sm },
-  historyRow: { alignItems: "stretch", backgroundColor: "rgba(7,17,38,0.72)", borderRadius: radius.md, flexDirection: "row", minHeight: 128, overflow: "hidden" },
+  historyCard: { backgroundColor: "rgba(7,17,38,0.72)", borderRadius: radius.md, overflow: "hidden" },
+  historyRow: { alignItems: "stretch", flexDirection: "row", minHeight: 142 },
   historySelected: { backgroundColor: "rgba(24,67,139,0.42)" },
   historyMain: { flex: 1, gap: spacing.xs, justifyContent: "center", padding: spacing.md },
   historyTop: { alignItems: "center", flexDirection: "row", gap: spacing.sm, justifyContent: "space-between" },
@@ -474,5 +572,20 @@ const styles = StyleSheet.create({
   historyRange: { ...typography.caption, color: palette.mint },
   historySummary: { color: palette.paperMuted, fontSize: 12, lineHeight: 17 },
   historyMix: { color: palette.sky, fontSize: 11, fontWeight: "700" },
-  historySync: { alignItems: "center", backgroundColor: "rgba(45,124,255,0.08)", justifyContent: "center", width: 54 }
+  historyReadLine: { alignItems: "center", flexDirection: "row", gap: spacing.xs, marginTop: 3 },
+  historyRead: { color: palette.mint, fontSize: 10, fontWeight: "800" },
+  historyTools: { backgroundColor: "rgba(3,10,27,0.24)", justifyContent: "center", width: 48 },
+  historyToolButton: { alignItems: "center", flex: 1, justifyContent: "center", minHeight: 56 },
+  historyDetails: { backgroundColor: "rgba(3,10,27,0.46)", gap: spacing.md, padding: spacing.lg },
+  detailLabel: { ...typography.caption, color: palette.mint, marginTop: spacing.xs },
+  detailText: { color: palette.paperMuted, flex: 1, fontSize: 13, lineHeight: 19 },
+  detailFocusList: { gap: spacing.sm },
+  detailFocusRow: { alignItems: "flex-start", flexDirection: "row", gap: spacing.sm },
+  detailFocusNumber: { color: palette.sky, fontSize: 12, fontWeight: "800", width: 20 },
+  detailEvents: { gap: spacing.md },
+  detailEventRow: { backgroundColor: "rgba(13,31,65,0.48)", borderRadius: radius.sm, gap: spacing.xs, padding: spacing.md },
+  detailEventMeta: { alignItems: "center", flexDirection: "row", gap: spacing.xs },
+  detailEventDate: { ...typography.caption, color: palette.mint },
+  detailEventTitle: { ...typography.h3, color: palette.white },
+  detailCta: { color: palette.sky, fontSize: 12, fontWeight: "700", lineHeight: 17 }
 });
