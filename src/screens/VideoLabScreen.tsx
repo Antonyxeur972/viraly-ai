@@ -13,8 +13,10 @@ import {
 
 import { GlassPanel } from "../components/GlassPanel";
 import { AnalysisHistoryList } from "../components/AnalysisHistoryList";
+import { NeonButton } from "../components/NeonButton";
 import { ProgressBar } from "../components/ProgressBar";
 import { ScoreDial } from "../components/ScoreDial";
+import { ScreenHero } from "../components/ScreenHero";
 import { SectionHeader } from "../components/SectionHeader";
 import {
   ContentAnalysisReport,
@@ -117,11 +119,12 @@ export function VideoLabScreen() {
 
   return (
     <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <Text style={styles.kicker}>AUDIT DE CONTENU</Text>
-        <Text style={styles.title}>Passe chaque slide au crible.</Text>
-        <Text style={styles.subtitle}>L'IA vérifie la couverture, la progression, la preuve et la conversion dans l'ordre réel du carrousel.</Text>
-      </View>
+      <ScreenHero
+        eyebrow="Audit de contenu"
+        icon="scan-outline"
+        subtitle="L'IA vérifie la couverture, la progression, la preuve et la conversion dans l'ordre réel du carrousel."
+        title={<>Passe chaque slide au <Text style={styles.titleAccent}>crible.</Text></>}
+      />
 
       <View style={styles.modeCard}>
         <Ionicons color={palette.mint} name="images-outline" size={18} />
@@ -153,10 +156,7 @@ export function VideoLabScreen() {
       ) : null}
 
       {assets.length ? (
-        <TouchableOpacity disabled={isAnalyzing} onPress={analyze} style={styles.analyzeButton}>
-          <Ionicons color={palette.ink} name="sparkles" size={19} />
-          <Text style={styles.analyzeText}>{isAnalyzing ? "Analyse slide par slide..." : "Lancer l'audit IA"}</Text>
-        </TouchableOpacity>
+        <NeonButton disabled={isAnalyzing} onPress={analyze} title={isAnalyzing ? "Analyse slide par slide..." : "Lancer l'audit IA"} />
       ) : null}
 
       {report ? (
@@ -262,6 +262,7 @@ const styles = StyleSheet.create({
   header: { gap: spacing.sm },
   kicker: { ...typography.caption, color: palette.mint },
   title: { ...typography.title, color: palette.white },
+  titleAccent: { color: palette.electric },
   subtitle: { ...typography.body, color: palette.paperMuted },
   modeCard: { alignItems: "center", backgroundColor: "rgba(3,10,27,0.68)", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, minHeight: 52, paddingHorizontal: spacing.md },
   modeCopy: { flex: 1, gap: 1 },

@@ -3,7 +3,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 import { GlassPanel } from "../components/GlassPanel";
+import { NeonButton } from "../components/NeonButton";
 import { ReadableText } from "../components/ReadableText";
+import { ScreenHero } from "../components/ScreenHero";
 import { SectionHeader } from "../components/SectionHeader";
 import { coachQuestions } from "../data/viralInsights";
 import { CoachReport, ContentPlan, askCoach, listContentPlans } from "../services/ai";
@@ -95,12 +97,12 @@ export function CoachScreen({ profile, accountContext }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.content} ref={scrollRef} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <View style={styles.coachBadge}><Ionicons color={palette.ink} name="sparkles" size={22} /></View>
-        <Text style={styles.kicker}>COACH STRATÉGIQUE</Text>
-        <Text style={styles.title}>Une réponse qui tranche.</Text>
-        <Text style={styles.subtitle}>Le coach relie chaque conseil à ton profil, aux signaux observés et à un test mesurable.</Text>
-      </View>
+      <ScreenHero
+        eyebrow="Coach stratégique"
+        icon="chatbubble-ellipses-outline"
+        subtitle="Le coach relie chaque conseil à ton profil, aux signaux observés et à un test mesurable."
+        title={<>Une réponse qui <Text style={styles.titleAccent}>tranche.</Text></>}
+      />
 
       <GlassPanel style={styles.contextPanel} textureOpacity={0.08}>
         <View style={styles.contextTop}>
@@ -114,7 +116,7 @@ export function CoachScreen({ profile, accountContext }: Props) {
         ) : null}
       </GlassPanel>
 
-      <GlassPanel style={styles.askCard} textureOpacity={0.16}>
+      <GlassPanel glow style={styles.askCard} textureOpacity={0.16}>
         <Text style={styles.askLabel}>TA QUESTION</Text>
         <TextInput
           multiline
@@ -124,10 +126,12 @@ export function CoachScreen({ profile, accountContext }: Props) {
           style={styles.input}
           value={question}
         />
-        <TouchableOpacity disabled={isLoading || question.trim().length < 3} onPress={() => submit()} style={[styles.askButton, (question.trim().length < 3 || isLoading) && styles.disabled]}>
-          <Text style={styles.askText}>{isLoading ? "Analyse du contexte en cours..." : "Demander au coach"}</Text>
-          <Ionicons color={palette.ink} name="arrow-up" size={19} />
-        </TouchableOpacity>
+        <NeonButton
+          disabled={isLoading || question.trim().length < 3}
+          icon="arrow-up"
+          onPress={() => submit()}
+          title={isLoading ? "Analyse du contexte..." : "Demander au coach"}
+        />
       </GlassPanel>
 
       <SectionHeader eyebrow="Raccourcis utiles" title="Choisir une décision" />
@@ -235,6 +239,7 @@ const styles = StyleSheet.create({
   coachBadge: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, height: 46, justifyContent: "center", marginBottom: spacing.sm, width: 46 },
   kicker: { ...typography.caption, color: palette.mint },
   title: { ...typography.title, color: palette.white },
+  titleAccent: { color: palette.electric },
   subtitle: { ...typography.body, color: palette.paperMuted },
   contextPanel: { gap: spacing.xs, padding: spacing.lg },
   contextTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },

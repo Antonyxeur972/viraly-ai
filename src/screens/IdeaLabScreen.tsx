@@ -3,7 +3,9 @@ import React, { useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 import { GlassPanel } from "../components/GlassPanel";
+import { NeonButton } from "../components/NeonButton";
 import { ProgressBar } from "../components/ProgressBar";
+import { ScreenHero } from "../components/ScreenHero";
 import { SectionHeader } from "../components/SectionHeader";
 import { Tag } from "../components/Tag";
 import {
@@ -54,11 +56,12 @@ export function IdeaLabScreen({ profile, accountContext }: Props) {
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <Text style={styles.kicker}>STUDIO CRÉATIF</Text>
-        <Text style={styles.title}>Valide l'idée avant de filmer.</Text>
-        <Text style={styles.subtitle}>VIRALY cherche une promesse claire, une tension utile et un chemin logique vers ton objectif.</Text>
-      </View>
+      <ScreenHero
+        eyebrow="Studio créatif"
+        icon="bulb-outline"
+        subtitle="VIRALY cherche une promesse claire, une tension utile et un chemin logique vers ton objectif."
+        title={<>Valide l'idée avant de <Text style={styles.titleAccent}>filmer.</Text></>}
+      />
 
       <View style={styles.contextStrip}>
         <View style={styles.contextItem}><Ionicons color={palette.mint} name="locate-outline" size={16} /><Text numberOfLines={1} style={styles.contextText}>{niche}</Text></View>
@@ -66,7 +69,7 @@ export function IdeaLabScreen({ profile, accountContext }: Props) {
         <View style={styles.contextItem}><Ionicons color={accountContext ? palette.mint : palette.muted} name={accountContext ? "checkmark-circle" : "cloud-offline-outline"} size={16} /><Text style={styles.contextText}>{accountContext ? "Profil analysé" : "Sans données compte"}</Text></View>
       </View>
 
-      <GlassPanel style={styles.inputCard} textureOpacity={0.18}>
+      <GlassPanel glow style={styles.inputCard} textureOpacity={0.18}>
         <View style={styles.inputTop}>
           <Text style={styles.inputLabel}>IDÉE À TESTER</Text>
           <Text style={styles.scoreValue}>{report ? report.score : "--"}<Text style={styles.scoreMax}> / 100</Text></Text>
@@ -80,10 +83,11 @@ export function IdeaLabScreen({ profile, accountContext }: Props) {
           value={idea}
         />
         <ProgressBar color={palette.mint} value={report?.score || 0} />
-        <TouchableOpacity disabled={idea.trim().length < 5 || loading !== null} onPress={runAnalysis} style={[styles.primaryButton, (idea.trim().length < 5 || loading !== null) && styles.disabled]}>
-          <Ionicons color={palette.ink} name="sparkles" size={18} />
-          <Text style={styles.primaryText}>{loading === "analysis" ? "Lecture de la promesse et du potentiel..." : "Analyser cette idée"}</Text>
-        </TouchableOpacity>
+        <NeonButton
+          disabled={idea.trim().length < 5 || loading !== null}
+          onPress={runAnalysis}
+          title={loading === "analysis" ? "Lecture de la promesse..." : "Analyser cette idée"}
+        />
       </GlassPanel>
 
       {report ? (
@@ -128,10 +132,14 @@ export function IdeaLabScreen({ profile, accountContext }: Props) {
       ) : null}
 
       <SectionHeader eyebrow="Sélection de la semaine" title="Idées personnalisées" />
-      <TouchableOpacity disabled={loading !== null} onPress={runGeneration} style={[styles.generateButton, loading !== null && styles.disabled]}>
-        <Ionicons color={palette.mint} name={ideas.length ? "refresh" : "sparkles-outline"} size={19} />
-        <Text style={styles.generateText}>{loading === "ideas" ? "Construction de 4 angles distincts..." : ideas.length ? "Créer 4 nouveaux angles" : "Générer 4 idées avec l'IA"}</Text>
-      </TouchableOpacity>
+      <NeonButton
+        compact
+        disabled={loading !== null}
+        icon={ideas.length ? "refresh" : "sparkles-outline"}
+        onPress={runGeneration}
+        title={loading === "ideas" ? "Construction de 4 angles..." : ideas.length ? "Créer 4 nouveaux angles" : "Générer 4 idées avec l'IA"}
+        variant="outline"
+      />
 
       {ideas.length ? (
         <View style={styles.stack}>
@@ -169,6 +177,7 @@ const styles = StyleSheet.create({
   header: { gap: spacing.sm },
   kicker: { ...typography.caption, color: palette.mint },
   title: { ...typography.title, color: palette.white, maxWidth: 360 },
+  titleAccent: { color: palette.electric },
   subtitle: { ...typography.body, color: palette.paperMuted },
   contextStrip: { alignItems: "center", backgroundColor: "rgba(3,10,27,0.68)", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   contextItem: { alignItems: "center", flex: 1, flexDirection: "row", gap: spacing.xs, minWidth: 0 },
