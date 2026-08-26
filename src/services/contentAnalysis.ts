@@ -2,6 +2,7 @@ import type { ImagePickerAsset } from "expo-image-picker";
 
 import { apiRequest } from "./api";
 import { createHistoryThumbnail, normalizeImageForVision } from "./imageUpload";
+import { SocialPlatform } from "../types";
 
 export type ContentAnalysisReport = {
   score: number;
@@ -31,11 +32,13 @@ export type ContentAnalysisReport = {
 
 export async function requestContentAnalysis(
   type: "carousel",
-  assets: ImagePickerAsset[]
+  assets: ImagePickerAsset[],
+  platform: SocialPlatform = "tiktok"
 ): Promise<ContentAnalysisReport> {
   const body = new FormData();
   body.append("type", type);
   body.append("goal", "revenue");
+  body.append("platform", platform);
   const [normalizedAssets, thumbnail] = await Promise.all([
     Promise.all(assets.map((asset, index) => normalizeImageForVision(asset, `carousel-${index + 1}`))),
     createHistoryThumbnail(assets[0], "carousel-cover")

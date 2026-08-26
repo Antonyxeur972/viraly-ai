@@ -10,6 +10,8 @@ export type IdeaAnalysisReport = {
   revenuePath: string;
   risks: string[];
   analysisId: string;
+  idea?: string;
+  historyTitle?: string;
 };
 
 export type GeneratedIdea = {

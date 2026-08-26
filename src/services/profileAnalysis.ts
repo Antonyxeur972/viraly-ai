@@ -2,6 +2,7 @@ import type { ImagePickerAsset } from "expo-image-picker";
 
 import { apiRequest } from "./api";
 import { createHistoryThumbnail, normalizeImageForVision } from "./imageUpload";
+import { SocialPlatform } from "../types";
 
 export type ProfileAnalysisReport = {
   score: number;
@@ -27,14 +28,16 @@ export type ProfileAnalysisReport = {
 };
 
 export async function requestProfileAnalysis(
-  screenshot: ImagePickerAsset
+  screenshot: ImagePickerAsset,
+  platform: SocialPlatform = "tiktok"
 ): Promise<ProfileAnalysisReport> {
+  const prefix = `${platform}-profile`;
   const [normalized, thumbnail] = await Promise.all([
-    normalizeImageForVision(screenshot, "tiktok-profile"),
-    createHistoryThumbnail(screenshot, "tiktok-profile")
+    normalizeImageForVision(screenshot, prefix),
+    createHistoryThumbnail(screenshot, prefix)
   ]);
   const body = new FormData();
-  body.append("source", "tiktok_profile_screenshot");
+  body.append("source", `${platform}_profile_screenshot`);
   body.append("screenshot", {
     uri: normalized.uri,
     name: normalized.name,

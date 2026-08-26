@@ -13,6 +13,10 @@ let memoryInstallationId: string | null = null;
 
 const PRODUCTION_API_URL = "https://viraly-ai.onrender.com";
 
+function normalizeCreatorProfile(profile: CreatorOnboardingProfile): CreatorOnboardingProfile {
+  return { ...profile, platform: profile.platform || "tiktok" };
+}
+
 export function getApiBaseUrl() {
   return (
     process.env.EXPO_PUBLIC_API_BASE_URL?.trim().replace(/\/$/, "") ||
@@ -71,8 +75,8 @@ export async function loadCreatorProfile() {
     try {
       const response = await apiRequest<{ profile: CreatorOnboardingProfile | null }>("/api/v1/creator/profile");
       if (response.profile) {
-        memoryCreatorProfile = response.profile;
-        return response.profile;
+        memoryCreatorProfile = normalizeCreatorProfile(response.profile);
+        return memoryCreatorProfile;
       }
     } catch {
       // Fall back to local storage when the backend session is not ready.
@@ -84,7 +88,7 @@ export async function loadCreatorProfile() {
   if (!stored) return memoryCreatorProfile;
 
   try {
-    memoryCreatorProfile = JSON.parse(stored) as CreatorOnboardingProfile;
+    memoryCreatorProfile = normalizeCreatorProfile(JSON.parse(stored) as CreatorOnboardingProfile);
     return memoryCreatorProfile;
   } catch {
     if (secureStore) await secureStore.deleteItemAsync(CREATOR_PROFILE_KEY);
@@ -94,16 +98,17 @@ export async function loadCreatorProfile() {
 }
 
 export async function saveCreatorProfile(profile: CreatorOnboardingProfile) {
-  memoryCreatorProfile = profile;
+  const normalizedProfile = normalizeCreatorProfile(profile);
+  memoryCreatorProfile = normalizedProfile;
   const secureStore = await getSecureStore();
   if (secureStore) {
-    await secureStore.setItemAsync(CREATOR_PROFILE_KEY, JSON.stringify(profile));
+    await secureStore.setItemAsync(CREATOR_PROFILE_KEY, JSON.stringify(normalizedProfile));
   }
-  setWebItem(CREATOR_PROFILE_KEY, JSON.stringify(profile));
+  setWebItem(CREATOR_PROFILE_KEY, JSON.stringify(normalizedProfile));
   if (sessionToken) {
     await apiRequest("/api/v1/creator/profile", {
       method: "PUT",
-      body: JSON.stringify(profile)
+      body: JSON.stringify(normalizedProfile)
     });
   }
 }
