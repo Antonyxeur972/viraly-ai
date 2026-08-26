@@ -322,6 +322,14 @@ class Database:
         plans = self.list_content_plans(user_id, 1)
         return plans[0] if plans else None
 
+    def delete_content_plan(self, user_id: str, plan_id: str) -> bool:
+        with self.lock, self.connection:
+            cursor = self.connection.execute(
+                "DELETE FROM content_plans WHERE id = ? AND user_id = ?",
+                (plan_id, user_id),
+            )
+        return cursor.rowcount > 0
+
     def save_creator_profile(self, user_id: str, payload: dict[str, Any]) -> None:
         with self.lock, self.connection:
             self.connection.execute(

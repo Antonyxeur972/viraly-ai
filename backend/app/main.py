@@ -1422,17 +1422,29 @@ async def coach(
             report = None
     if report is None:
         report = coach_fallback(effective_request)
-    db.save_analysis(user_id, "coach", report)
+    report["question"] = request.question.strip()
+    report["analysisId"] = db.save_analysis(user_id, "coach", report)
     return report
 
 
 @app.get("/api/v1/plans")
 def list_content_plans(
-    limit: int = Query(default=8, ge=1, le=12),
+    limit: int = Query(default=12, ge=1, le=30),
     user_id: str = Depends(require_user),
     db: Database = Depends(database),
 ):
     return {"plans": db.list_content_plans(user_id, limit)}
+
+
+@app.delete("/api/v1/plans/{plan_id}", status_code=204)
+def delete_content_plan(
+    plan_id: str,
+    user_id: str = Depends(require_user),
+    db: Database = Depends(database),
+):
+    if not db.delete_content_plan(user_id, plan_id):
+        raise HTTPException(404, "Plan introuvable.")
+    return None
 
 
 @app.post("/api/v1/plans/generate")
