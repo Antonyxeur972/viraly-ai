@@ -1,5 +1,5 @@
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { Animated, StyleSheet, Text, View } from "react-native";
 import Svg, {
   Circle,
   Defs,
@@ -14,8 +14,14 @@ import Svg, {
 import { palette, spacing, typography } from "../theme";
 
 export function GrowthChart() {
+  const reveal = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(reveal, { duration: 850, toValue: 1, useNativeDriver: true }).start();
+  }, [reveal]);
+
   return (
-    <View style={styles.chartWrap}>
+    <Animated.View style={[styles.chartWrap, { opacity: reveal, transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>
       <Svg height={184} viewBox="0 0 360 184" width="100%">
         <Defs>
           <LinearGradient id="area" x1="0" x2="0" y1="0" y2="1">
@@ -46,6 +52,7 @@ export function GrowthChart() {
           strokeLinecap="round"
           strokeWidth="3"
         />
+        <Circle cx="348" cy="30" fill={palette.mint} opacity="0.24" r="10" />
         <Circle cx="348" cy="30" fill={palette.white} r="4" />
         {[
           ["03/06", 26],
@@ -68,7 +75,7 @@ export function GrowthChart() {
           </SvgText>
         ))}
       </Svg>
-    </View>
+    </Animated.View>
   );
 }
 
