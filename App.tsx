@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Image,
@@ -250,6 +250,14 @@ export default function App() {
     setActiveTab("dashboard");
   };
 
+  const changeSocialPlatform = useCallback((platform: CreatorOnboardingProfile["platform"]) => {
+    if (!creatorSetup || creatorSetup.platform === platform) return;
+    const nextProfile = { ...creatorSetup, platform };
+    setCreatorSetup(nextProfile);
+    setAccountContext(null);
+    saveCreatorProfile(nextProfile).catch(() => {});
+  }, [creatorSetup]);
+
   const changeTab = (tab: TabKey) => {
     setActiveTab(tab);
 
@@ -288,6 +296,7 @@ export default function App() {
         return (
           <DashboardScreen
             onConnectSocial={connectSocial}
+            onPlatformChange={changeSocialPlatform}
             onProfileAnalyzed={setAccountContext}
             platform={platform}
             profile={creatorSetup}
@@ -296,7 +305,7 @@ export default function App() {
           />
         );
     }
-  }, [accountContext, activeTab, creatorSetup, instagramHandle, instagramStatus, tiktokHandle, tiktokStatus]);
+  }, [accountContext, activeTab, changeSocialPlatform, creatorSetup, instagramHandle, instagramStatus, tiktokHandle, tiktokStatus]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
