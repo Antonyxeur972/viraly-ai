@@ -75,7 +75,7 @@ export async function schedulePostNotifications(
   for (const event of publishingEvents) {
     const reminders = [
       {
-        body: `Ton contenu est prévu à ${event.time}. Prépare la couverture, le hook et le CTA : la régularité construit tes résultats.`,
+        body: `Ton contenu est prévu à ${event.time}. Prépare la couverture et le déroulé : la régularité construit tes résultats.`,
         date: preparationDate(event),
         title: event.type === "story"
           ? "Prépare ta story"
@@ -83,7 +83,7 @@ export async function schedulePostNotifications(
         type: "preparation"
       },
       {
-        body: `${event.hook}\nCTA : ${event.cta}`,
+        body: `${event.title} · ouvre ton plan VIRALY pour suivre le déroulé complet.`,
         date: reminderDate(event),
         title: `Bientôt l’heure de poster · ${event.time}`,
         type: "soon"
