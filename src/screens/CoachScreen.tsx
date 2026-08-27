@@ -160,12 +160,6 @@ export function CoachScreen({ profile, accountContext }: Props) {
         ))}
       </ScrollView>
 
-      <View style={styles.intelligenceStrip}>
-        <Ionicons color={palette.violet} name="sparkles" size={19} />
-        <Text style={styles.intelligenceText}>Le coach s'appuie sur ton activité, ta niche et les signaux récents. Plus tu interagis, plus ses réponses sont précises.</Text>
-        <Ionicons color={palette.cyan} name="pulse-outline" size={25} />
-      </View>
-
       {isLoading ? (
         <GlassPanel style={styles.loadingPanel} textureOpacity={0.18}>
           <View style={styles.loadingMark}><Ionicons color={palette.ink} name="sparkles" size={20} /></View>
@@ -213,14 +207,6 @@ export function CoachScreen({ profile, accountContext }: Props) {
             </GlassPanel>
           ) : null}
         </View>
-      ) : !isLoading ? (
-        <GlassPanel style={styles.emptyCard} textureOpacity={0.08}>
-          <Ionicons color={palette.mint} name="chatbubble-ellipses-outline" size={24} />
-          <View style={styles.emptyCopy}>
-            <Text style={styles.emptyTitle}>Prêt à décider avec toi</Text>
-            <Text style={styles.emptyText}>Chaque question déclenche une nouvelle analyse, sans réponse préécrite affichée comme un conseil personnalisé.</Text>
-          </View>
-        </GlassPanel>
       ) : null}
       </View>
 

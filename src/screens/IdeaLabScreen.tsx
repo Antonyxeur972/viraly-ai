@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 
 import { GlassPanel } from "../components/GlassPanel";
@@ -15,6 +15,11 @@ import {
   generateIdeas
 } from "../services/ai";
 import { ProfileAnalysisReport } from "../services/profileAnalysis";
+import {
+  AnalysisHistoryItem,
+  deleteAnalysisHistory,
+  listAnalysisHistory
+} from "../services/analysisHistory";
 import { palette, radius, spacing, typography } from "../theme";
 import { CreatorOnboardingProfile } from "../types";
 
@@ -27,20 +32,48 @@ export function IdeaLabScreen({ profile, accountContext }: Props) {
   const [idea, setIdea] = useState("");
   const [report, setReport] = useState<IdeaAnalysisReport | null>(null);
   const [ideas, setIdeas] = useState<GeneratedIdea[]>([]);
+  const [history, setHistory] = useState<AnalysisHistoryItem<IdeaAnalysisReport>[]>([]);
   const [loading, setLoading] = useState<"analysis" | "ideas" | null>(null);
 
-  const niche = profile.nicheTopic || profile.niche || "niche à préciser";
+  useEffect(() => {
+    listAnalysisHistory<IdeaAnalysisReport>("idea", 20)
+      .then(setHistory)
+      .catch(() => {});
+  }, []);
 
   const runAnalysis = async () => {
     if (idea.trim().length < 5) return;
     setLoading("analysis");
     try {
-      setReport(await analyzeIdea(idea.trim(), profile, accountContext));
+      const nextReport = await analyzeIdea(idea.trim(), profile, accountContext);
+      setReport(nextReport);
+      setHistory((items) => [
+        { id: nextReport.analysisId, kind: "idea", createdAt: new Date().toISOString(), report: nextReport },
+        ...items.filter((item) => item.id !== nextReport.analysisId)
+      ].slice(0, 20));
     } catch (error) {
       Alert.alert("Analyse de l'idée", error instanceof Error ? error.message : "Analyse impossible.");
     } finally {
       setLoading(null);
     }
+  };
+
+  const confirmDelete = (item: AnalysisHistoryItem<IdeaAnalysisReport>) => {
+    Alert.alert("Supprimer cette idée ?", "L'idée et son analyse seront retirées de l'historique.", [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Supprimer",
+        style: "destructive",
+        onPress: () => {
+          deleteAnalysisHistory(item.id)
+            .then(() => {
+              setHistory((items) => items.filter((entry) => entry.id !== item.id));
+              if (report?.analysisId === item.id) setReport(null);
+            })
+            .catch((error) => Alert.alert("Historique", error instanceof Error ? error.message : "Suppression impossible."));
+        }
+      }
+    ]);
   };
 
   const runGeneration = async () => {
@@ -64,16 +97,46 @@ export function IdeaLabScreen({ profile, accountContext }: Props) {
         variant="ideas"
       />
 
-      <View style={styles.contextStrip}>
-        <View style={styles.contextItem}><Ionicons color={palette.mint} name="locate-outline" size={16} /><Text numberOfLines={1} style={styles.contextText}>{niche}</Text></View>
-        <View style={styles.contextDivider} />
-        <View style={styles.contextItem}><Ionicons color={accountContext ? palette.mint : palette.muted} name={accountContext ? "checkmark-circle" : "cloud-offline-outline"} size={16} /><Text style={styles.contextText}>{accountContext ? "Profil analysé" : "Sans données compte"}</Text></View>
+      <View style={styles.profileStatus}>
+        <Ionicons color={accountContext ? palette.cyan : palette.muted} name={accountContext ? "checkmark-circle" : "cloud-offline-outline"} size={16} />
+        <Text style={styles.profileStatusText}>{accountContext ? `Profil analysé · ${accountContext.score}/100` : "Profil déclaré · analyse disponible depuis l'accueil"}</Text>
       </View>
 
+      <SectionHeader eyebrow="Création assistée" title="4 angles à produire" />
+      <NeonButton
+        disabled={loading !== null}
+        icon={ideas.length ? "refresh" : "sparkles"}
+        onPress={runGeneration}
+        title={loading === "ideas" ? "Construction de 4 angles..." : ideas.length ? "Générer 4 nouvelles idées" : "Générer 4 idées avec l'IA"}
+      />
+
+      {ideas.length ? (
+        <ScrollView contentContainerStyle={styles.ideaRailContent} horizontal showsHorizontalScrollIndicator={false} style={styles.ideaRail}>
+          {ideas.map((item, index) => (
+            <TouchableOpacity key={`${item.title}-${index}`} onPress={() => { setIdea(item.title); setReport(null); }} style={styles.ideaTouch}>
+              <GlassPanel glow={index === 0} style={styles.ideaCard} textureOpacity={0.12}>
+                <View style={styles.ideaTop}>
+                  <View style={[styles.rank, index === 1 && styles.rankViolet, index > 1 && styles.rankCyan]}>
+                    <Ionicons color={index === 1 ? palette.violet : index > 1 ? palette.cyan : palette.white} name={index === 0 ? "flash" : index === 1 ? "magnet" : "locate"} size={20} />
+                  </View>
+                  <View style={styles.scorePill}><Text style={styles.ideaScore}>{item.score}</Text><Text style={styles.ideaScoreMax}>/100</Text></View>
+                </View>
+                <Text style={styles.ideaFormat}>{item.format.toUpperCase()}</Text>
+                <Text numberOfLines={3} style={styles.ideaTitle}>{item.title}</Text>
+                <Text numberOfLines={3} style={styles.ideaPromise}>{item.promise}</Text>
+                <MiniSparkline color={index === 1 ? palette.violet : index > 1 ? palette.cyan : palette.electric} variant={index % 3} />
+                <View style={styles.useLine}><Text style={styles.useText}>Tester cette idée</Text><Ionicons color={palette.mint} name="arrow-forward" size={16} /></View>
+              </GlassPanel>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      ) : null}
+
+      <SectionHeader eyebrow="Test rapide" title="Analyse une idée" />
       <GlassPanel glow style={styles.inputCard} textureOpacity={0.18}>
         <View style={styles.inputTop}>
           <Text style={styles.inputLabel}>IDÉE À TESTER</Text>
-          <Text style={styles.scoreValue}>{report ? report.score : "--"}<Text style={styles.scoreMax}> / 100</Text></Text>
+          <Text style={styles.scoreValue}>{report ? `${report.score}/100` : ""}</Text>
         </View>
         <TextInput
           multiline
@@ -83,12 +146,9 @@ export function IdeaLabScreen({ profile, accountContext }: Props) {
           style={styles.input}
           value={idea}
         />
-        <View style={styles.qualityRow}>
-          <View style={styles.qualityLabel}><Ionicons color={palette.electric} name="sparkles-outline" size={16} /><Text style={styles.qualityText}>Qualité de l'idée</Text></View>
-          <Text style={styles.qualityScore}>{report?.score || "--"}<Text style={styles.qualityMax}> /100</Text></Text>
-        </View>
         <ProgressBar color={palette.mint} value={report?.score || 0} />
         <NeonButton
+          compact
           disabled={idea.trim().length < 5 || loading !== null}
           onPress={runAnalysis}
           title={loading === "analysis" ? "Lecture de la promesse..." : "Analyser cette idée"}
@@ -136,42 +196,26 @@ export function IdeaLabScreen({ profile, accountContext }: Props) {
         </>
       ) : null}
 
-      <SectionHeader eyebrow="Sélection de la semaine" title="Idées personnalisées" />
-      <NeonButton
-        compact
-        disabled={loading !== null}
-        icon={ideas.length ? "refresh" : "sparkles-outline"}
-        onPress={runGeneration}
-        title={loading === "ideas" ? "Construction de 4 angles..." : ideas.length ? "Créer 4 nouveaux angles" : "Générer 4 idées avec l'IA"}
-        variant="outline"
-      />
-
-      {ideas.length ? (
-        <ScrollView contentContainerStyle={styles.ideaRailContent} horizontal showsHorizontalScrollIndicator={false} style={styles.ideaRail}>
-          {ideas.map((item, index) => (
-            <TouchableOpacity key={`${item.title}-${index}`} onPress={() => { setIdea(item.title); setReport(null); }} style={styles.ideaTouch}>
-              <GlassPanel glow={index === 0} style={styles.ideaCard} textureOpacity={0.12}>
-              <View style={styles.ideaTop}>
-                <View style={[styles.rank, index === 1 && styles.rankViolet, index > 1 && styles.rankCyan]}>
-                  <Ionicons color={index === 1 ? palette.violet : index > 1 ? palette.cyan : palette.white} name={index === 0 ? "flash" : index === 1 ? "magnet" : "locate"} size={20} />
+      <SectionHeader eyebrow="Mémoire" title="Historique des idées" action={`${history.length}`} />
+      {history.length ? (
+        <View style={styles.historyList}>
+          {history.map((item) => (
+            <View key={item.id} style={[styles.historyRow, report?.analysisId === item.id && styles.historyRowActive]}>
+              <TouchableOpacity onPress={() => { setReport(item.report); setIdea(item.report.idea || item.report.historyTitle || ""); }} style={styles.historyOpen}>
+                <Ionicons color={palette.electric} name="sparkles-outline" size={18} />
+                <View style={styles.historyCopy}>
+                  <Text numberOfLines={2} style={styles.historyTitle}>{item.report.idea || item.report.historyTitle || item.report.optimizedHook}</Text>
+                  <Text numberOfLines={2} style={styles.historySummary}>{item.report.summary}</Text>
+                  <Text style={styles.historyRead}>Relire l'analyse · {item.report.score}/100</Text>
                 </View>
-                <View style={styles.scorePill}><Text style={styles.ideaScore}>{item.score}</Text><Text style={styles.ideaScoreMax}>/100</Text></View>
-              </View>
-              <Text style={styles.ideaFormat}>{item.format.toUpperCase()}</Text>
-              <Text numberOfLines={3} style={styles.ideaTitle}>{item.title}</Text>
-              <Text numberOfLines={3} style={styles.ideaPromise}>{item.promise}</Text>
-              <MiniSparkline color={index === 1 ? palette.violet : index > 1 ? palette.cyan : palette.electric} variant={index % 3} />
-              <View style={styles.useLine}><Text style={styles.useText}>Développer cette idée</Text><Ionicons color={palette.mint} name="arrow-forward" size={16} /></View>
-              </GlassPanel>
-            </TouchableOpacity>
+              </TouchableOpacity>
+              <TouchableOpacity accessibilityLabel="Supprimer cette idée" onPress={() => confirmDelete(item)} style={styles.historyDelete}>
+                <Ionicons color={palette.muted} name="trash-outline" size={18} />
+              </TouchableOpacity>
+            </View>
           ))}
-        </ScrollView>
-      ) : (
-        <GlassPanel style={styles.emptyPanel} textureOpacity={0.08}>
-          <Ionicons color={palette.mint} name="bulb-outline" size={22} />
-          <Text style={styles.empty}>La génération part de ta niche, de ta cadence et du diagnostic de ton profil.</Text>
-        </GlassPanel>
-      )}
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -183,16 +227,18 @@ const styles = StyleSheet.create({
   title: { ...typography.title, color: palette.white, maxWidth: 360 },
   titleAccent: { color: palette.electric },
   subtitle: { ...typography.body, color: palette.paperMuted },
+  profileStatus: { alignItems: "center", alignSelf: "flex-start", backgroundColor: "rgba(8,25,59,0.68)", borderRadius: radius.pill, flexDirection: "row", gap: spacing.xs, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  profileStatusText: { color: palette.paperMuted, fontSize: 10, fontWeight: "700" },
   contextStrip: { alignItems: "center", backgroundColor: "rgba(3,10,27,0.68)", borderColor: palette.line, borderRadius: radius.pill, borderWidth: 1, flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   contextItem: { alignItems: "center", flex: 1, flexDirection: "row", gap: spacing.xs, minWidth: 0 },
   contextText: { ...typography.caption, color: palette.paperMuted, flexShrink: 1 },
   contextDivider: { backgroundColor: palette.line, height: 20, width: 1 },
-  inputCard: { gap: spacing.md, padding: spacing.lg },
+  inputCard: { gap: spacing.sm, padding: spacing.md },
   inputTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   inputLabel: { ...typography.caption, color: palette.mint },
-  scoreValue: { color: palette.white, fontSize: 26, fontWeight: "800" },
+  scoreValue: { color: palette.electric, fontSize: 12, fontWeight: "900" },
   scoreMax: { color: palette.muted, fontSize: 12, fontWeight: "600" },
-  input: { ...typography.body, backgroundColor: palette.graphite, borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, color: palette.white, minHeight: 118, padding: spacing.md, textAlignVertical: "top" },
+  input: { ...typography.body, backgroundColor: palette.graphite, borderColor: palette.line, borderRadius: radius.sm, borderWidth: 1, color: palette.white, minHeight: 76, padding: spacing.md, textAlignVertical: "top" },
   qualityRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   qualityLabel: { alignItems: "center", flexDirection: "row", gap: spacing.xs },
   qualityText: { ...typography.caption, color: palette.paperMuted },
@@ -242,5 +288,14 @@ const styles = StyleSheet.create({
   useLine: { alignItems: "center", borderTopColor: palette.line, borderTopWidth: 1, flexDirection: "row", justifyContent: "space-between", paddingTop: spacing.sm },
   useText: { ...typography.caption, color: palette.mint },
   emptyPanel: { alignItems: "center", flexDirection: "row", gap: spacing.md, padding: spacing.lg },
-  empty: { ...typography.body, color: palette.paperMuted, flex: 1 }
+  empty: { ...typography.body, color: palette.paperMuted, flex: 1 },
+  historyList: { gap: spacing.xs },
+  historyRow: { alignItems: "stretch", backgroundColor: "rgba(7,17,38,0.64)", borderRadius: radius.md, flexDirection: "row", minHeight: 108, overflow: "hidden" },
+  historyRowActive: { backgroundColor: "rgba(24,67,139,0.42)" },
+  historyOpen: { alignItems: "flex-start", flex: 1, flexDirection: "row", gap: spacing.md, padding: spacing.md },
+  historyCopy: { flex: 1, gap: 4, minWidth: 0 },
+  historyTitle: { color: palette.white, fontSize: 13, fontWeight: "800", lineHeight: 18 },
+  historySummary: { color: palette.paperMuted, fontSize: 11, lineHeight: 16 },
+  historyRead: { color: palette.electric, fontSize: 9, fontWeight: "800" },
+  historyDelete: { alignItems: "center", justifyContent: "center", width: 48 }
 });

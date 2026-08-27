@@ -422,7 +422,7 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
 
       {plans.length ? (
         <>
-          <SectionHeader eyebrow="Archives" title="Anciens plans" action={`${plans.length} enregistré${plans.length > 1 ? "s" : ""}`} />
+          <SectionHeader eyebrow="Mémoire complète" title="Historique des plans" action={`${plans.length} enregistré${plans.length > 1 ? "s" : ""}`} />
           <View style={styles.historyList}>
             {plans.map((plan, index) => (
               <View key={plan.id} style={[styles.historyCard, plan.id === activePlan?.id && styles.historySelected]}>
