@@ -28,8 +28,16 @@ import {
   listAnalysisHistory
 } from "../services/analysisHistory";
 import { palette, radius, spacing, typography } from "../theme";
+import { SocialConnectionStatus, SocialPlatform } from "../types";
 
-export function VideoLabScreen() {
+type Props = {
+  platform: SocialPlatform;
+  socialStatus: SocialConnectionStatus;
+  socialHandle?: string;
+  onConnectSocial: () => void;
+};
+
+export function VideoLabScreen({ platform, socialStatus, socialHandle, onConnectSocial }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const [assets, setAssets] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [report, setReport] = useState<ContentAnalysisReport | null>(null);
@@ -38,6 +46,9 @@ export function VideoLabScreen() {
   const [analysisTop, setAnalysisTop] = useState(0);
   const [reportFromHistory, setReportFromHistory] = useState(false);
   const [shouldRevealReport, setShouldRevealReport] = useState(false);
+  const platformLabel = platform === "instagram" ? "Instagram" : "TikTok";
+  const platformIcon = platform === "instagram" ? "logo-instagram" : "logo-tiktok";
+  const connected = socialStatus === "connected";
 
   useEffect(() => {
     let active = true;
@@ -82,7 +93,7 @@ export function VideoLabScreen() {
     if (!assets.length) return;
     setIsAnalyzing(true);
     try {
-      const result = await requestContentAnalysis("carousel", assets);
+      const result = await requestContentAnalysis("carousel", assets, platform);
       setReport(result);
       setReportFromHistory(false);
       setHistory((items) => [
@@ -127,20 +138,20 @@ export function VideoLabScreen() {
         variant="audit"
       />
 
-      <View style={styles.modeCard}>
-        <Ionicons color={palette.mint} name="images-outline" size={18} />
-        <View style={styles.modeCopy}>
-          <Text style={styles.modeText}>Carrousel photo</Text>
-          <Text style={styles.modeMeta}>1 à 10 images · ordre conservé</Text>
+      <TouchableOpacity disabled={socialStatus === "connecting"} onPress={onConnectSocial} style={[styles.socialButton, connected && styles.socialButtonConnected]}>
+        <View style={styles.socialIcon}><Ionicons color={palette.white} name={platformIcon} size={22} /></View>
+        <View style={styles.socialCopy}>
+          <Text style={styles.socialLabel}>{connected ? `${platformLabel} connecté` : `Connecter ${platformLabel}`}</Text>
+          <Text numberOfLines={1} style={styles.socialMeta}>{socialHandle || "Analyse adaptée à ta plateforme"}</Text>
         </View>
-        <View style={styles.activeDot} />
-      </View>
+        <Ionicons color={connected ? palette.positive : palette.electric} name={connected ? "checkmark-circle" : "arrow-forward"} size={20} />
+      </TouchableOpacity>
 
       <TouchableOpacity onPress={pickContent} style={styles.uploadButton}>
         <View style={styles.uploadIcon}><Ionicons color={palette.ink} name="cloud-upload-outline" size={24} /></View>
         <View style={styles.uploadCopy}>
-          <Text style={styles.uploadTitle}>{assets.length ? `${assets.length} image${assets.length > 1 ? "s" : ""} prête${assets.length > 1 ? "s" : ""}` : "Choisir des photos TikTok"}</Text>
-          <Text style={styles.uploadMeta}>{assets[0]?.fileName || "Jusqu'à 10 images ordonnées"}</Text>
+          <Text style={styles.uploadTitle}>{assets.length ? `${assets.length} image${assets.length > 1 ? "s" : ""} prête${assets.length > 1 ? "s" : ""}` : "Dépose une photo ou un carrousel à analyser"}</Text>
+          {assets.length ? <Text style={styles.uploadMeta}>{assets[0]?.fileName}</Text> : null}
         </View>
         <Ionicons color={palette.muted} name="chevron-forward" size={20} />
       </TouchableOpacity>
@@ -182,6 +193,16 @@ export function VideoLabScreen() {
 
           <ScoreDial caption={report.summary} color={palette.mint} label="Force du carrousel" score={report.score} />
 
+          <SectionHeader eyebrow="À exécuter" title="Actions prioritaires" />
+          <View style={styles.priorityStack}>
+            {report.improvements.map((improvement, index) => (
+              <View key={`${improvement}-${index}`} style={[styles.priorityAction, index === 0 && styles.priorityActionFirst]}>
+                <Text style={styles.priorityNumber}>{String(index + 1).padStart(2, "0")}</Text>
+                <Text style={styles.priorityText}>{improvement}</Text>
+              </View>
+            ))}
+          </View>
+
           <GlassPanel style={styles.hookPanel}>
             <Text style={styles.panelLabel}>COUVERTURE RECOMMANDÉE</Text>
             <Text style={styles.hookText}>{report.revisedHook}</Text>
@@ -201,7 +222,10 @@ export function VideoLabScreen() {
                 </View>
                 <ProgressBar color={dimension.score >= 70 ? palette.mint : palette.lemon} value={dimension.score} />
                 <Text style={styles.evidence}>{dimension.evidence}</Text>
-                <Text style={styles.action}>Action : {dimension.action}</Text>
+                <View style={styles.dimensionAction}>
+                  <Text style={styles.dimensionActionLabel}>ACTION</Text>
+                  <Text style={styles.action}>{dimension.action}</Text>
+                </View>
               </View>
             ))}
           </View>
@@ -225,8 +249,7 @@ export function VideoLabScreen() {
         <View style={styles.emptyCard}>
           <View style={styles.emptyIcon}><Ionicons color={palette.mint} name="scan-circle-outline" size={27} /></View>
           <View style={styles.emptyCopy}>
-            <Text style={styles.emptyTitle}>Dépose un carrousel à analyser</Text>
-            <Text style={styles.emptyText}>Aucun score de démonstration : le verdict apparaît uniquement après lecture de tes images.</Text>
+            <Text style={styles.emptyTitle}>Dépose une photo ou un carrousel à analyser</Text>
           </View>
         </View>
       )}
@@ -265,6 +288,12 @@ const styles = StyleSheet.create({
   title: { ...typography.title, color: palette.white },
   titleAccent: { color: palette.electric },
   subtitle: { ...typography.body, color: palette.paperMuted },
+  socialButton: { alignItems: "center", backgroundColor: "rgba(8,25,59,0.76)", borderRadius: radius.md, flexDirection: "row", gap: spacing.md, minHeight: 72, padding: spacing.md },
+  socialButtonConnected: { backgroundColor: "rgba(12,43,84,0.82)" },
+  socialIcon: { alignItems: "center", backgroundColor: "rgba(35,103,243,0.5)", borderRadius: radius.sm, height: 43, justifyContent: "center", width: 43 },
+  socialCopy: { flex: 1, gap: 3, minWidth: 0 },
+  socialLabel: { color: palette.white, fontSize: 14, fontWeight: "800" },
+  socialMeta: { color: palette.muted, fontSize: 10, lineHeight: 14 },
   modeCard: { alignItems: "center", backgroundColor: "rgba(3,10,27,0.76)", borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, minHeight: 72, paddingHorizontal: spacing.lg },
   modeCopy: { flex: 1, gap: 1 },
   modeText: { ...typography.caption, color: palette.white },
@@ -288,12 +317,19 @@ const styles = StyleSheet.create({
   basisText: { ...typography.caption, color: palette.muted },
   divider: { backgroundColor: palette.line, height: 1, marginVertical: spacing.xs },
   stack: { gap: spacing.sm },
+  priorityStack: { gap: spacing.xs },
+  priorityAction: { alignItems: "flex-start", backgroundColor: "rgba(7,17,38,0.62)", borderRadius: radius.sm, flexDirection: "row", gap: spacing.md, padding: spacing.md },
+  priorityActionFirst: { backgroundColor: "rgba(23,74,166,0.52)", shadowColor: palette.electric, shadowOpacity: 0.32, shadowRadius: 9 },
+  priorityNumber: { color: palette.cyan, fontSize: 10, fontWeight: "900", width: 24 },
+  priorityText: { color: palette.white, flex: 1, fontSize: 13, fontWeight: "700", lineHeight: 19 },
   dimensionCard: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, gap: spacing.md, padding: spacing.lg },
   dimensionTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   dimensionName: { ...typography.h3, color: palette.white },
   dimensionScore: { color: palette.mint, fontSize: 22, fontWeight: "900" },
   evidence: { ...typography.body, color: palette.paperMuted },
-  action: { ...typography.caption, color: palette.mint },
+  dimensionAction: { backgroundColor: "rgba(25,78,169,0.22)", borderRadius: radius.sm, gap: 4, padding: spacing.sm },
+  dimensionActionLabel: { color: palette.electric, fontSize: 8, fontWeight: "900" },
+  action: { color: palette.white, fontSize: 12, fontWeight: "700", lineHeight: 18 },
   storyboard: { backgroundColor: palette.panel, borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, gap: spacing.sm, padding: spacing.md },
   storyStep: { alignItems: "flex-start", flexDirection: "row", gap: spacing.md },
   storyIndex: { ...typography.caption, color: palette.lemon, width: 18 },

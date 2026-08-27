@@ -39,6 +39,16 @@ type Question = {
 
 const questions: Question[] = [
   {
+    id: "platform",
+    eyebrow: "PLATEFORME",
+    title: "Où veux-tu accélérer ?",
+    subtitle: "Tous les imports, analyses et plans suivront ce choix.",
+    options: [
+      { id: "tiktok", label: "TikTok", detail: "Vidéos courtes, carrousels et découverte.", icon: "logo-tiktok" },
+      { id: "instagram", label: "Instagram", detail: "Reels, carrousels et conversion du profil.", icon: "logo-instagram" }
+    ]
+  },
+  {
     id: "goal",
     eyebrow: "AMBITION",
     title: "Qu'est-ce qui doit changer en premier ?",
