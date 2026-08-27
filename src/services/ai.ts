@@ -33,6 +33,20 @@ export type CoachReport = {
   confidence: "faible" | "moyenne" | "élevée";
 };
 
+export type GrowthAction = {
+  title: string;
+  instruction: string;
+  deadlineDays: number;
+  successMetric: string;
+};
+
+export type GrowthActionPlan = {
+  summary: string;
+  actions: GrowthAction[];
+  analysisId: string;
+  source: "openai" | "anthropic" | "fallback_rules";
+};
+
 export type StrategyReport = {
   summary: string;
   niches: Array<{
@@ -154,6 +168,16 @@ export function askCoach(
       account_context: accountContext,
       strategy_context: strategyContext
     })
+  });
+}
+
+export function generateNextActions(
+  profile: CreatorOnboardingProfile,
+  accountContext: Context
+) {
+  return apiRequest<GrowthActionPlan>("/api/v1/profile/actions/next", {
+    method: "POST",
+    body: JSON.stringify({ profile, account_context: accountContext })
   });
 }
 

@@ -8,7 +8,7 @@ export type AnalysisHistoryItem<T> = {
 };
 
 export async function listAnalysisHistory<T>(
-  kind: "profile" | "content" | "idea" | "ideas" | "onboarding" | "coach",
+  kind: "profile" | "content" | "idea" | "ideas" | "onboarding" | "coach" | "actions",
   limit = 12
 ) {
   const result = await apiRequest<{ analyses: AnalysisHistoryItem<T>[] }>(
