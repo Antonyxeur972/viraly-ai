@@ -148,6 +148,10 @@ def preferred_format(profile: CreatorProfile) -> str:
     }.get(profile.format, "format mixte")
 
 
+def social_platform_label(profile: CreatorProfile) -> str:
+    return "Instagram" if profile.platform == "instagram" else "TikTok"
+
+
 def niche_label(profile: CreatorProfile) -> str:
     custom = (profile.nicheTopic or "").strip()
     if custom:
@@ -236,6 +240,7 @@ def onboarding_fallback(profile: CreatorProfile) -> dict[str, Any]:
 
 
 def profile_fallback(source: str) -> dict[str, Any]:
+    platform = "Instagram" if "instagram" in source.lower() else "TikTok"
     return {
         "score": 54,
         "confidence": "faible",
@@ -245,7 +250,7 @@ def profile_fallback(source: str) -> dict[str, Any]:
         ),
         "visibleSignals": [
             "Capture importée depuis la galerie",
-            "Données TikTok non authentifiées",
+            f"Données {platform} non authentifiées",
             f"Source déclarée: {source}",
         ],
         "priorities": [
@@ -334,7 +339,7 @@ def content_fallback(content_type: str, asset_count: int, transcript: str | None
         "revenuePotential": {
             "level": "moyen",
             "path": "Transformer le contenu en entrée vers une ressource, un diagnostic ou une offre affiliée.",
-            "basis": "Estimation prudente basée sur la structure fournie, pas sur des métriques TikTok réelles.",
+            "basis": "Estimation prudente basée sur la structure fournie, pas sur des métriques de compte authentifiées.",
         },
         "source": "fallback_rules",
     }
@@ -1115,6 +1120,7 @@ async def analyze_profile(
         screenshot, min(settings.max_upload_bytes, 15 * 1024 * 1024)
     )
     ensure_ai_budget(db, user_id)
+    platform = "Instagram" if "instagram" in source.lower() else "TikTok"
     report = await ai.generate_json(
         model=settings.visual_model,
         feature="profile_analysis",
@@ -1122,7 +1128,7 @@ async def analyze_profile(
         verbosity="medium",
         schema=PROFILE_SCHEMA,
         prompt=(
-            "Analyse cette capture de profil TikTok comme un audit de conversion. Extrais uniquement ce qui est lisible. "
+            f"Analyse cette capture de profil {platform} comme un audit de conversion. Extrais uniquement ce qui est lisible. "
             "Identifie les preuves visibles dans la bio, les compteurs et les couvertures. Formule la promesse comprise "
             "par un nouveau visiteur en cinq secondes, puis repère la rupture principale entre découverte, confiance et action. "
             "Classe les corrections par impact et effort, et propose une action exécutable aujourd'hui avec un résultat observable. "
@@ -1140,7 +1146,7 @@ async def analyze_profile(
     used_model = str(report.pop("_model", settings.visual_model))
     report["source"] = ai_provider_for_model(used_model)
     report["thumbnail"] = await history_thumbnail(thumbnail)
-    report["historyTitle"] = str(report.get("metrics", {}).get("handle") or "Profil TikTok")
+    report["historyTitle"] = str(report.get("metrics", {}).get("handle") or f"Profil {platform}")
     report["authenticatedTikTokData"] = False
     db.record_ai_usage(user_id, "profile-analysis", used_model)
     report["analysisId"] = db.save_analysis(user_id, "profile", report)
@@ -1203,12 +1209,15 @@ def delete_analysis(
 async def analyze_content(
     type: Annotated[str, Form()],
     goal: Annotated[str, Form()] = "revenue",
+    platform: Annotated[str, Form()] = "tiktok",
     assets: Annotated[list[UploadFile], File(alias="assets[]")] = [],
     thumbnail: Annotated[UploadFile | None, File()] = None,
     user_id: str = Depends(require_user),
     db: Database = Depends(database),
     ai: AIEngine = Depends(ai_engine),
 ):
+    if platform not in {"tiktok", "instagram"}:
+        raise HTTPException(422, "Plateforme invalide.")
     if type == "video":
         raise HTTPException(
             422,
@@ -1233,8 +1242,9 @@ async def analyze_content(
             image_item(data, upload.content_type or "image/jpeg", detail="high")
         )
 
+    platform_label = "Instagram" if platform == "instagram" else "TikTok"
     prompt = (
-        f"Audite ce {type} TikTok pour l'objectif {goal}. Les images sont ordonnées comme elles seront publiées. "
+        f"Audite ce {type} {platform_label} pour l'objectif {goal}. Les images sont ordonnées comme elles seront publiées. "
         "Pour chaque dimension, cite un élément visible précis puis donne une seule correction prioritaire. "
         "Vérifie la couverture, la compréhension sans contexte, la progression slide par slide, la preuve, "
         "la valeur de sauvegarde ou partage et la continuité vers le CTA. Le score mesure la qualité observable, "
@@ -1256,7 +1266,7 @@ async def analyze_content(
     used_model = str(report.pop("_model", settings.visual_model))
     report["source"] = ai_provider_for_model(used_model)
     report["thumbnail"] = await history_thumbnail(thumbnail)
-    report["historyTitle"] = str(report.get("revisedHook") or "Carrousel TikTok")[:120]
+    report["historyTitle"] = str(report.get("revisedHook") or f"Contenu {platform_label}")[:120]
     report["assetCount"] = len(assets)
     report["transcriptAvailable"] = bool(transcript)
     db.record_ai_usage(user_id, "content-analysis", used_model)
@@ -1296,6 +1306,8 @@ async def analyze_idea(
             report = None
     if report is None:
         report = idea_fallback(request.idea, request.profile)
+    report["idea"] = request.idea
+    report["historyTitle"] = request.idea[:120]
     report["analysisId"] = db.save_analysis(user_id, "idea", report)
     return report
 
@@ -1473,7 +1485,7 @@ async def generate_content_plan(
                     verbosity="low",
                     schema=CONTENT_PLAN_SCHEMA,
                     prompt=(
-                        f"Construis un plan TikTok du {start.isoformat()} sur exactement {request.days} jours. "
+                        f"Construis un plan {social_platform_label(request.profile)} du {start.isoformat()} sur exactement {request.days} jours. "
                         f"Profil déclaré: {compact_context(request.profile.model_dump())}. "
                         f"Analyse visuelle du compte: {compact_context(account_context)}. "
                         f"Volume imposé: exactement {mix['videos']} vidéos, {mix['carousels']} carrousels "
@@ -1483,7 +1495,7 @@ async def generate_content_plan(
                         "Prends parti pour une seule stratégie cohérente avec la niche, le niveau du compte, l'objectif, "
                         "le format naturel, le temps disponible et la monétisation. Donne des titres spécifiques à cette niche, "
                         "des hooks prononçables et des CTA directement exécutables. Utilise des moments réalistes de la journée. "
-                        "Ne parle ni d'éligibilité, ni de LIVE, ni de TikTok Shop, ni de revenus détaillés. "
+                        "Ne parle ni d'éligibilité, ni de LIVE, ni de boutique sociale, ni de revenus détaillés. "
                         "N'invente aucune tendance ou donnée temps réel."
                     ),
                 ),
@@ -1536,14 +1548,14 @@ async def generate_strategy(
                 verbosity="medium",
                 schema=STRATEGY_SCHEMA,
                 prompt=(
-            f"Crée une stratégie TikTok personnalisée. Profil: {compact_context(request.profile.model_dump())}. "
+            f"Crée une stratégie {social_platform_label(request.profile)} personnalisée. Profil: {compact_context(request.profile.model_dump())}. "
             f"Analyse de compte disponible: {compact_context(request.account_context)}. "
             f"Fuseau: {request.timezone}. Les créneaux sont des hypothèses à tester 14 jours, pas des vérités. "
             "Prends parti pour une stratégie principale et fais des autres niches des piliers secondaires, pas des alternatives. "
             "La synthèse doit nommer l'audience, le problème récurrent, la promesse éditoriale et le mécanisme de conversion. "
             "Donne des idées de posts spécifiques à cette niche, avec une preuve ou un exemple attendu, jamais des titres génériques. "
             "Chaque créneau doit inclure un protocole 14 jours où une seule variable change et une règle de décision. "
-            "Ne parle pas d'éligibilité, de LIVE ou de TikTok Shop. "
+            "Ne parle pas d'éligibilité, de LIVE ou de boutique sociale. "
             "Les fourchettes de revenu doivent être indicatives, modestes et accompagnées de leur base de calcul."
         ),
             )

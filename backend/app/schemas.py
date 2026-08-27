@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class CreatorProfile(BaseModel):
+    platform: Literal["tiktok", "instagram"] = "tiktok"
     goal: str = "reach"
     niche: str = "none"
     nicheTopic: str | None = Field(default=None, max_length=120)
