@@ -614,6 +614,10 @@ def test_weekly_plan_has_exact_personalized_mix_and_seven_days(client, auth_head
     assert plan["endDate"] == "2026-08-31"
     assert "recettes antillaises rapides" in plan["strategyDecision"]
     assert plan["revenuePotentialAfter"].endswith("€/mois")
+    feed_events = [event for event in plan["events"] if event["type"] in {"video", "carousel"}]
+    assert all("\n" in event["hook"] for event in feed_events)
+    assert all(event["cta"] == "" for event in plan["events"])
+    assert any("Vérification 5" in event["hook"] for event in feed_events if event["type"] == "carousel")
 
 
 def test_old_plans_are_kept_while_active_ai_calendar_is_replaced(client, auth_headers):
