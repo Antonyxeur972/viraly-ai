@@ -236,6 +236,72 @@ def test_analysis_history_can_be_reopened_and_deleted(client, auth_headers):
     assert client.get("/api/v1/analyses?kind=content", headers=auth_headers).json()["analyses"] == []
 
 
+def test_next_actions_are_personalized_and_saved(client, auth_headers):
+    class FakeAI:
+        configured = True
+
+        async def generate_json(self, **kwargs):
+            assert kwargs["feature"] == "next_growth_actions"
+            assert "Cycles précédents" in kwargs["prompt"]
+            return {
+                "summary": "Trois actions ciblées sur le prochain signal utile.",
+                "actions": [
+                    {
+                        "title": "Clarifier la bio",
+                        "instruction": "Écris une promesse mesurable pour les indépendants.",
+                        "deadlineDays": 2,
+                        "successMetric": "La promesse est comprise en moins de 5 secondes.",
+                    },
+                    {
+                        "title": "Publier une preuve",
+                        "instruction": "Montre un avant et un après sur un cas réel.",
+                        "deadlineDays": 4,
+                        "successMetric": "Le contenu reçoit un enregistrement ou une demande.",
+                    },
+                    {
+                        "title": "Mesurer le test",
+                        "instruction": "Relève les sauvegardes et les commentaires après 24 heures.",
+                        "deadlineDays": 7,
+                        "successMetric": "Une décision de répétition est prise avec les données.",
+                    },
+                ],
+                "_model": "claude-test",
+            }
+
+    from app.main import app
+
+    original = app.state.ai
+    app.state.ai = FakeAI()
+    try:
+        response = client.post(
+            "/api/v1/profile/actions/next",
+            headers=auth_headers,
+            json={
+                "profile": {
+                    "platform": "tiktok",
+                    "goal": "revenue",
+                    "niche": "broad",
+                    "nicheTopic": "marketing pour indépendants",
+                    "followers": "100-1000",
+                    "cadence": "3-4",
+                    "format": "mixed",
+                    "time": "3-5h",
+                    "monetization": "service",
+                },
+                "account_context": {"score": 64, "nextAction": "Clarifier la promesse."},
+            },
+        )
+    finally:
+        app.state.ai = original
+
+    assert response.status_code == 200
+    assert response.json()["analysisId"].startswith("ana_")
+    assert response.json()["actions"][0]["deadlineDays"] == 2
+    history = client.get("/api/v1/analyses?kind=actions", headers=auth_headers)
+    assert history.status_code == 200
+    assert history.json()["analyses"][0]["id"] == response.json()["analysisId"]
+
+
 def test_onboarding_uses_structured_ai_and_persists_result(client, auth_headers):
     class FakeAI:
         configured = True
