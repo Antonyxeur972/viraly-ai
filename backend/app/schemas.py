@@ -72,7 +72,7 @@ class CalendarEventCreate(BaseModel):
     time: str
     type: Literal["video", "carousel", "story", "live", "research"]
     title: str = Field(min_length=2, max_length=180)
-    hook: str = Field(default="", max_length=500)
+    hook: str = Field(default="", max_length=2400)
     cta: str = Field(default="", max_length=500)
     status: Literal["planned", "ready", "published", "skipped"] = "planned"
     source: Literal["manual", "ai"] = "manual"
@@ -83,7 +83,7 @@ class CalendarEventUpdate(BaseModel):
     time: str | None = None
     type: Literal["video", "carousel", "story", "live", "research"] | None = None
     title: str | None = Field(default=None, min_length=2, max_length=180)
-    hook: str | None = Field(default=None, max_length=500)
+    hook: str | None = Field(default=None, max_length=2400)
     cta: str | None = Field(default=None, max_length=500)
     status: Literal["planned", "ready", "published", "skipped"] | None = None
 

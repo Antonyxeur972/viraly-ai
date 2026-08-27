@@ -735,6 +735,26 @@ def fallback_content_plan(
     ]
     events: list[dict[str, Any]] = []
     type_indexes = {"video": 0, "carousel": 0}
+
+    def execution_script(event_type: str, title: str, position: int) -> str:
+        if event_type == "video":
+            return (
+                f"Séquence 1 · 0-2 s — Dis face caméra : « {title}. Voici le point qui change vraiment {objective}. »\n"
+                f"Séquence 2 · 3-8 s — Montre une erreur précise en {niche} à l'écran et nomme son effet concret.\n"
+                f"Séquence 3 · 9-18 s — Fais la correction en direct, étape par étape, avec un exemple adapté à {niche}.\n"
+                f"Séquence 4 · 19-26 s — Affiche le résultat avant/après et explique le signal à observer pour valider la correction.\n"
+                "Montage — Une coupe par idée, sous-titres sur les mots clés et aucun préambule avant la démonstration."
+            )
+        return (
+            f"Slide 1 — Écris exactement : « {title} »\n"
+            f"Slide 2 — Vérification 1 : la promesse nomme un résultat précis lié à {objective}, pas seulement le thème {niche}.\n"
+            f"Slide 3 — Vérification 2 : montre l'erreur visible que fait la cible aujourd'hui et son effet immédiat.\n"
+            f"Slide 4 — Vérification 3 : donne une correction réalisable en moins de 15 minutes, avec l'ordre exact des gestes.\n"
+            f"Slide 5 — Vérification 4 : ajoute un exemple concret de {niche} avec une situation de départ et un résultat attendu.\n"
+            "Slide 6 — Vérification 5 : indique la mesure à relever après 24 heures : sauvegardes, réponses ou clics qualifiés.\n"
+            f"Slide 7 — Résume la méthode en une phrase : « problème précis → correction visible → mesure ». Variation {position + 1}."
+        )
+
     for index, event_type in enumerate(feed_types):
         day_offset = feed_days[index]
         type_index = type_indexes[event_type]
@@ -750,16 +770,8 @@ def fallback_content_plan(
                 "time": feed_times[index % len(feed_times)],
                 "type": event_type,
                 "title": title,
-                "hook": (
-                    f"3 erreurs concrètes en {niche}: la troisième fait perdre le plus de {objective}."
-                    if event_type == "video"
-                    else f"Slide 1 : « Tu veux améliorer {objective} en {niche} ? Commence par ces 5 vérifications. »"
-                ),
-                "cta": (
-                    "Commente « CHECK » pour recevoir la liste complète."
-                    if event_type == "video"
-                    else "Enregistre ce carrousel et applique le point 1 aujourd'hui."
-                ),
+                "hook": execution_script(event_type, title, index),
+                "cta": "",
             }
         )
     for index in range(mix["stories"]):
@@ -770,8 +782,12 @@ def fallback_content_plan(
                 "time": "18:15",
                 "type": "story",
                 "title": story_titles[index % len(story_titles)],
-                "hook": f"Une interaction courte pour préciser le prochain contenu {niche}.",
-                "cta": "Réponds, vote ou ouvre le contenu principal du jour.",
+                "hook": (
+                    f"Écran 1 — Pose la question : « Quel est ton blocage le plus concret en {niche} cette semaine ? »\n"
+                    "Écran 2 — Ajoute un sondage avec deux réponses opposées et faciles à choisir.\n"
+                    "Écran 3 — Le lendemain, partage le résultat puis annonce le post qui répondra à l'option majoritaire."
+                ),
+                "cta": "",
             }
         )
     events.sort(key=lambda item: (item["dayOffset"], item["time"]))
@@ -897,8 +913,8 @@ def normalized_content_plan(
                 "time": str(template["time"]),
                 "type": event_type,
                 "title": str(candidate.get("title") or template["title"])[:180],
-                "hook": str(candidate.get("hook") or template["hook"])[:500],
-                "cta": str(candidate.get("cta") or template["cta"])[:500],
+                "hook": str(candidate.get("hook") or template["hook"])[:2200],
+                "cta": "",
             }
         )
     posting_slots = generated.get("postingSlots")
@@ -1610,8 +1626,11 @@ async def generate_content_plan(
                         "Les carrousels doivent être concrets, sauvegardables et plus nombreux qu'avant. "
                         "Prends parti pour une seule stratégie cohérente avec la niche, le niveau du compte, l'objectif, "
                         "le format naturel, le temps disponible et la monétisation. Donne des titres spécifiques à cette niche, "
-                        "des hooks écrits mot pour mot, des exemples de contenu réutilisables et des CTA directement exécutables. "
-                        "Chaque événement doit pouvoir être publié sans phrase méta ni conseil vague. Utilise des moments réalistes de la journée. "
+                        "des exemples de contenu réutilisables et un déroulé complet dans le champ hook. Pour une vidéo, écris au moins quatre "
+                        "séquences minutées avec les mots d'ouverture, ce qui doit être montré et le montage. Pour un carrousel, écris chaque slide "
+                        "sur une ligne séparée avec son texte ou sa consigne exacte. Pour une story, écris chaque écran sur une ligne séparée. "
+                        "Ne donne jamais une intention vague comme 'commence par ces vérifications': écris réellement toutes les vérifications. "
+                        "Le champ cta doit rester vide. Chaque événement doit être directement productible sans phrase méta. Utilise des moments réalistes de la journée. "
                         "Ne parle ni d'éligibilité, ni de LIVE, ni de boutique sociale, ni de revenus détaillés. "
                         "N'invente aucune tendance ou donnée temps réel."
                     ),
