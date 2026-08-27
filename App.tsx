@@ -270,14 +270,7 @@ export default function App() {
 
     switch (activeTab) {
       case "video":
-        return (
-          <VideoLabScreen
-            onConnectSocial={connectSocial}
-            platform={platform}
-            socialHandle={socialHandle}
-            socialStatus={socialStatus}
-          />
-        );
+        return <VideoLabScreen platform={platform} />;
       case "ideas":
         return <IdeaLabScreen accountContext={accountContext} profile={creatorSetup} />;
       case "strategy":
