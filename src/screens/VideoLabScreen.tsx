@@ -28,16 +28,13 @@ import {
   listAnalysisHistory
 } from "../services/analysisHistory";
 import { palette, radius, spacing, typography } from "../theme";
-import { SocialConnectionStatus, SocialPlatform } from "../types";
+import { SocialPlatform } from "../types";
 
 type Props = {
   platform: SocialPlatform;
-  socialStatus: SocialConnectionStatus;
-  socialHandle?: string;
-  onConnectSocial: () => void;
 };
 
-export function VideoLabScreen({ platform, socialStatus, socialHandle, onConnectSocial }: Props) {
+export function VideoLabScreen({ platform }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const [assets, setAssets] = useState<ImagePicker.ImagePickerAsset[]>([]);
   const [report, setReport] = useState<ContentAnalysisReport | null>(null);
@@ -46,9 +43,6 @@ export function VideoLabScreen({ platform, socialStatus, socialHandle, onConnect
   const [analysisTop, setAnalysisTop] = useState(0);
   const [reportFromHistory, setReportFromHistory] = useState(false);
   const [shouldRevealReport, setShouldRevealReport] = useState(false);
-  const platformLabel = platform === "instagram" ? "Instagram" : "TikTok";
-  const platformIcon = platform === "instagram" ? "logo-instagram" : "logo-tiktok";
-  const connected = socialStatus === "connected";
 
   useEffect(() => {
     let active = true;
@@ -137,15 +131,6 @@ export function VideoLabScreen({ platform, socialStatus, socialHandle, onConnect
         title={<>Passe chaque slide au <Text style={styles.titleAccent}>crible.</Text></>}
         variant="audit"
       />
-
-      <TouchableOpacity disabled={socialStatus === "connecting"} onPress={onConnectSocial} style={[styles.socialButton, connected && styles.socialButtonConnected]}>
-        <View style={styles.socialIcon}><Ionicons color={palette.white} name={platformIcon} size={22} /></View>
-        <View style={styles.socialCopy}>
-          <Text style={styles.socialLabel}>{connected ? `${platformLabel} connecté` : `Connecter ${platformLabel}`}</Text>
-          <Text numberOfLines={1} style={styles.socialMeta}>{socialHandle || "Analyse adaptée à ta plateforme"}</Text>
-        </View>
-        <Ionicons color={connected ? palette.positive : palette.electric} name={connected ? "checkmark-circle" : "arrow-forward"} size={20} />
-      </TouchableOpacity>
 
       <TouchableOpacity onPress={pickContent} style={styles.uploadButton}>
         <View style={styles.uploadIcon}><Ionicons color={palette.ink} name="cloud-upload-outline" size={24} /></View>
@@ -245,14 +230,7 @@ export function VideoLabScreen({ platform, socialStatus, socialHandle, onConnect
             <Text style={styles.hookText}>{report.revenueCta}</Text>
           </GlassPanel>
         </View>
-      ) : (
-        <View style={styles.emptyCard}>
-          <View style={styles.emptyIcon}><Ionicons color={palette.mint} name="scan-circle-outline" size={27} /></View>
-          <View style={styles.emptyCopy}>
-            <Text style={styles.emptyTitle}>Dépose une photo ou un carrousel à analyser</Text>
-          </View>
-        </View>
-      )}
+      ) : null}
 
       <View style={styles.historySection}>
         <SectionHeader eyebrow="Bibliothèque" title="Posts et analyses enregistrés" action={`${history.length}`} />
@@ -288,12 +266,6 @@ const styles = StyleSheet.create({
   title: { ...typography.title, color: palette.white },
   titleAccent: { color: palette.electric },
   subtitle: { ...typography.body, color: palette.paperMuted },
-  socialButton: { alignItems: "center", backgroundColor: "rgba(8,25,59,0.76)", borderRadius: radius.md, flexDirection: "row", gap: spacing.md, minHeight: 72, padding: spacing.md },
-  socialButtonConnected: { backgroundColor: "rgba(12,43,84,0.82)" },
-  socialIcon: { alignItems: "center", backgroundColor: "rgba(35,103,243,0.5)", borderRadius: radius.sm, height: 43, justifyContent: "center", width: 43 },
-  socialCopy: { flex: 1, gap: 3, minWidth: 0 },
-  socialLabel: { color: palette.white, fontSize: 14, fontWeight: "800" },
-  socialMeta: { color: palette.muted, fontSize: 10, lineHeight: 14 },
   modeCard: { alignItems: "center", backgroundColor: "rgba(3,10,27,0.76)", borderColor: palette.line, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, minHeight: 72, paddingHorizontal: spacing.lg },
   modeCopy: { flex: 1, gap: 1 },
   modeText: { ...typography.caption, color: palette.white },
@@ -334,10 +306,5 @@ const styles = StyleSheet.create({
   storyStep: { alignItems: "flex-start", flexDirection: "row", gap: spacing.md },
   storyIndex: { ...typography.caption, color: palette.lemon, width: 18 },
   storyText: { ...typography.body, color: palette.white, flex: 1 },
-  ctaPanel: { gap: spacing.sm, padding: spacing.lg },
-  emptyCard: { alignItems: "center", backgroundColor: "rgba(4,14,35,0.54)", borderColor: palette.electric, borderRadius: radius.md, borderStyle: "dashed", borderWidth: 1, flexDirection: "row", gap: spacing.lg, minHeight: 144, padding: spacing.lg },
-  emptyIcon: { alignItems: "center", borderColor: palette.lineStrong, borderRadius: radius.pill, borderWidth: 1, height: 54, justifyContent: "center", width: 54 },
-  emptyCopy: { flex: 1, gap: 4 },
-  emptyTitle: { ...typography.h3, color: palette.white },
-  emptyText: { ...typography.body, color: palette.paperMuted, flex: 1 }
+  ctaPanel: { gap: spacing.sm, padding: spacing.lg }
 });

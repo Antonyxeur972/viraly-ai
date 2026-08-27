@@ -19,6 +19,11 @@ import { GrowthJourney, Recommendation, RecommendationRail } from "../components
 import { ScreenHero } from "../components/ScreenHero";
 import { SectionHeader } from "../components/SectionHeader";
 import {
+  GrowthAction,
+  GrowthActionPlan,
+  generateNextActions
+} from "../services/ai";
+import {
   ProfileAnalysisReport,
   requestProfileAnalysis
 } from "../services/profileAnalysis";
@@ -46,6 +51,16 @@ function compactAction(value: string) {
   return `${firstSentence.slice(0, 116).replace(/\s+\S*$/, "")}…`;
 }
 
+function actionHeading(value: string) {
+  const heading = value.split(/[.:]/)[0].trim();
+  if (heading.length <= 58) return heading;
+  return `${heading.slice(0, 54).replace(/\s+\S*$/, "")}…`;
+}
+
+function actionCycleDate(value: string) {
+  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" }).format(new Date(value));
+}
+
 export function DashboardScreen({
   platform,
   socialStatus,
@@ -63,6 +78,11 @@ export function DashboardScreen({
   const [revenueExpanded, setRevenueExpanded] = useState(false);
   const [profileReadOpen, setProfileReadOpen] = useState(false);
   const [selectedRecommendation, setSelectedRecommendation] = useState<Recommendation | null>(null);
+  const [actionPlan, setActionPlan] = useState<GrowthActionPlan | null>(null);
+  const [actionHistory, setActionHistory] = useState<AnalysisHistoryItem<GrowthActionPlan>[]>([]);
+  const [expandedExecution, setExpandedExecution] = useState<number | null>(0);
+  const [actionHistoryOpen, setActionHistoryOpen] = useState(false);
+  const [isGeneratingActions, setIsGeneratingActions] = useState(false);
   const connected = socialStatus === "connected";
   const platformLabel = platform === "instagram" ? "Instagram" : "TikTok";
   const platformIcon = platform === "instagram" ? "logo-instagram" : "logo-tiktok";
@@ -76,7 +96,26 @@ export function DashboardScreen({
   useEffect(() => {
     let active = true;
     listAnalysisHistory<ProfileAnalysisReport>("profile")
-      .then((items) => active && setHistory(items))
+      .then((items) => {
+        if (!active) return;
+        setHistory(items);
+        if (items[0]?.report) {
+          setReport(items[0].report);
+          onProfileAnalyzed(items[0].report);
+        }
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [onProfileAnalyzed]);
+
+  useEffect(() => {
+    let active = true;
+    listAnalysisHistory<GrowthActionPlan>("actions")
+      .then((items) => {
+        if (!active) return;
+        setActionHistory(items);
+        setActionPlan(items[0]?.report || null);
+      })
       .catch(() => {});
     return () => { active = false; };
   }, []);
@@ -104,6 +143,8 @@ export function DashboardScreen({
     try {
       const result = await requestProfileAnalysis(screenshot, platform);
       setReport(result);
+      setActionPlan(null);
+      setExpandedExecution(0);
       onProfileAnalyzed(result);
       setHistory((items) => [
         { id: result.analysisId, kind: "profile", createdAt: new Date().toISOString(), report: result },
@@ -114,6 +155,45 @@ export function DashboardScreen({
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const requestNextActions = async () => {
+    if (isGeneratingActions) return;
+    setIsGeneratingActions(true);
+    try {
+      const nextPlan = await generateNextActions(profile, report);
+      setActionPlan(nextPlan);
+      setExpandedExecution(0);
+      setActionHistory((items) => [
+        { id: nextPlan.analysisId, kind: "actions", createdAt: new Date().toISOString(), report: nextPlan },
+        ...items.filter((item) => item.id !== nextPlan.analysisId)
+      ].slice(0, 12));
+    } catch (error) {
+      Alert.alert("Actions suivantes", error instanceof Error ? error.message : "Génération impossible.");
+    } finally {
+      setIsGeneratingActions(false);
+    }
+  };
+
+  const removeActionCycle = (item: AnalysisHistoryItem<GrowthActionPlan>) => {
+    Alert.alert("Supprimer ce cycle ?", "Ses actions et échéances seront retirées de l'historique.", [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Supprimer",
+        style: "destructive",
+        onPress: () => {
+          deleteAnalysisHistory(item.id)
+            .then(() => {
+              setActionHistory((items) => {
+                const next = items.filter((entry) => entry.id !== item.id);
+                if (actionPlan?.analysisId === item.id) setActionPlan(next[0]?.report || null);
+                return next;
+              });
+            })
+            .catch((error) => Alert.alert("Historique", error instanceof Error ? error.message : "Suppression impossible."));
+        }
+      }
+    ]);
   };
 
   const removeHistoryItem = (item: AnalysisHistoryItem<ProfileAnalysisReport>) => {
@@ -167,7 +247,20 @@ export function DashboardScreen({
       value: "+31%"
     }
   ];
-  const executionActions = (report?.priorities?.slice(0, 4) || recommendations.map((item) => item.title)).map(compactAction);
+  const fallbackSuccessMetrics = [
+    "Le changement est visible et compréhensible sur mobile.",
+    "Le contenu est publié et ses signaux sont relevés après 24 heures.",
+    "Le test produit un résultat comparable: vues, sauvegardes ou réponses.",
+    "L'angle retenu est planifié une seconde fois."
+  ];
+  const executionActions: GrowthAction[] = actionPlan?.actions?.length
+    ? actionPlan.actions
+    : (report?.priorities?.slice(0, 4) || recommendations.map((item) => item.title)).map((instruction, index) => ({
+        title: actionHeading(instruction),
+        instruction,
+        deadlineDays: [2, 4, 7, 10][index] || 7,
+        successMetric: fallbackSuccessMetrics[index] || fallbackSuccessMetrics[2]
+      }));
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -209,16 +302,13 @@ export function DashboardScreen({
           </GlassPanel>
         ) : null}
         <ScreenHero
+          audienceMetric={report?.metrics.followers || profile.followers}
           eyebrow="Intelligence de croissance"
           icon="analytics-outline"
           metric={euro(revenue.monthlyHigh)}
           score={report?.score || 82}
-          subtitle={report
-            ? report.summary
-            : "Analyses avancées, recommandations concrètes et actions mesurables pour faire progresser ton contenu et tes revenus."}
-          title={report
-            ? <>Ton profil révèle <Text style={styles.titleAccent}>le prochain levier.</Text></>
-            : <>L'intelligence de ta <Text style={styles.titleAccent}>croissance.</Text></>}
+          subtitle="Analyses avancées, recommandations concrètes et actions mesurables pour faire progresser ton contenu et tes revenus."
+          title={<>L'intelligence de ta <Text style={styles.titleAccent}>croissance.</Text></>}
           variant="growth"
         />
         <NeonButton
@@ -304,15 +394,59 @@ export function DashboardScreen({
 
       <GrowthJourney active={report ? 2 : 1} />
 
-      <SectionHeader eyebrow="Priorité absolue" title="Ordre d'exécution" />
+      <SectionHeader eyebrow="Priorité absolue" title="Ordre d'exécution" action={actionPlan ? "Cycle IA" : "Priorités profil"} />
       <View style={styles.executionStack}>
         {executionActions.map((action, index) => (
-          <View key={`${action}-${index}`} style={[styles.executionRow, index === 0 && styles.executionRowFirst]}>
-            <Text style={[styles.executionIndex, index === 0 && styles.executionIndexFirst]}>{String(index + 1).padStart(2, "0")}</Text>
-            <Text style={styles.executionText}>{action}</Text>
-          </View>
+          <TouchableOpacity
+            accessibilityRole="button"
+            key={`${action.title}-${index}`}
+            onPress={() => setExpandedExecution((current) => current === index ? null : index)}
+            style={[styles.executionRow, index === 0 && styles.executionRowFirst]}
+          >
+            <View style={styles.executionTop}>
+              <Text style={[styles.executionIndex, index === 0 && styles.executionIndexFirst]}>{String(index + 1).padStart(2, "0")}</Text>
+              <View style={styles.executionCopy}>
+                <Text style={styles.executionText}>{action.title}</Text>
+                <Text style={styles.executionDeadline}>À faire sous {action.deadlineDays} jour{action.deadlineDays > 1 ? "s" : ""}</Text>
+              </View>
+              <Ionicons color={palette.electric} name={expandedExecution === index ? "chevron-up" : "chevron-down"} size={17} />
+            </View>
+            {expandedExecution === index ? (
+              <View style={styles.executionDetail}>
+                <Text style={styles.executionInstruction}>{action.instruction}</Text>
+                <Text style={styles.executionMetricLabel}>RÉSULTAT ATTENDU</Text>
+                <Text style={styles.executionMetric}>{action.successMetric}</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
         ))}
       </View>
+
+      <View style={styles.actionCycleTools}>
+        <TouchableOpacity disabled={isGeneratingActions} onPress={requestNextActions} style={styles.nextActionsButton}>
+          <View style={styles.nextActionsIcon}><Ionicons color={palette.white} name={isGeneratingActions ? "hourglass-outline" : "arrow-forward-circle"} size={18} /></View>
+          <Text style={styles.nextActionsText}>{isGeneratingActions ? "Préparation..." : "Actions suivantes"}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity accessibilityLabel="Historique des actions" onPress={() => setActionHistoryOpen((value) => !value)} style={styles.actionHistoryButton}>
+          <Ionicons color={palette.sky} name="time-outline" size={18} />
+          <Text style={styles.actionHistoryCount}>{actionHistory.length}</Text>
+        </TouchableOpacity>
+      </View>
+      {actionHistoryOpen ? (
+        <View style={styles.actionHistoryList}>
+          {actionHistory.length ? actionHistory.map((item, index) => (
+            <View key={item.id} style={styles.actionHistoryRow}>
+              <TouchableOpacity onPress={() => { setActionPlan(item.report); setExpandedExecution(0); }} style={styles.actionHistoryMain}>
+                <Text style={styles.actionHistoryTitle}>{index === 0 ? "Cycle actuel" : `Cycle du ${actionCycleDate(item.createdAt)}`}</Text>
+                <Text numberOfLines={2} style={styles.actionHistorySummary}>{item.report.summary}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity accessibilityLabel="Supprimer ce cycle" onPress={() => removeActionCycle(item)} style={styles.actionHistoryDelete}>
+                <Ionicons color={palette.muted} name="trash-outline" size={17} />
+              </TouchableOpacity>
+            </View>
+          )) : <Text style={styles.actionHistoryEmpty}>Le premier cycle généré sera conservé ici.</Text>}
+        </View>
+      ) : null}
 
       {screenshot ? (
         <GlassPanel glow style={styles.capturePanel} textureOpacity={0.18}>
@@ -322,7 +456,8 @@ export function DashboardScreen({
             <Text style={styles.captureMeta}>{isAnalyzing ? "Lecture du profil..." : "Lance l'analyse puis applique l'ordre ci-dessus."}</Text>
           </View>
           <TouchableOpacity disabled={isAnalyzing} onPress={analyze} style={styles.captureAction}>
-            <Ionicons color={palette.white} name={isAnalyzing ? "hourglass-outline" : "sparkles"} size={19} />
+            <Ionicons color={palette.white} name={isAnalyzing ? "hourglass-outline" : "scan-outline"} size={17} />
+            <Text style={styles.captureActionText}>{isAnalyzing ? "Analyse..." : "Analyser"}</Text>
           </TouchableOpacity>
         </GlassPanel>
       ) : null}
@@ -353,6 +488,9 @@ export function DashboardScreen({
           </TouchableOpacity>
           {profileReadOpen ? (
             <GlassPanel style={styles.analysisPanel} textureOpacity={0.12}>
+              <Text style={styles.analysisTitle}>SYNTHÈSE</Text>
+              <Text style={styles.analysisText}>{report.summary}</Text>
+              <View style={styles.divider} />
               <Text style={styles.analysisTitle}>POSITIONNEMENT</Text>
               <Text style={styles.analysisText}>{report.accountPositioning}</Text>
               <View style={styles.divider} />
@@ -429,17 +567,38 @@ const styles = StyleSheet.create({
   actionRevealLabel: { color: palette.electric, fontSize: 8, fontWeight: "900" },
   actionRevealText: { color: palette.white, fontSize: 13, fontWeight: "700", lineHeight: 18 },
   executionStack: { gap: spacing.xs, marginTop: -spacing.md },
-  executionRow: { alignItems: "flex-start", backgroundColor: "rgba(7,17,38,0.52)", borderRadius: radius.sm, flexDirection: "row", gap: spacing.md, padding: spacing.md },
+  executionRow: { backgroundColor: "rgba(7,17,38,0.52)", borderRadius: radius.sm, gap: spacing.sm, padding: spacing.md },
   executionRowFirst: { backgroundColor: "rgba(23,74,166,0.52)", shadowColor: palette.electric, shadowOpacity: 0.35, shadowRadius: 10 },
+  executionTop: { alignItems: "flex-start", flexDirection: "row", gap: spacing.md },
   executionIndex: { color: palette.muted, fontSize: 11, fontWeight: "900", width: 24 },
   executionIndexFirst: { color: palette.cyan },
+  executionCopy: { flex: 1, gap: 3, minWidth: 0 },
   executionText: { color: palette.white, flex: 1, fontSize: 12, fontWeight: "700", lineHeight: 18 },
+  executionDeadline: { color: palette.sky, fontSize: 9, fontWeight: "800" },
+  executionDetail: { borderTopColor: palette.line, borderTopWidth: 1, gap: spacing.xs, marginLeft: 36, paddingTop: spacing.sm },
+  executionInstruction: { color: palette.paperMuted, fontSize: 12, lineHeight: 18 },
+  executionMetricLabel: { color: palette.electric, fontSize: 8, fontWeight: "900", marginTop: spacing.xs },
+  executionMetric: { color: palette.white, fontSize: 11, fontWeight: "700", lineHeight: 17 },
+  actionCycleTools: { alignItems: "center", flexDirection: "row", gap: spacing.sm, marginTop: -spacing.md },
+  nextActionsButton: { alignItems: "center", backgroundColor: "rgba(20,78,179,0.72)", borderRadius: radius.pill, flex: 1, flexDirection: "row", gap: spacing.sm, minHeight: 44, paddingHorizontal: spacing.sm },
+  nextActionsIcon: { alignItems: "center", backgroundColor: palette.electric, borderRadius: radius.pill, height: 30, justifyContent: "center", width: 30 },
+  nextActionsText: { color: palette.white, flex: 1, fontSize: 12, fontWeight: "900" },
+  actionHistoryButton: { alignItems: "center", backgroundColor: "rgba(7,20,48,0.82)", borderRadius: radius.pill, flexDirection: "row", gap: 4, height: 44, justifyContent: "center", width: 62 },
+  actionHistoryCount: { color: palette.white, fontSize: 11, fontWeight: "900" },
+  actionHistoryList: { gap: spacing.xs, marginTop: -spacing.md },
+  actionHistoryRow: { alignItems: "center", backgroundColor: "rgba(5,15,36,0.72)", borderRadius: radius.sm, flexDirection: "row", gap: spacing.sm, padding: spacing.sm },
+  actionHistoryMain: { flex: 1, gap: 3, minWidth: 0 },
+  actionHistoryTitle: { color: palette.sky, fontSize: 10, fontWeight: "900" },
+  actionHistorySummary: { color: palette.paperMuted, fontSize: 10, lineHeight: 15 },
+  actionHistoryDelete: { alignItems: "center", height: 36, justifyContent: "center", width: 36 },
+  actionHistoryEmpty: { color: palette.muted, fontSize: 11, lineHeight: 17, padding: spacing.md, textAlign: "center" },
   capturePanel: { alignItems: "center", flexDirection: "row", gap: spacing.md, padding: spacing.md },
   captureThumb: { aspectRatio: 9 / 19.5, borderRadius: radius.sm, height: 72 },
   captureCopy: { flex: 1, gap: 3 },
   captureTitle: { color: palette.white, fontSize: 14, fontWeight: "800" },
   captureMeta: { color: palette.muted, fontSize: 10, lineHeight: 14 },
-  captureAction: { alignItems: "center", backgroundColor: palette.electric, borderRadius: radius.pill, height: 42, justifyContent: "center", width: 42 },
+  captureAction: { alignItems: "center", backgroundColor: palette.electric, borderRadius: radius.pill, flexDirection: "row", gap: 5, height: 42, justifyContent: "center", paddingHorizontal: spacing.md },
+  captureActionText: { color: palette.white, fontSize: 10, fontWeight: "900" },
   profileData: { backgroundColor: "rgba(7,17,38,0.56)", borderRadius: radius.md, flexDirection: "row", minHeight: 66, overflow: "hidden" },
   profileScore: { alignItems: "center", backgroundColor: "rgba(34,104,246,0.24)", justifyContent: "center", paddingHorizontal: spacing.md },
   profileScoreValue: { color: palette.white, fontSize: 20, fontWeight: "900" },

@@ -153,6 +153,10 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
     () => activePlan ? planDays(activePlan) : [],
     [activePlan]
   );
+  const reusableExample = useMemo(
+    () => activePlan?.events.find((event) => event.type === "carousel" || event.type === "video") || activePlan?.events[0] || null,
+    [activePlan]
+  );
 
   const buildPlan = async () => {
     if (isGenerating) return;
@@ -320,7 +324,14 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
           <GlassPanel glow style={styles.decisionPanel} textureOpacity={0.2}>
             <Text style={styles.decisionLabel}>STRATÉGIE RETENUE</Text>
             <ReadableText text={activePlan.strategyDecision} textStyle={styles.decision} />
-            <ReadableText text={activePlan.summary} textStyle={styles.summary} />
+            {reusableExample ? (
+              <View style={styles.reusableExample}>
+                <Text style={styles.exampleLabel}>EXEMPLE PRÊT À PUBLIER</Text>
+                <Text style={styles.exampleTitle}>{reusableExample.title}</Text>
+                <Text style={styles.exampleHook}>{reusableExample.hook}</Text>
+                <Text style={styles.exampleCta}>CTA · {reusableExample.cta}</Text>
+              </View>
+            ) : null}
           </GlassPanel>
 
           <View style={styles.mixRow}>
@@ -531,7 +542,11 @@ const styles = StyleSheet.create({
   decisionPanel: { gap: spacing.sm, padding: spacing.xl },
   decisionLabel: { ...typography.caption, color: palette.mint },
   decision: { color: palette.white, fontSize: 18, fontWeight: "700", lineHeight: 25 },
-  summary: { ...typography.body, color: palette.paperMuted },
+  reusableExample: { backgroundColor: "rgba(20,67,151,0.24)", borderRadius: radius.sm, gap: spacing.xs, marginTop: spacing.sm, padding: spacing.md },
+  exampleLabel: { color: palette.electric, fontSize: 8, fontWeight: "900" },
+  exampleTitle: { color: palette.white, fontSize: 14, fontWeight: "800", lineHeight: 20 },
+  exampleHook: { color: palette.paperMuted, fontSize: 12, lineHeight: 18 },
+  exampleCta: { color: palette.sky, fontSize: 11, fontWeight: "800", lineHeight: 16 },
   mixRow: { flexDirection: "row", gap: spacing.sm },
   mixItem: { alignItems: "center", backgroundColor: "rgba(7,17,38,0.82)", borderRadius: radius.md, flex: 1, gap: 4, minHeight: 112, paddingHorizontal: spacing.xs, paddingVertical: spacing.md },
   mixValue: { color: palette.white, fontSize: 27, fontWeight: "800", lineHeight: 32 },
