@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef } from "react";
-import { Animated, Easing, Image, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, Image, PanResponder, StyleSheet, Text, View } from "react-native";
 import Svg, {
   Circle,
   Defs,
@@ -23,9 +23,10 @@ type Props = {
   variant: CinematicVariant;
   score?: number;
   metric?: string;
+  audienceMetric?: string;
 };
 
-export function CinematicVisual({ variant, score = 82, metric }: Props) {
+export function CinematicVisual({ variant, score = 82, metric, audienceMetric }: Props) {
   const drift = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
   const orbit = useRef(new Animated.Value(0)).current;
@@ -68,7 +69,7 @@ export function CinematicVisual({ variant, score = 82, metric }: Props) {
   }, [drift, orbit, pulse, scan]);
 
   const motion = { drift, pulse, orbit, scan };
-  if (variant === "growth") return <GrowthDeck metric={metric} motion={motion} score={score} />;
+  if (variant === "growth") return <GrowthDeck audienceMetric={audienceMetric} metric={metric} motion={motion} score={score} />;
   if (variant === "coach") return <CoachOrb motion={motion} />;
   if (variant === "ideas") return <IdeaTrails motion={motion} />;
   if (variant === "audit") return <AuditLens motion={motion} />;
@@ -82,13 +83,42 @@ type Motion = {
   scan: Animated.Value;
 };
 
-function GrowthDeck({ motion, score, metric }: { motion: Motion; score: number; metric?: string }) {
+function useHorizontalCardDrag() {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const panResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 5 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+    onPanResponderMove: Animated.event([null, { dx: translateX }], { useNativeDriver: false }),
+    onPanResponderRelease: () => {
+      Animated.spring(translateX, { damping: 15, stiffness: 145, toValue: 0, useNativeDriver: true }).start();
+    },
+    onPanResponderTerminate: () => {
+      Animated.spring(translateX, { damping: 15, stiffness: 145, toValue: 0, useNativeDriver: true }).start();
+    }
+  })).current;
+  return { panHandlers: panResponder.panHandlers, translateX };
+}
+
+function GrowthDeck({
+  motion,
+  score,
+  metric,
+  audienceMetric
+}: {
+  motion: Motion;
+  score: number;
+  metric?: string;
+  audienceMetric?: string;
+}) {
   const circumference = 2 * Math.PI * 31;
   const dash = Math.max(0, Math.min(100, score)) / 100 * circumference;
+  const revenueCard = useHorizontalCardDrag();
+  const audienceCard = useHorizontalCardDrag();
+  const scoreCard = useHorizontalCardDrag();
 
   return (
     <View style={styles.scene}>
       <Animated.View
+        pointerEvents="none"
         style={[
           styles.deckGlow,
           {
@@ -98,12 +128,14 @@ function GrowthDeck({ motion, score, metric }: { motion: Motion; score: number; 
         ]}
       />
       <Animated.View
+        {...revenueCard.panHandlers}
         style={[
           styles.depthCard,
           styles.depthCardBack,
           {
             transform: [
               { perspective: 700 },
+              { translateX: revenueCard.translateX },
               { translateY: motion.drift.interpolate({ inputRange: [0, 1], outputRange: [2, -3] }) },
               { rotateY: "-12deg" },
               { rotateZ: "2deg" }
@@ -112,19 +144,21 @@ function GrowthDeck({ motion, score, metric }: { motion: Motion; score: number; 
         ]}
       >
         <LinearGradient colors={["rgba(22,49,100,0.96)", "rgba(3,10,27,0.98)"]} style={StyleSheet.absoluteFill} />
-        <Text style={styles.cardValue}>{metric || "2.31K€"}</Text>
+        <Text adjustsFontSizeToFit numberOfLines={1} style={styles.cardValue}>{metric || "2.31K€"}</Text>
         <Text style={styles.cardLabel}>Revenus / mois</Text>
         <Svg height="46" viewBox="0 0 80 46" width="100%">
           <Path d="M2 40 C18 36 22 26 34 29 C45 32 51 13 61 17 C69 19 73 8 79 3" fill="none" stroke={palette.positive} strokeLinecap="round" strokeWidth="3" />
         </Svg>
       </Animated.View>
       <Animated.View
+        {...audienceCard.panHandlers}
         style={[
           styles.depthCard,
           styles.depthCardMiddle,
           {
             transform: [
               { perspective: 700 },
+              { translateX: audienceCard.translateX },
               { translateY: motion.drift.interpolate({ inputRange: [0, 1], outputRange: [-2, 3] }) },
               { rotateY: "-9deg" },
               { rotateZ: "1deg" }
@@ -133,19 +167,21 @@ function GrowthDeck({ motion, score, metric }: { motion: Motion; score: number; 
         ]}
       >
         <LinearGradient colors={["rgba(22,49,100,0.98)", "rgba(3,10,27,0.98)"]} style={StyleSheet.absoluteFill} />
-        <Text style={styles.cardValue}>+1.2K</Text>
+        <Text adjustsFontSizeToFit numberOfLines={1} style={styles.cardValue}>{audienceMetric || "+1.2K"}</Text>
         <Text style={styles.cardLabel}>Abonnés</Text>
         <View style={styles.bars}>
           {[16, 25, 20, 34, 43].map((height, index) => <View key={index} style={[styles.bar, { height }]} />)}
         </View>
       </Animated.View>
       <Animated.View
+        {...scoreCard.panHandlers}
         style={[
           styles.depthCard,
           styles.depthCardFront,
           {
             transform: [
               { perspective: 700 },
+              { translateX: scoreCard.translateX },
               { translateY: motion.drift.interpolate({ inputRange: [0, 1], outputRange: [3, -3] }) },
               { rotateY: "-5deg" },
               { rotateZ: "-1deg" }
@@ -184,6 +220,7 @@ function GrowthDeck({ motion, score, metric }: { motion: Motion; score: number; 
         />
       </Animated.View>
       <Animated.View
+        pointerEvents="none"
         style={[
           styles.particleOrbit,
           { transform: [{ rotate: motion.orbit.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) }] }

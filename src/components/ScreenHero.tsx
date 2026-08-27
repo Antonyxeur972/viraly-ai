@@ -13,10 +13,11 @@ type Props = {
   variant?: CinematicVariant;
   score?: number;
   metric?: string;
+  audienceMetric?: string;
   wide?: boolean;
 };
 
-export function ScreenHero({ eyebrow, title, subtitle, variant = "plan", score, metric, wide = false }: Props) {
+export function ScreenHero({ eyebrow, title, subtitle, variant = "plan", score, metric, audienceMetric, wide = false }: Props) {
   const entrance = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -49,8 +50,8 @@ export function ScreenHero({ eyebrow, title, subtitle, variant = "plan", score, 
         <Text style={styles.subtitle}>{subtitle}</Text>
       </View>
 
-      <View pointerEvents="none" style={[styles.visual, wide && styles.visualWide]}>
-        <CinematicVisual metric={metric} score={score} variant={variant} />
+      <View pointerEvents={variant === "growth" ? "box-none" : "none"} style={[styles.visual, wide && styles.visualWide]}>
+        <CinematicVisual audienceMetric={audienceMetric} metric={metric} score={score} variant={variant} />
       </View>
     </Animated.View>
   );
