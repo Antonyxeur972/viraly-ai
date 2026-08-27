@@ -116,6 +116,15 @@ function groupEvents(events: CalendarEvent[]) {
   }, {});
 }
 
+function executionLabel(event: CalendarEvent, events: CalendarEvent[]) {
+  const ordered = events.slice().sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+  const sameKind = event.type === "story"
+    ? ordered.filter((item) => item.type === "story")
+    : ordered.filter((item) => item.type === "video" || item.type === "carousel");
+  const index = Math.max(0, sameKind.findIndex((item) => item.id === event.id));
+  return `${event.type === "story" ? "STORY" : "POST"} ${index + 1}`;
+}
+
 export function StrategyScreen({ profile, accountContext, onResetCreatorProfile }: Props) {
   const [plans, setPlans] = useState<ContentPlan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
@@ -326,10 +335,9 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
             <ReadableText text={activePlan.strategyDecision} textStyle={styles.decision} />
             {reusableExample ? (
               <View style={styles.reusableExample}>
-                <Text style={styles.exampleLabel}>EXEMPLE PRÊT À PUBLIER</Text>
+                <Text style={styles.exampleLabel}>{executionLabel(reusableExample, activePlan.events)} · EXEMPLE PRÊT À PRODUIRE</Text>
                 <Text style={styles.exampleTitle}>{reusableExample.title}</Text>
-                <Text style={styles.exampleHook}>{reusableExample.hook}</Text>
-                <Text style={styles.exampleCta}>CTA · {reusableExample.cta}</Text>
+                <ReadableText text={reusableExample.hook} textStyle={styles.exampleHook} />
               </View>
             ) : null}
           </GlassPanel>
@@ -392,11 +400,11 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
                           <View style={styles.eventCopy}>
                             <View style={styles.typeLine}>
                               <Ionicons color={palette.mint} name={meta.icon} size={15} />
-                              <Text style={styles.typeLabel}>{meta.label}</Text>
+                              <Text style={styles.typeLabel}>{executionLabel(event, activePlan.events)} · {meta.label}</Text>
                             </View>
                             <Text style={styles.eventTitle}>{event.title}</Text>
-                            <Text style={styles.eventHook}>{event.hook}</Text>
-                            <Text style={styles.eventCta}>CTA · {event.cta}</Text>
+                            <Text style={styles.executionPlanLabel}>PLAN COMPLET</Text>
+                            <ReadableText text={event.hook} textStyle={styles.eventHook} />
                           </View>
                         </View>
                       );
@@ -491,11 +499,11 @@ export function StrategyScreen({ profile, accountContext, onResetCreatorProfile 
                             <View key={event.id} style={styles.detailEventRow}>
                               <View style={styles.detailEventMeta}>
                                 <Ionicons color={palette.mint} name={meta.icon} size={15} />
-                                <Text style={styles.detailEventDate}>{shortDate(event.date)} · {event.time}</Text>
+                                <Text style={styles.detailEventDate}>{executionLabel(event, plan.events)} · {shortDate(event.date)} · {event.time}</Text>
                               </View>
                               <Text style={styles.detailEventTitle}>{event.title}</Text>
-                              <Text style={styles.detailText}>Hook : {event.hook}</Text>
-                              <Text style={styles.detailCta}>CTA : {event.cta}</Text>
+                              <Text style={styles.executionPlanLabel}>PLAN COMPLET</Text>
+                              <ReadableText text={event.hook} textStyle={styles.detailText} />
                             </View>
                           );
                         })}
@@ -546,7 +554,6 @@ const styles = StyleSheet.create({
   exampleLabel: { color: palette.electric, fontSize: 8, fontWeight: "900" },
   exampleTitle: { color: palette.white, fontSize: 14, fontWeight: "800", lineHeight: 20 },
   exampleHook: { color: palette.paperMuted, fontSize: 12, lineHeight: 18 },
-  exampleCta: { color: palette.sky, fontSize: 11, fontWeight: "800", lineHeight: 16 },
   mixRow: { flexDirection: "row", gap: spacing.sm },
   mixItem: { alignItems: "center", backgroundColor: "rgba(7,17,38,0.82)", borderRadius: radius.md, flex: 1, gap: 4, minHeight: 112, paddingHorizontal: spacing.xs, paddingVertical: spacing.md },
   mixValue: { color: palette.white, fontSize: 27, fontWeight: "800", lineHeight: 32 },
@@ -572,8 +579,8 @@ const styles = StyleSheet.create({
   typeLine: { alignItems: "center", flexDirection: "row", gap: spacing.xs },
   typeLabel: { ...typography.caption, color: palette.mint },
   eventTitle: { ...typography.h3, color: palette.white },
+  executionPlanLabel: { color: palette.electric, fontSize: 8, fontWeight: "900", marginTop: spacing.xs },
   eventHook: { color: palette.paperMuted, fontSize: 13, lineHeight: 19 },
-  eventCta: { color: palette.sky, fontSize: 11, fontWeight: "700", lineHeight: 16 },
   restRow: { alignItems: "center", backgroundColor: "rgba(7,17,38,0.38)", borderRadius: radius.md, flexDirection: "row", gap: spacing.sm, minHeight: 54, padding: spacing.md },
   restText: { color: palette.muted, flex: 1, fontSize: 12, lineHeight: 17 },
   focusList: { gap: spacing.xs },
@@ -607,6 +614,5 @@ const styles = StyleSheet.create({
   detailEventRow: { backgroundColor: "rgba(13,31,65,0.48)", borderRadius: radius.sm, gap: spacing.xs, padding: spacing.md },
   detailEventMeta: { alignItems: "center", flexDirection: "row", gap: spacing.xs },
   detailEventDate: { ...typography.caption, color: palette.mint },
-  detailEventTitle: { ...typography.h3, color: palette.white },
-  detailCta: { color: palette.sky, fontSize: 12, fontWeight: "700", lineHeight: 17 }
+  detailEventTitle: { ...typography.h3, color: palette.white }
 });

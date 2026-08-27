@@ -106,12 +106,13 @@ export function CoachScreen({ profile, accountContext }: Props) {
       />
 
       <GlassPanel style={styles.contextPanel} textureOpacity={0.08}>
-        <View style={styles.contextRadar}>
-          <View style={styles.radarRingOuter} />
-          <View style={styles.radarRingInner} />
-          <View style={styles.radarAxisH} />
-          <View style={styles.radarAxisV} />
-          <Ionicons color={palette.electric} name="person" size={20} />
+        <View style={styles.contextAvatar}>
+          <View style={styles.avatarAura} />
+          <View style={styles.avatarHead} />
+          <View style={styles.avatarBody}>
+            <Ionicons color={palette.cyan} name="sparkles" size={11} />
+          </View>
+          <View style={styles.avatarStatus} />
         </View>
         <View style={styles.contextCopy}>
           <View style={styles.contextTop}>
@@ -249,11 +250,11 @@ const styles = StyleSheet.create({
   titleAccent: { color: palette.electric },
   subtitle: { ...typography.body, color: palette.paperMuted },
   contextPanel: { alignItems: "center", flexDirection: "row", gap: spacing.md, minHeight: 112, padding: spacing.lg },
-  contextRadar: { alignItems: "center", height: 68, justifyContent: "center", position: "relative", width: 68 },
-  radarRingOuter: { borderColor: "rgba(44,139,255,0.64)", borderRadius: radius.pill, borderWidth: 1, height: 62, position: "absolute", width: 62 },
-  radarRingInner: { borderColor: "rgba(62,193,255,0.34)", borderRadius: radius.pill, borderWidth: 1, height: 40, position: "absolute", width: 40 },
-  radarAxisH: { backgroundColor: palette.electric, height: 1, left: 2, opacity: 0.7, position: "absolute", right: 2 },
-  radarAxisV: { backgroundColor: palette.electric, bottom: 2, opacity: 0.7, position: "absolute", top: 2, width: 1 },
+  contextAvatar: { alignItems: "center", height: 68, justifyContent: "center", position: "relative", width: 68 },
+  avatarAura: { backgroundColor: "rgba(28,102,255,0.24)", borderColor: "rgba(83,172,255,0.52)", borderRadius: radius.pill, borderWidth: 1, height: 62, position: "absolute", shadowColor: palette.electric, shadowOpacity: 0.8, shadowRadius: 16, width: 62 },
+  avatarHead: { backgroundColor: palette.electric, borderColor: palette.cyan, borderRadius: radius.pill, borderWidth: 2, height: 22, position: "absolute", shadowColor: palette.cyan, shadowOpacity: 0.9, shadowRadius: 8, top: 12, width: 22 },
+  avatarBody: { alignItems: "center", backgroundColor: "rgba(20,76,191,0.94)", borderColor: "rgba(99,185,255,0.7)", borderRadius: 18, borderWidth: 1, bottom: 8, height: 28, justifyContent: "center", position: "absolute", width: 40 },
+  avatarStatus: { backgroundColor: palette.positive, borderColor: palette.ink, borderRadius: radius.pill, borderWidth: 2, height: 11, position: "absolute", right: 5, top: 9, width: 11 },
   contextCopy: { flex: 1, gap: spacing.xs, minWidth: 0 },
   contextTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   contextLabel: { ...typography.caption, color: palette.mint },

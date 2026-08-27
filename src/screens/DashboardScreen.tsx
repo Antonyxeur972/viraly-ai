@@ -16,6 +16,7 @@ import { AnalysisHistoryList } from "../components/AnalysisHistoryList";
 import { GrowthChart } from "../components/AnalyticsCharts";
 import { NeonButton } from "../components/NeonButton";
 import { GrowthJourney, Recommendation, RecommendationRail } from "../components/PremiumWidgets";
+import { GrowthMetricKey } from "../components/CinematicVisuals";
 import { ScreenHero } from "../components/ScreenHero";
 import { SectionHeader } from "../components/SectionHeader";
 import {
@@ -42,14 +43,9 @@ type Props = {
   socialHandle?: string;
   profile: CreatorOnboardingProfile;
   onConnectSocial: () => void;
+  onPlatformChange: (platform: SocialPlatform) => void;
   onProfileAnalyzed: (report: ProfileAnalysisReport) => void;
 };
-
-function compactAction(value: string) {
-  const firstSentence = value.split(". ")[0].trim().replace(": ", ":\n");
-  if (firstSentence.length <= 120) return firstSentence;
-  return `${firstSentence.slice(0, 116).replace(/\s+\S*$/, "")}…`;
-}
 
 function actionHeading(value: string) {
   const heading = value.split(/[.:]/)[0].trim();
@@ -66,6 +62,7 @@ export function DashboardScreen({
   socialStatus,
   socialHandle,
   onConnectSocial,
+  onPlatformChange,
   onProfileAnalyzed,
   profile
 }: Props) {
@@ -75,6 +72,8 @@ export function DashboardScreen({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sourceMenuOpen, setSourceMenuOpen] = useState(false);
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [selectedGrowthMetric, setSelectedGrowthMetric] = useState<GrowthMetricKey | null>(null);
   const [revenueExpanded, setRevenueExpanded] = useState(false);
   const [profileReadOpen, setProfileReadOpen] = useState(false);
   const [selectedRecommendation, setSelectedRecommendation] = useState<Recommendation | null>(null);
@@ -120,28 +119,17 @@ export function DashboardScreen({
     return () => { active = false; };
   }, []);
 
-  const pickScreenshot = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert("Accès aux photos", "Autorise VIRALY AI à choisir la capture de ton profil.");
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: false,
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 1
-    });
-    if (!result.canceled) {
-      setScreenshot(result.assets[0]);
-      setReport(null);
-    }
-  };
+  useEffect(() => {
+    setScreenshot(null);
+    setReport(null);
+    setSelectedGrowthMetric(null);
+    setSourceMenuOpen(false);
+  }, [platform]);
 
-  const analyze = async () => {
-    if (!screenshot) return;
+  const analyzeScreenshot = async (asset: ImagePicker.ImagePickerAsset) => {
     setIsAnalyzing(true);
     try {
-      const result = await requestProfileAnalysis(screenshot, platform);
+      const result = await requestProfileAnalysis(asset, platform);
       setReport(result);
       setActionPlan(null);
       setExpandedExecution(0);
@@ -154,6 +142,27 @@ export function DashboardScreen({
       Alert.alert("Analyse du profil", error instanceof Error ? error.message : "Analyse impossible.");
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const pickScreenshot = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Accès aux photos", "Autorise VIRALY AI à choisir la capture de ton profil.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: false,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1
+    });
+    if (!result.canceled) {
+      const asset = result.assets[0];
+      setScreenshot(asset);
+      setReport(null);
+      setCaptureOpen(false);
+      setSourceMenuOpen(false);
+      await analyzeScreenshot(asset);
     }
   };
 
@@ -261,6 +270,27 @@ export function DashboardScreen({
         deadlineDays: [2, 4, 7, 10][index] || 7,
         successMetric: fallbackSuccessMetrics[index] || fallbackSuccessMetrics[2]
       }));
+  const selectedMetricInsight = selectedGrowthMetric === "score"
+    ? {
+        label: "CLARTÉ DU PROFIL",
+        value: report ? `${report.score}/100` : "Analyse requise",
+        detail: report?.summary || `Importe une capture ${platformLabel} pour mesurer la promesse, la lisibilité et la capacité du profil à convertir.`
+      }
+    : selectedGrowthMetric === "followers"
+      ? {
+          label: "AUDIENCE OBSERVÉE",
+          value: report?.metrics.followers || profile.followers,
+          detail: report?.metrics.followers
+            ? `Nombre lu sur la capture du profil ${platformLabel}. Cette donnée alimente les projections et le rythme de publication.`
+            : "Fourchette déclarée pendant la configuration. Une capture du profil permettra de la remplacer par la valeur visible."
+        }
+      : selectedGrowthMetric === "revenue"
+        ? {
+            label: "PROJECTION DE REVENU",
+            value: `${euro(revenue.monthlyLow)} – ${euro(revenue.monthlyHigh)} / mois`,
+            detail: `Projection calculée à partir de ${profile.nicheTopic || profile.niche}, de l'audience et du modèle ${profile.monetization}.`
+          }
+        : null;
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -289,10 +319,15 @@ export function DashboardScreen({
         </View>
         {menuOpen ? (
           <GlassPanel glow style={styles.quickMenu} textureOpacity={0.12}>
-            <TouchableOpacity onPress={() => { setMenuOpen(false); setSourceMenuOpen(true); }} style={styles.quickMenuRow}>
-              <Ionicons color={palette.electric} name={platformIcon} size={18} />
-              <Text style={styles.quickMenuText}>{connected ? `${platformLabel} connecté` : `Importer mon profil ${platformLabel}`}</Text>
-              <Ionicons color={palette.muted} name="chevron-forward" size={16} />
+            <TouchableOpacity onPress={() => { onPlatformChange("tiktok"); setMenuOpen(false); setSourceMenuOpen(true); }} style={styles.quickMenuRow}>
+              <Ionicons color={platform === "tiktok" ? palette.cyan : palette.paperMuted} name="logo-tiktok" size={18} />
+              <Text style={styles.quickMenuText}>Utiliser TikTok</Text>
+              <Ionicons color={platform === "tiktok" ? palette.positive : palette.muted} name={platform === "tiktok" ? "checkmark-circle" : "chevron-forward"} size={17} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => { onPlatformChange("instagram"); setMenuOpen(false); setSourceMenuOpen(true); }} style={styles.quickMenuRow}>
+              <Ionicons color={platform === "instagram" ? palette.cyan : palette.paperMuted} name="logo-instagram" size={18} />
+              <Text style={styles.quickMenuText}>Utiliser Instagram</Text>
+              <Ionicons color={platform === "instagram" ? palette.positive : palette.muted} name={platform === "instagram" ? "checkmark-circle" : "chevron-forward"} size={17} />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => { setMenuOpen(false); pickScreenshot(); }} style={styles.quickMenuRow}>
               <Ionicons color={palette.cyan} name="images-outline" size={18} />
@@ -306,11 +341,25 @@ export function DashboardScreen({
           eyebrow="Intelligence de croissance"
           icon="analytics-outline"
           metric={euro(revenue.monthlyHigh)}
-          score={report?.score || 82}
+          onGrowthMetricPress={setSelectedGrowthMetric}
+          score={report?.score}
           subtitle="Analyses avancées, recommandations concrètes et actions mesurables pour faire progresser ton contenu et tes revenus."
           title={<>L'intelligence de ta <Text style={styles.titleAccent}>croissance.</Text></>}
           variant="growth"
         />
+        {selectedMetricInsight ? (
+          <View style={styles.metricInsight}>
+            <View style={styles.metricInsightMark}><Ionicons color={palette.white} name="analytics" size={18} /></View>
+            <View style={styles.metricInsightCopy}>
+              <Text style={styles.metricInsightLabel}>{selectedMetricInsight.label}</Text>
+              <Text style={styles.metricInsightValue}>{selectedMetricInsight.value}</Text>
+              <Text style={styles.metricInsightDetail}>{selectedMetricInsight.detail}</Text>
+            </View>
+            <TouchableOpacity accessibilityLabel="Fermer le détail" onPress={() => setSelectedGrowthMetric(null)} style={styles.metricInsightClose}>
+              <Ionicons color={palette.muted} name="close" size={17} />
+            </TouchableOpacity>
+          </View>
+        ) : null}
         <NeonButton
           disabled={socialStatus === "connecting"}
           icon={connected ? "checkmark-circle" : platformIcon}
@@ -336,6 +385,26 @@ export function DashboardScreen({
               <Ionicons color={palette.electric} name="chevron-forward" size={18} />
             </TouchableOpacity>
           </GlassPanel>
+        ) : null}
+        {screenshot ? (
+          <View style={styles.captureDisclosure}>
+            <TouchableOpacity onPress={() => setCaptureOpen((value) => !value)} style={styles.captureDisclosureTop}>
+              <View style={[styles.captureStatus, report && styles.captureStatusReady]}>
+                <Ionicons color={palette.white} name={isAnalyzing ? "hourglass-outline" : report ? "checkmark" : "image-outline"} size={16} />
+              </View>
+              <View style={styles.captureDisclosureCopy}>
+                <Text style={styles.captureDisclosureTitle}>{isAnalyzing ? "Analyse du profil en cours" : report ? `Profil ${platformLabel} analysé` : "Capture importée"}</Text>
+                <Text style={styles.captureDisclosureMeta}>{isAnalyzing ? "Lecture de la bio, des compteurs et de la grille" : "Voir la capture utilisée"}</Text>
+              </View>
+              <Ionicons color={palette.electric} name={captureOpen ? "chevron-up" : "chevron-down"} size={17} />
+            </TouchableOpacity>
+            {captureOpen ? (
+              <View style={styles.capturePreview}>
+                <Image source={{ uri: screenshot.uri }} style={styles.capturePreviewImage} />
+                <Text style={styles.capturePreviewText}>{isAnalyzing ? "VIRALY lit les éléments visibles. Le bilan apparaîtra automatiquement." : report ? `Score ${report.score}/100 · ${report.metrics.followers || "audience non lisible"}` : "Cette capture est conservée pour relancer l'analyse si nécessaire."}</Text>
+              </View>
+            ) : null}
+          </View>
         ) : null}
       </View>
 
@@ -448,20 +517,6 @@ export function DashboardScreen({
         </View>
       ) : null}
 
-      {screenshot ? (
-        <GlassPanel glow style={styles.capturePanel} textureOpacity={0.18}>
-          <Image source={{ uri: screenshot.uri }} style={styles.captureThumb} />
-          <View style={styles.captureCopy}>
-            <Text style={styles.captureTitle}>Profil {platformLabel} prêt</Text>
-            <Text style={styles.captureMeta}>{isAnalyzing ? "Lecture du profil..." : "Lance l'analyse puis applique l'ordre ci-dessus."}</Text>
-          </View>
-          <TouchableOpacity disabled={isAnalyzing} onPress={analyze} style={styles.captureAction}>
-            <Ionicons color={palette.white} name={isAnalyzing ? "hourglass-outline" : "scan-outline"} size={17} />
-            <Text style={styles.captureActionText}>{isAnalyzing ? "Analyse..." : "Analyser"}</Text>
-          </TouchableOpacity>
-        </GlassPanel>
-      ) : null}
-
       {report ? (
         <>
           <View style={styles.profileData}>
@@ -473,11 +528,6 @@ export function DashboardScreen({
               </View>
             ))}
           </View>
-
-          <GlassPanel style={styles.nextPanel} textureOpacity={0.22}>
-            <Text style={styles.nextLabel}>PROCHAINE ACTION</Text>
-            <Text style={styles.nextText}>{compactAction(report.nextAction)}</Text>
-          </GlassPanel>
 
           <TouchableOpacity accessibilityRole="button" onPress={() => setProfileReadOpen((value) => !value)} style={styles.profileReadHeader}>
             <View>
@@ -535,12 +585,29 @@ const styles = StyleSheet.create({
   quickMenu: { gap: 0, marginBottom: spacing.sm, paddingHorizontal: spacing.md, zIndex: 8 },
   quickMenuRow: { alignItems: "center", borderBottomColor: palette.line, borderBottomWidth: 1, flexDirection: "row", gap: spacing.sm, minHeight: 52 },
   quickMenuText: { ...typography.caption, color: palette.white, flex: 1 },
+  metricInsight: { alignItems: "flex-start", backgroundColor: "rgba(6,20,49,0.92)", borderColor: palette.lineStrong, borderRadius: radius.sm, borderWidth: 1, flexDirection: "row", gap: spacing.sm, marginTop: -spacing.md, padding: spacing.md },
+  metricInsightMark: { alignItems: "center", backgroundColor: "rgba(36,104,244,0.72)", borderRadius: radius.sm, height: 36, justifyContent: "center", width: 36 },
+  metricInsightCopy: { flex: 1, gap: 3, minWidth: 0 },
+  metricInsightLabel: { color: palette.electric, fontSize: 8, fontWeight: "900" },
+  metricInsightValue: { color: palette.white, fontSize: 14, fontWeight: "900", lineHeight: 19 },
+  metricInsightDetail: { color: palette.paperMuted, fontSize: 10, lineHeight: 15 },
+  metricInsightClose: { alignItems: "center", height: 28, justifyContent: "center", width: 28 },
   sourceMenu: { gap: 0, overflow: "hidden", paddingHorizontal: spacing.md },
   sourceOption: { alignItems: "center", flexDirection: "row", gap: spacing.md, minHeight: 72 },
   sourceIcon: { alignItems: "center", backgroundColor: "rgba(36,104,244,0.18)", borderRadius: radius.sm, height: 42, justifyContent: "center", width: 42 },
   sourceCopy: { flex: 1, gap: 3, minWidth: 0 },
   sourceTitle: { color: palette.white, fontSize: 14, fontWeight: "800" },
   sourceMeta: { color: palette.muted, fontSize: 10, lineHeight: 14 },
+  captureDisclosure: { backgroundColor: "rgba(5,16,39,0.78)", borderRadius: radius.sm, overflow: "hidden" },
+  captureDisclosureTop: { alignItems: "center", flexDirection: "row", gap: spacing.sm, minHeight: 58, paddingHorizontal: spacing.md },
+  captureStatus: { alignItems: "center", backgroundColor: "rgba(37,102,230,0.78)", borderRadius: radius.sm, height: 32, justifyContent: "center", width: 32 },
+  captureStatusReady: { backgroundColor: "rgba(14,135,122,0.82)" },
+  captureDisclosureCopy: { flex: 1, gap: 2, minWidth: 0 },
+  captureDisclosureTitle: { color: palette.white, fontSize: 12, fontWeight: "800" },
+  captureDisclosureMeta: { color: palette.muted, fontSize: 9, lineHeight: 13 },
+  capturePreview: { alignItems: "center", borderTopColor: palette.line, borderTopWidth: 1, flexDirection: "row", gap: spacing.md, padding: spacing.md },
+  capturePreviewImage: { aspectRatio: 9 / 19.5, borderRadius: radius.sm, height: 116 },
+  capturePreviewText: { color: palette.paperMuted, flex: 1, fontSize: 11, lineHeight: 17 },
   revenuePanel: { gap: spacing.md, overflow: "hidden", padding: spacing.md },
   revenueAccent: { backgroundColor: palette.electric, bottom: 0, left: 0, position: "absolute", top: 0, width: 3 },
   revenueTop: { alignItems: "center", flexDirection: "row", gap: spacing.md },
@@ -592,13 +659,6 @@ const styles = StyleSheet.create({
   actionHistorySummary: { color: palette.paperMuted, fontSize: 10, lineHeight: 15 },
   actionHistoryDelete: { alignItems: "center", height: 36, justifyContent: "center", width: 36 },
   actionHistoryEmpty: { color: palette.muted, fontSize: 11, lineHeight: 17, padding: spacing.md, textAlign: "center" },
-  capturePanel: { alignItems: "center", flexDirection: "row", gap: spacing.md, padding: spacing.md },
-  captureThumb: { aspectRatio: 9 / 19.5, borderRadius: radius.sm, height: 72 },
-  captureCopy: { flex: 1, gap: 3 },
-  captureTitle: { color: palette.white, fontSize: 14, fontWeight: "800" },
-  captureMeta: { color: palette.muted, fontSize: 10, lineHeight: 14 },
-  captureAction: { alignItems: "center", backgroundColor: palette.electric, borderRadius: radius.pill, flexDirection: "row", gap: 5, height: 42, justifyContent: "center", paddingHorizontal: spacing.md },
-  captureActionText: { color: palette.white, fontSize: 10, fontWeight: "900" },
   profileData: { backgroundColor: "rgba(7,17,38,0.56)", borderRadius: radius.md, flexDirection: "row", minHeight: 66, overflow: "hidden" },
   profileScore: { alignItems: "center", backgroundColor: "rgba(34,104,246,0.24)", justifyContent: "center", paddingHorizontal: spacing.md },
   profileScoreValue: { color: palette.white, fontSize: 20, fontWeight: "900" },
@@ -606,9 +666,6 @@ const styles = StyleSheet.create({
   profileMetric: { flex: 1, justifyContent: "center", minWidth: 0, paddingHorizontal: spacing.xs },
   profileMetricValue: { color: palette.white, fontSize: 12, fontWeight: "800", textAlign: "center" },
   profileMetricLabel: { color: palette.muted, fontSize: 7, fontWeight: "800", marginTop: 2, textAlign: "center", textTransform: "uppercase" },
-  nextPanel: { gap: spacing.xs, padding: spacing.md },
-  nextLabel: { ...typography.caption, color: palette.electric, fontSize: 9 },
-  nextText: { color: palette.white, fontSize: 14, fontWeight: "700", lineHeight: 20 },
   profileReadHeader: { alignItems: "center", flexDirection: "row", justifyContent: "space-between", marginTop: -spacing.sm },
   profileReadEyebrow: { color: palette.electric, fontSize: 8, fontWeight: "900" },
   profileReadTitle: { color: palette.white, fontSize: 16, fontWeight: "800", marginTop: 3 },
