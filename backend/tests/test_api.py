@@ -48,6 +48,7 @@ def test_calendar_crud_is_persistent(client, auth_headers):
 
 def test_creator_profile_is_persistent(client, auth_headers):
     profile = {
+        "platform": "instagram",
         "goal": "revenue",
         "niche": "clear",
         "nicheTopic": "coaching TikTok local",
@@ -62,10 +63,12 @@ def test_creator_profile_is_persistent(client, auth_headers):
         "/api/v1/creator/profile", headers=auth_headers, json=profile
     )
     assert saved.status_code == 200
+    assert saved.json()["profile"]["platform"] == "instagram"
     assert saved.json()["profile"]["nicheTopic"] == "coaching TikTok local"
 
     loaded = client.get("/api/v1/creator/profile", headers=auth_headers)
     assert loaded.status_code == 200
+    assert loaded.json()["profile"]["platform"] == "instagram"
     assert loaded.json()["profile"]["format"] == "carousel"
 
     deleted = client.delete("/api/v1/creator/profile", headers=auth_headers)
