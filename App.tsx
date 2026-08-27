@@ -40,13 +40,17 @@ import {
   beginTikTokConnection,
   parseTikTokCallback
 } from "./src/services/tiktok";
+import {
+  beginInstagramConnection,
+  parseInstagramCallback
+} from "./src/services/instagram";
 import { listAnalysisHistory } from "./src/services/analysisHistory";
 import { ProfileAnalysisReport } from "./src/services/profileAnalysis";
 import { palette } from "./src/theme";
 import {
   CreatorOnboardingProfile,
   GoogleConnectionStatus,
-  TikTokConnectionStatus
+  SocialConnectionStatus
 } from "./src/types";
 
 type TabKey = "dashboard" | "video" | "ideas" | "strategy" | "coach";
@@ -61,8 +65,10 @@ const tabs: TabItem<TabKey>[] = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
-  const [tiktokStatus, setTikTokStatus] = useState<TikTokConnectionStatus>("idle");
+  const [tiktokStatus, setTikTokStatus] = useState<SocialConnectionStatus>("idle");
   const [tiktokHandle, setTikTokHandle] = useState<string | undefined>();
+  const [instagramStatus, setInstagramStatus] = useState<SocialConnectionStatus>("idle");
+  const [instagramHandle, setInstagramHandle] = useState<string | undefined>();
   const [googleStatus, setGoogleStatus] = useState<GoogleConnectionStatus>("idle");
   const [googleName, setGoogleName] = useState<string | undefined>();
   const [onboardingComplete, setOnboardingComplete] = useState(false);
@@ -71,6 +77,18 @@ export default function App() {
 
   useEffect(() => {
     const handleUrl = (url: string) => {
+      const instagramCallback = parseInstagramCallback(url);
+      if (instagramCallback) {
+        if (instagramCallback.connected) {
+          setInstagramHandle(instagramCallback.handle);
+          setInstagramStatus("connected");
+        } else {
+          setInstagramStatus("error");
+          Alert.alert("Connexion Instagram", instagramCallback.error || "La connexion a échoué.");
+        }
+        return;
+      }
+
       const callback = parseTikTokCallback(url);
 
       if (!callback) return;
@@ -99,6 +117,20 @@ export default function App() {
       Alert.alert(
         "Configuration TikTok requise",
         error instanceof Error ? error.message : "Impossible d'ouvrir TikTok."
+      );
+    }
+  };
+
+  const connectInstagram = async () => {
+    setInstagramStatus("connecting");
+
+    try {
+      await beginInstagramConnection();
+    } catch (error) {
+      setInstagramStatus("error");
+      Alert.alert(
+        "Configuration Instagram requise",
+        error instanceof Error ? error.message : "Impossible d'ouvrir Instagram."
       );
     }
   };
@@ -231,10 +263,21 @@ export default function App() {
 
   const screen = useMemo(() => {
     if (!creatorSetup) return null;
+    const platform = creatorSetup.platform || "tiktok";
+    const socialStatus = platform === "instagram" ? instagramStatus : tiktokStatus;
+    const socialHandle = platform === "instagram" ? instagramHandle : tiktokHandle;
+    const connectSocial = platform === "instagram" ? connectInstagram : connectTikTok;
 
     switch (activeTab) {
       case "video":
-        return <VideoLabScreen />;
+        return (
+          <VideoLabScreen
+            onConnectSocial={connectSocial}
+            platform={platform}
+            socialHandle={socialHandle}
+            socialStatus={socialStatus}
+          />
+        );
       case "ideas":
         return <IdeaLabScreen accountContext={accountContext} profile={creatorSetup} />;
       case "strategy":
@@ -251,15 +294,16 @@ export default function App() {
       default:
         return (
           <DashboardScreen
-            onConnectTikTok={connectTikTok}
+            onConnectSocial={connectSocial}
             onProfileAnalyzed={setAccountContext}
+            platform={platform}
             profile={creatorSetup}
-            tiktokHandle={tiktokHandle}
-            tiktokStatus={tiktokStatus}
+            socialHandle={socialHandle}
+            socialStatus={socialStatus}
           />
         );
     }
-  }, [accountContext, activeTab, creatorSetup, tiktokHandle, tiktokStatus]);
+  }, [accountContext, activeTab, creatorSetup, instagramHandle, instagramStatus, tiktokHandle, tiktokStatus]);
 
   return (
     <SafeAreaView style={styles.safeArea}>

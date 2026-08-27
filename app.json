@@ -14,7 +14,7 @@
         "NSCalendarsFullAccessUsageDescription": "VIRALY AI synchronise ton plan de publication avec le calendrier de ton téléphone.",
         "NSCalendarsUsageDescription": "VIRALY AI synchronise ton plan de publication avec le calendrier de ton téléphone.",
         "NSUserNotificationUsageDescription": "VIRALY AI t'envoie un rappel quand ton audience est susceptible d'être plus réceptive.",
-        "NSPhotoLibraryUsageDescription": "VIRALY AI analyse les captures de profil et carrousels photo choisis depuis votre galerie pour proposer des conseils de croissance TikTok."
+        "NSPhotoLibraryUsageDescription": "VIRALY AI analyse les captures de profil et contenus choisis depuis votre galerie pour proposer des conseils de croissance TikTok ou Instagram."
       }
     },
     "android": {
@@ -31,7 +31,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "VIRALY AI analyse les captures de profil et carrousels photo choisis depuis votre galerie pour proposer des conseils de croissance TikTok.",
+          "photosPermission": "VIRALY AI analyse les captures de profil et contenus choisis depuis votre galerie pour proposer des conseils de croissance TikTok ou Instagram.",
           "microphonePermission": false
         }
       ],
@@ -52,6 +52,7 @@
     ],
     "extra": {
       "tiktokRedirectUri": "viralyai://auth/tiktok",
+      "instagramRedirectUri": "viralyai://auth/instagram",
       "googleRedirectUri": "viralyai://auth/google",
       "eas": {
         "projectId": "944108e1-dc57-48e7-bd7b-11a7e1ebc705"
