@@ -70,11 +70,15 @@ export type RevenuePath = {
   potential: string;
 };
 
-export type TikTokConnectionStatus =
+export type SocialPlatform = "tiktok" | "instagram";
+
+export type SocialConnectionStatus =
   | "idle"
   | "connecting"
   | "connected"
   | "error";
+
+export type TikTokConnectionStatus = SocialConnectionStatus;
 
 export type GoogleConnectionStatus =
   | "idle"
@@ -83,6 +87,7 @@ export type GoogleConnectionStatus =
   | "error";
 
 export type CreatorOnboardingProfile = {
+  platform: SocialPlatform;
   goal: string;
   niche: string;
   nicheTopic?: string;
