@@ -3,7 +3,7 @@ import { Animated, StyleSheet, Text, View } from "react-native";
 
 import { palette, radius, spacing, typography } from "../theme";
 import { IconName } from "../types";
-import { CinematicVariant, CinematicVisual } from "./CinematicVisuals";
+import { CinematicVariant, CinematicVisual, GrowthMetricKey } from "./CinematicVisuals";
 
 type Props = {
   eyebrow: string;
@@ -14,10 +14,11 @@ type Props = {
   score?: number;
   metric?: string;
   audienceMetric?: string;
+  onGrowthMetricPress?: (metric: GrowthMetricKey) => void;
   wide?: boolean;
 };
 
-export function ScreenHero({ eyebrow, title, subtitle, variant = "plan", score, metric, audienceMetric, wide = false }: Props) {
+export function ScreenHero({ eyebrow, title, subtitle, variant = "plan", score, metric, audienceMetric, onGrowthMetricPress, wide = false }: Props) {
   const entrance = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export function ScreenHero({ eyebrow, title, subtitle, variant = "plan", score, 
       </View>
 
       <View pointerEvents={variant === "growth" ? "box-none" : "none"} style={[styles.visual, wide && styles.visualWide]}>
-        <CinematicVisual audienceMetric={audienceMetric} metric={metric} score={score} variant={variant} />
+        <CinematicVisual audienceMetric={audienceMetric} metric={metric} onGrowthMetricPress={onGrowthMetricPress} score={score} variant={variant} />
       </View>
     </Animated.View>
   );

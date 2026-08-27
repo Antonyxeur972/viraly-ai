@@ -83,7 +83,13 @@ function TabButton<T extends string>({
           { transform: [{ scale: focus.interpolate({ inputRange: [0, 1], outputRange: [1, 1.09] }) }] }
         ]}
       >
-        {renderIcon(item, focused)}
+        <LinearGradient
+          colors={focused ? ["rgba(55,153,255,0.98)", "rgba(17,81,218,0.86)", "rgba(5,25,70,0.94)"] : ["rgba(15,30,59,0.72)", "rgba(5,13,31,0.58)"]}
+          style={[styles.symbolFrame, focused && styles.symbolFrameActive]}
+        >
+          <View style={styles.symbolCore}>{renderIcon(item, focused)}</View>
+          {focused ? <><View style={styles.symbolOrbit} /><View style={styles.symbolDot} /></> : null}
+        </LinearGradient>
       </Animated.View>
       <Text style={[styles.label, focused && styles.labelActive]}>{item.label}</Text>
       {focused ? <View style={styles.activeIndicator} /> : null}
@@ -119,10 +125,9 @@ const styles = StyleSheet.create({
   },
   iconWrap: {
     alignItems: "center",
-    borderRadius: radius.sm,
-    height: 38,
+    height: 42,
     justifyContent: "center",
-    width: 46
+    width: 50
   },
   iconWrapActive: {
     elevation: 10,
@@ -131,6 +136,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.84,
     shadowRadius: 12
   },
+  symbolFrame: {
+    alignItems: "center",
+    borderColor: "rgba(91,132,198,0.22)",
+    borderRadius: 13,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: "center",
+    overflow: "visible",
+    position: "relative",
+    transform: [{ rotate: "-3deg" }],
+    width: 42
+  },
+  symbolFrameActive: {
+    borderColor: "rgba(118,216,255,0.86)",
+    shadowColor: palette.cyan,
+    shadowOpacity: 0.95,
+    shadowRadius: 10
+  },
+  symbolCore: { alignItems: "center", justifyContent: "center", transform: [{ rotate: "3deg" }] },
+  symbolOrbit: { borderColor: "rgba(145,222,255,0.44)", borderRadius: radius.pill, borderWidth: 1, height: 48, position: "absolute", transform: [{ rotate: "18deg" }], width: 31 },
+  symbolDot: { backgroundColor: palette.cyan, borderRadius: radius.pill, height: 4, position: "absolute", right: -3, shadowColor: palette.cyan, shadowOpacity: 1, shadowRadius: 6, top: 5, width: 4 },
   label: {
     ...typography.caption,
     color: palette.muted,

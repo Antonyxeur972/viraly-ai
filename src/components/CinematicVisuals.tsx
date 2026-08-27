@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useEffect, useRef } from "react";
-import { Animated, Easing, Image, PanResponder, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Easing, Image, PanResponder, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Svg, {
   Circle,
   Defs,
@@ -18,15 +18,17 @@ import Svg, {
 import { palette, radius } from "../theme";
 
 export type CinematicVariant = "growth" | "ideas" | "coach" | "plan" | "audit";
+export type GrowthMetricKey = "score" | "followers" | "revenue";
 
 type Props = {
   variant: CinematicVariant;
   score?: number;
   metric?: string;
   audienceMetric?: string;
+  onGrowthMetricPress?: (metric: GrowthMetricKey) => void;
 };
 
-export function CinematicVisual({ variant, score = 82, metric, audienceMetric }: Props) {
+export function CinematicVisual({ variant, score, metric, audienceMetric, onGrowthMetricPress }: Props) {
   const drift = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
   const orbit = useRef(new Animated.Value(0)).current;
@@ -69,7 +71,7 @@ export function CinematicVisual({ variant, score = 82, metric, audienceMetric }:
   }, [drift, orbit, pulse, scan]);
 
   const motion = { drift, pulse, orbit, scan };
-  if (variant === "growth") return <GrowthDeck audienceMetric={audienceMetric} metric={metric} motion={motion} score={score} />;
+  if (variant === "growth") return <GrowthDeck audienceMetric={audienceMetric} metric={metric} motion={motion} onMetricPress={onGrowthMetricPress} score={score} />;
   if (variant === "coach") return <CoachOrb motion={motion} />;
   if (variant === "ideas") return <IdeaTrails motion={motion} />;
   if (variant === "audit") return <AuditLens motion={motion} />;
@@ -83,12 +85,13 @@ type Motion = {
   scan: Animated.Value;
 };
 
-function useHorizontalCardDrag() {
+function useHorizontalCardDrag(onSwipe: (direction: -1 | 1) => void) {
   const translateX = useRef(new Animated.Value(0)).current;
   const panResponder = useRef(PanResponder.create({
     onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 5 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
     onPanResponderMove: Animated.event([null, { dx: translateX }], { useNativeDriver: false }),
-    onPanResponderRelease: () => {
+    onPanResponderRelease: (_, gesture) => {
+      if (Math.abs(gesture.dx) > 28) onSwipe(gesture.dx < 0 ? 1 : -1);
       Animated.spring(translateX, { damping: 15, stiffness: 145, toValue: 0, useNativeDriver: true }).start();
     },
     onPanResponderTerminate: () => {
@@ -102,18 +105,65 @@ function GrowthDeck({
   motion,
   score,
   metric,
-  audienceMetric
+  audienceMetric,
+  onMetricPress
 }: {
   motion: Motion;
-  score: number;
+  score?: number;
   metric?: string;
   audienceMetric?: string;
+  onMetricPress?: (metric: GrowthMetricKey) => void;
 }) {
+  const metricKeys: GrowthMetricKey[] = ["score", "followers", "revenue"];
+  const [activeIndex, setActiveIndex] = useState(0);
+  const slots = useRef([
+    new Animated.Value(0),
+    new Animated.Value(1),
+    new Animated.Value(2)
+  ]).current;
   const circumference = 2 * Math.PI * 31;
-  const dash = Math.max(0, Math.min(100, score)) / 100 * circumference;
-  const revenueCard = useHorizontalCardDrag();
-  const audienceCard = useHorizontalCardDrag();
-  const scoreCard = useHorizontalCardDrag();
+  const dash = Math.max(0, Math.min(100, score || 0)) / 100 * circumference;
+  const rotateDeck = (direction: -1 | 1) => {
+    setActiveIndex((current) => (current + direction + metricKeys.length) % metricKeys.length);
+  };
+  const scoreCard = useHorizontalCardDrag(rotateDeck);
+  const audienceCard = useHorizontalCardDrag(rotateDeck);
+  const revenueCard = useHorizontalCardDrag(rotateDeck);
+  const drags = [scoreCard, audienceCard, revenueCard];
+
+  useEffect(() => {
+    Animated.parallel(slots.map((slot, index) => Animated.spring(slot, {
+      damping: 19,
+      stiffness: 150,
+      toValue: (index - activeIndex + metricKeys.length) % metricKeys.length,
+      useNativeDriver: true
+    }))).start();
+  }, [activeIndex, slots]);
+
+  const cardStyle = (index: number) => {
+    const relative = (index - activeIndex + metricKeys.length) % metricKeys.length;
+    return [
+      styles.depthCard,
+      {
+        opacity: slots[index].interpolate({ inputRange: [0, 1, 2], outputRange: [1, 0.86, 0.62] }),
+        transform: [
+          { perspective: 700 },
+          { translateX: drags[index].translateX },
+          { translateX: slots[index].interpolate({ inputRange: [0, 1, 2], outputRange: [0, 58, 96] }) },
+          { translateY: slots[index].interpolate({ inputRange: [0, 1, 2], outputRange: [0, 10, 18] }) },
+          { scale: slots[index].interpolate({ inputRange: [0, 1, 2], outputRange: [1, 0.84, 0.7] }) },
+          { rotateY: slots[index].interpolate({ inputRange: [0, 1, 2], outputRange: ["-4deg", "-8deg", "-12deg"] }) },
+          { translateY: motion.drift.interpolate({ inputRange: [0, 1], outputRange: [3, -3] }) }
+        ],
+        zIndex: 3 - relative
+      }
+    ];
+  };
+
+  const selectMetric = (index: number) => {
+    setActiveIndex(index);
+    onMetricPress?.(metricKeys[index]);
+  };
 
   return (
     <View style={styles.scene}>
@@ -127,67 +177,11 @@ function GrowthDeck({
           }
         ]}
       />
-      <Animated.View
-        {...revenueCard.panHandlers}
-        style={[
-          styles.depthCard,
-          styles.depthCardBack,
-          {
-            transform: [
-              { perspective: 700 },
-              { translateX: revenueCard.translateX },
-              { translateY: motion.drift.interpolate({ inputRange: [0, 1], outputRange: [2, -3] }) },
-              { rotateY: "-12deg" },
-              { rotateZ: "2deg" }
-            ]
-          }
-        ]}
-      >
-        <LinearGradient colors={["rgba(22,49,100,0.96)", "rgba(3,10,27,0.98)"]} style={StyleSheet.absoluteFill} />
-        <Text adjustsFontSizeToFit numberOfLines={1} style={styles.cardValue}>{metric || "2.31K€"}</Text>
-        <Text style={styles.cardLabel}>Revenus / mois</Text>
-        <Svg height="46" viewBox="0 0 80 46" width="100%">
-          <Path d="M2 40 C18 36 22 26 34 29 C45 32 51 13 61 17 C69 19 73 8 79 3" fill="none" stroke={palette.positive} strokeLinecap="round" strokeWidth="3" />
-        </Svg>
-      </Animated.View>
-      <Animated.View
-        {...audienceCard.panHandlers}
-        style={[
-          styles.depthCard,
-          styles.depthCardMiddle,
-          {
-            transform: [
-              { perspective: 700 },
-              { translateX: audienceCard.translateX },
-              { translateY: motion.drift.interpolate({ inputRange: [0, 1], outputRange: [-2, 3] }) },
-              { rotateY: "-9deg" },
-              { rotateZ: "1deg" }
-            ]
-          }
-        ]}
-      >
-        <LinearGradient colors={["rgba(22,49,100,0.98)", "rgba(3,10,27,0.98)"]} style={StyleSheet.absoluteFill} />
-        <Text adjustsFontSizeToFit numberOfLines={1} style={styles.cardValue}>{audienceMetric || "+1.2K"}</Text>
-        <Text style={styles.cardLabel}>Abonnés</Text>
-        <View style={styles.bars}>
-          {[16, 25, 20, 34, 43].map((height, index) => <View key={index} style={[styles.bar, { height }]} />)}
-        </View>
-      </Animated.View>
-      <Animated.View
+      <AnimatedTouchable
         {...scoreCard.panHandlers}
-        style={[
-          styles.depthCard,
-          styles.depthCardFront,
-          {
-            transform: [
-              { perspective: 700 },
-              { translateX: scoreCard.translateX },
-              { translateY: motion.drift.interpolate({ inputRange: [0, 1], outputRange: [3, -3] }) },
-              { rotateY: "-5deg" },
-              { rotateZ: "-1deg" }
-            ]
-          }
-        ]}
+        activeOpacity={0.9}
+        onPress={() => selectMetric(0)}
+        style={cardStyle(0)}
       >
         <LinearGradient colors={["rgba(22,61,129,0.98)", "rgba(2,10,28,0.99)"]} style={StyleSheet.absoluteFill} />
         <Image resizeMode="cover" source={require("../../assets/viraly-mineral-texture.png")} style={styles.cardTexture} />
@@ -206,7 +200,7 @@ function GrowthDeck({
             </G>
           </Svg>
           <View style={styles.scoreCopy}>
-            <Text style={styles.scoreNumber}>{score}%</Text>
+            <Text style={styles.scoreNumber}>{score == null ? "--" : `${score}%`}</Text>
             <Text style={styles.scoreLabel}>Score viral</Text>
           </View>
         </View>
@@ -218,7 +212,37 @@ function GrowthDeck({
             { transform: [{ translateX: motion.scan.interpolate({ inputRange: [0, 1], outputRange: [-80, 125] }) }, { rotate: "18deg" }] }
           ]}
         />
-      </Animated.View>
+      </AnimatedTouchable>
+      <AnimatedTouchable
+        {...audienceCard.panHandlers}
+        activeOpacity={0.9}
+        onPress={() => selectMetric(1)}
+        style={cardStyle(1)}
+      >
+        <LinearGradient colors={["rgba(22,49,100,0.98)", "rgba(3,10,27,0.98)"]} style={StyleSheet.absoluteFill} />
+        <Image resizeMode="cover" source={require("../../assets/viraly-mineral-texture.png")} style={styles.cardTexture} />
+        <Text adjustsFontSizeToFit numberOfLines={1} style={styles.cardValue}>{audienceMetric || "--"}</Text>
+        <Text style={styles.cardLabel}>Abonnés observés</Text>
+        <View style={styles.bars}>
+          {[16, 25, 20, 34, 43].map((height, index) => <View key={index} style={[styles.bar, { height }]} />)}
+        </View>
+        <Text style={styles.cardHint}>Touchez pour le détail</Text>
+      </AnimatedTouchable>
+      <AnimatedTouchable
+        {...revenueCard.panHandlers}
+        activeOpacity={0.9}
+        onPress={() => selectMetric(2)}
+        style={cardStyle(2)}
+      >
+        <LinearGradient colors={["rgba(22,49,100,0.96)", "rgba(3,10,27,0.98)"]} style={StyleSheet.absoluteFill} />
+        <Image resizeMode="cover" source={require("../../assets/viraly-mineral-texture.png")} style={styles.cardTexture} />
+        <Text adjustsFontSizeToFit numberOfLines={1} style={styles.cardValue}>{metric || "--"}</Text>
+        <Text style={styles.cardLabel}>Revenus / mois</Text>
+        <Svg height="54" viewBox="0 0 80 46" width="100%">
+          <Path d="M2 40 C18 36 22 26 34 29 C45 32 51 13 61 17 C69 19 73 8 79 3" fill="none" stroke={palette.positive} strokeLinecap="round" strokeWidth="3" />
+        </Svg>
+        <Text style={styles.cardHint}>Touchez pour le détail</Text>
+      </AnimatedTouchable>
       <Animated.View
         pointerEvents="none"
         style={[
@@ -233,6 +257,8 @@ function GrowthDeck({
     </View>
   );
 }
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 function CoachOrb({ motion }: { motion: Motion }) {
   return (
@@ -436,13 +462,11 @@ function PlanSignal({ motion }: { motion: Motion }) {
 const styles = StyleSheet.create({
   scene: { height: 174, position: "relative", width: 200 },
   deckGlow: { backgroundColor: "rgba(14,104,255,0.48)", borderRadius: radius.pill, height: 92, left: 39, position: "absolute", shadowColor: palette.cyan, shadowOpacity: 0.9, shadowRadius: 28, top: 38, width: 92 },
-  depthCard: { borderColor: "rgba(105,165,255,0.34)", borderRadius: radius.sm, borderWidth: 1, overflow: "hidden", padding: 9, position: "absolute", shadowColor: palette.electric, shadowOpacity: 0.46, shadowRadius: 14 },
-  depthCardBack: { height: 104, right: 0, top: 27, width: 63, zIndex: 1 },
-  depthCardMiddle: { height: 121, right: 32, top: 19, width: 74, zIndex: 2 },
-  depthCardFront: { height: 144, left: 15, padding: 8, top: 7, width: 96, zIndex: 3 },
+  depthCard: { borderColor: "rgba(105,165,255,0.34)", borderRadius: radius.sm, borderWidth: 1, height: 144, left: 15, overflow: "hidden", padding: 8, position: "absolute", shadowColor: palette.electric, shadowOpacity: 0.46, shadowRadius: 14, top: 7, width: 96 },
   cardTexture: { ...StyleSheet.absoluteFillObject, opacity: 0.15 },
   cardValue: { color: palette.white, fontSize: 14, fontWeight: "900", marginTop: 6 },
   cardLabel: { color: palette.muted, fontSize: 7, fontWeight: "700", lineHeight: 10 },
+  cardHint: { bottom: 6, color: palette.sky, fontSize: 5, fontWeight: "800", left: 8, position: "absolute" },
   bars: { alignItems: "flex-end", flexDirection: "row", gap: 4, height: 52, marginTop: 8 },
   bar: { backgroundColor: palette.electric, borderRadius: 2, flex: 1, shadowColor: palette.cyan, shadowOpacity: 0.7, shadowRadius: 5 },
   scoreRing: { alignItems: "center", alignSelf: "center", height: 78, justifyContent: "center", marginTop: 3, position: "relative", width: 78 },
