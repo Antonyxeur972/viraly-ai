@@ -31,6 +31,7 @@ from .schemas import (
     CONTENT_SCHEMA,
     IDEA_SCHEMA,
     IDEAS_SCHEMA,
+    NEXT_ACTIONS_SCHEMA,
     ONBOARDING_SCHEMA,
     PROFILE_SCHEMA,
     STRATEGY_SCHEMA,
@@ -44,6 +45,7 @@ from .schemas import (
     CreatorProfile,
     GoogleCodeExchange,
     ManagedSessionExchange,
+    NextActionsRequest,
     PlanGenerationRequest,
 )
 
@@ -748,8 +750,16 @@ def fallback_content_plan(
                 "time": feed_times[index % len(feed_times)],
                 "type": event_type,
                 "title": title,
-                "hook": f"Si tu crées sur {niche}, cette décision peut améliorer {objective} dès ce cycle.",
-                "cta": f"Enregistre puis passe à l'étape liée à {monetization_label(profile)}.",
+                "hook": (
+                    f"3 erreurs concrètes en {niche}: la troisième fait perdre le plus de {objective}."
+                    if event_type == "video"
+                    else f"Slide 1 : « Tu veux améliorer {objective} en {niche} ? Commence par ces 5 vérifications. »"
+                ),
+                "cta": (
+                    "Commente « CHECK » pour recevoir la liste complète."
+                    if event_type == "video"
+                    else "Enregistre ce carrousel et applique le point 1 aujourd'hui."
+                ),
             }
         )
     for index in range(mix["stories"]):
@@ -793,6 +803,70 @@ def fallback_content_plan(
         "startDate": start.isoformat(),
         "endDate": (start + timedelta(days=days - 1)).isoformat(),
         "revenuePotentialAfter": revenue_potential_after(profile, account_context),
+        "source": "fallback_rules",
+    }
+
+
+def fallback_next_actions(
+    profile: CreatorProfile,
+    account_context: dict[str, Any] | None,
+    cycle: int,
+) -> dict[str, Any]:
+    niche = niche_label(profile)
+    next_action = str((account_context or {}).get("nextAction") or "").strip()
+    candidates = [
+        {
+            "title": "Clarifier la promesse du profil",
+            "instruction": next_action or (
+                f"Réécris la bio en une phrase: qui tu aides en {niche}, quel résultat concret tu apportes et quelle action faire ensuite."
+            ),
+            "successMetric": "Une personne extérieure comprend la promesse et l'action attendue en moins de 5 secondes.",
+        },
+        {
+            "title": "Publier une preuve concrète",
+            "instruction": (
+                f"Crée un contenu « avant / après » en {niche}. Montre le problème au début, la correction au milieu et le résultat observable à la fin."
+            ),
+            "successMetric": "Le contenu obtient au moins un commentaire, un enregistrement ou une demande liée au résultat montré.",
+        },
+        {
+            "title": "Tester un carrousel sauvegardable",
+            "instruction": (
+                f"Publie « 5 vérifications avant de commencer en {niche} ». Une idée par slide, puis une dernière slide qui demande d'enregistrer la checklist."
+            ),
+            "successMetric": "Le nombre d'enregistrements atteint au moins 2 % des vues après 24 heures.",
+        },
+        {
+            "title": "Installer un CTA unique",
+            "instruction": (
+                f"Sur les deux prochains contenus {niche}, utilise le même CTA: demander un mot-clé précis en commentaire pour identifier les personnes intéressées."
+            ),
+            "successMetric": "Au moins une réponse qualifiée au mot-clé ou une conversation utile est déclenchée.",
+        },
+        {
+            "title": "Répliquer le meilleur angle",
+            "instruction": (
+                "Repère le contenu récent qui a généré le plus de sauvegardes ou de commentaires, puis refais son angle avec un nouvel exemple sans changer le hook."
+            ),
+            "successMetric": "La seconde version égale ou dépasse le taux d'engagement de la première à 24 heures.",
+        },
+        {
+            "title": "Transformer les objections en contenu",
+            "instruction": (
+                f"Relève trois questions reçues sur {niche}. Réponds à la plus fréquente dans une vidéo courte avec une réponse nette et un exemple."
+            ),
+            "successMetric": "La publication déclenche au moins une nouvelle question exploitable pour le contenu suivant.",
+        },
+    ]
+    start = (cycle * 3) % len(candidates)
+    selected = [candidates[(start + index) % len(candidates)] for index in range(3)]
+    deadlines = [2, 4, 7]
+    return {
+        "summary": f"Cycle d'exécution {cycle + 1}: trois décisions mesurables pour faire progresser le compte {niche}.",
+        "actions": [
+            {**item, "deadlineDays": deadlines[index]}
+            for index, item in enumerate(selected)
+        ],
         "source": "fallback_rules",
     }
 
@@ -1188,10 +1262,52 @@ def list_analyses(
     user_id: str = Depends(require_user),
     db: Database = Depends(database),
 ):
-    allowed_kinds = {"profile", "content", "idea", "ideas", "onboarding", "coach"}
+    allowed_kinds = {"profile", "content", "idea", "ideas", "onboarding", "coach", "actions"}
     if kind and kind not in allowed_kinds:
         raise HTTPException(422, "Type d'analyse invalide.")
     return {"analyses": db.list_analyses(user_id, kind, limit)}
+
+
+@app.post("/api/v1/profile/actions/next")
+async def generate_next_actions(
+    request: NextActionsRequest,
+    user_id: str = Depends(require_user),
+    db: Database = Depends(database),
+    ai: AIEngine = Depends(ai_engine),
+):
+    account_context = request.account_context or db.latest_analysis(user_id, "profile")
+    previous_cycles = db.list_analyses(user_id, "actions", 4)
+    report = None
+    if has_ai_budget(db, user_id):
+        try:
+            report = await asyncio.wait_for(
+                ai.generate_json(
+                    model=settings.fast_model,
+                    feature="next_growth_actions",
+                    effort="low",
+                    verbosity="low",
+                    schema=NEXT_ACTIONS_SCHEMA,
+                    prompt=(
+                        "Génère le prochain cycle de 3 à 4 actions ordonnées pour ce créateur. "
+                        f"Profil: {compact_context(request.profile.model_dump())}. "
+                        f"Analyse du compte: {compact_context(account_context)}. "
+                        f"Cycles précédents à ne pas répéter: {compact_context(previous_cycles)}. "
+                        "Chaque titre doit être court. Chaque instruction doit dire exactement quoi modifier ou publier, "
+                        "avec un exemple adapté à la niche. Donne une échéance réaliste de 1 à 14 jours et une seule "
+                        "mesure de réussite observable. Ne propose aucune action déjà présente dans les cycles précédents."
+                    ),
+                ),
+                timeout=12,
+            )
+            used_model = str(report.pop("_model", settings.fast_model))
+            report["source"] = ai_provider_for_model(used_model)
+            db.record_ai_usage(user_id, "next-actions", used_model)
+        except (AIUnavailableError, TimeoutError):
+            report = None
+    if report is None:
+        report = fallback_next_actions(request.profile, account_context, len(previous_cycles))
+    report["analysisId"] = db.save_analysis(user_id, "actions", report)
+    return report
 
 
 @app.delete("/api/v1/analyses/{analysis_id}", status_code=204)
@@ -1494,7 +1610,8 @@ async def generate_content_plan(
                         "Les carrousels doivent être concrets, sauvegardables et plus nombreux qu'avant. "
                         "Prends parti pour une seule stratégie cohérente avec la niche, le niveau du compte, l'objectif, "
                         "le format naturel, le temps disponible et la monétisation. Donne des titres spécifiques à cette niche, "
-                        "des hooks prononçables et des CTA directement exécutables. Utilise des moments réalistes de la journée. "
+                        "des hooks écrits mot pour mot, des exemples de contenu réutilisables et des CTA directement exécutables. "
+                        "Chaque événement doit pouvoir être publié sans phrase méta ni conseil vague. Utilise des moments réalistes de la journée. "
                         "Ne parle ni d'éligibilité, ni de LIVE, ni de boutique sociale, ni de revenus détaillés. "
                         "N'invente aucune tendance ou donnée temps réel."
                     ),

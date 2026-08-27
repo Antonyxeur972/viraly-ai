@@ -50,6 +50,11 @@ class StrategyRequest(BaseModel):
     timezone: str = "Europe/Paris"
 
 
+class NextActionsRequest(BaseModel):
+    profile: CreatorProfile
+    account_context: dict[str, Any] | None = None
+
+
 class PlanGenerationRequest(StrategyRequest):
     starting_date: str
     days: Literal[7, 14, 30] = 7
@@ -258,6 +263,32 @@ STRATEGY_SCHEMA = {
                     "name": {"type": "string"}, "nextAction": {"type": "string"},
                     "contentDirection": {"type": "string"}, "range": {"type": "string"},
                     "basis": {"type": "string"},
+                },
+            },
+        },
+    },
+}
+
+
+NEXT_ACTIONS_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["summary", "actions"],
+    "properties": {
+        "summary": {"type": "string"},
+        "actions": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 4,
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["title", "instruction", "deadlineDays", "successMetric"],
+                "properties": {
+                    "title": {"type": "string"},
+                    "instruction": {"type": "string"},
+                    "deadlineDays": {"type": "integer", "minimum": 1, "maximum": 14},
+                    "successMetric": {"type": "string"},
                 },
             },
         },
