@@ -375,6 +375,108 @@ def idea_fallback(idea: str, profile: CreatorProfile) -> dict[str, Any]:
     }
 
 
+def niche_post_examples(niche: str) -> list[dict[str, str]]:
+    key = niche.lower()
+    if any(word in key for word in ("recette", "cuisine", "food", "pâtisserie", "antill")):
+        return [
+            {
+                "title": "Le colombo de poulet express qui garde une sauce intense",
+                "problem": "Ajouter les épices directement dans l'eau donne une sauce plate et trop liquide.",
+                "correction": "Fais revenir les épices 30 secondes avec l'oignon, ajoute le poulet, puis seulement 10 cl d'eau et laisse réduire sans couvercle.",
+                "result": "La sauce doit napper la cuillère et rester brillante, sans eau au fond de l'assiette.",
+            },
+            {
+                "title": "Des accras croustillants dehors et moelleux dedans",
+                "problem": "Une pâte trop liquide et une huile tiède rendent les accras gras et compacts.",
+                "correction": "Garde une pâte qui tient sur la cuillère, laisse-la reposer 20 minutes et cuis une petite portion test dans une huile à 175 °C.",
+                "result": "L'accra remonte en quelques secondes, dore uniformément et reste aéré à la coupe.",
+            },
+            {
+                "title": "Le riz créole qui reste parfaitement séparé",
+                "problem": "Trop remuer le riz pendant la cuisson libère l'amidon et colle les grains.",
+                "correction": "Rince jusqu'à obtenir une eau claire, dose une fois l'eau ajoutée, puis cuis à feu doux sans remuer avant le repos final.",
+                "result": "Après 5 minutes de repos, les grains se détachent à la fourchette sans devenir secs.",
+            },
+        ]
+    if any(word in key for word in ("sport", "fitness", "muscu", "running", "perte de poids")):
+        return [
+            {
+                "title": "Le squat qui cible enfin les jambes sans charger le bas du dos",
+                "problem": "Descendre en arrondissant le dos déplace l'effort et rend la répétition instable.",
+                "correction": "Écarte les pieds largeur d'épaules, verrouille le tronc, pousse les genoux dans l'axe des orteils et arrête la descente avant de perdre la posture.",
+                "result": "Filme une série de côté: le bassin et les épaules remontent ensemble sur chaque répétition.",
+            },
+            {
+                "title": "La séance de 12 minutes qui relance une semaine chargée",
+                "problem": "Attendre une heure libre transforme souvent une semaine imparfaite en semaine sans entraînement.",
+                "correction": "Enchaîne 4 tours: 10 fentes, 8 pompes inclinées, 12 hip hinges et 30 secondes de marche rapide, avec 30 secondes de repos.",
+                "result": "Termine les quatre tours en gardant deux répétitions de marge plutôt qu'en sacrifiant la technique.",
+            },
+        ]
+    if any(word in key for word in ("business", "argent", "marketing", "vente", "entrepreneur", "client")):
+        return [
+            {
+                "title": "La phrase qui transforme une bio floue en promesse commerciale",
+                "problem": "Dire seulement son métier n'explique ni pour qui l'offre existe ni le résultat obtenu.",
+                "correction": "Écris par exemple: J'aide les coiffeurs indépendants à remplir trois créneaux libres par semaine grâce à des vidéos locales, puis invite à demander l'audit du profil.",
+                "result": "Une personne extérieure doit pouvoir répéter la cible, le résultat et l'action attendue après cinq secondes.",
+            },
+            {
+                "title": "Le post preuve qui ouvre une conversation client",
+                "problem": "Un conseil abstrait montre des connaissances mais ne rassure pas sur la capacité à produire un résultat.",
+                "correction": "Présente le point de départ d'un cas, la décision prise, le changement observé et la limite du résultat en quatre écrans.",
+                "result": "Le lecteur comprend la méthode et peut répondre avec sa propre situation sans avoir besoin d'un argumentaire commercial.",
+            },
+        ]
+    if any(word in key for word in ("beauté", "coiff", "makeup", "maquillage", "skin", "mode")):
+        return [
+            {
+                "title": "La routine en trois gestes qui évite un résultat surchargé",
+                "problem": "Multiplier les couches masque la texture naturelle et fait moins bien tenir le résultat.",
+                "correction": "Prépare une base légère, travaille une zone à la fois puis ajoute seulement le produit qui corrige le besoin visible.",
+                "result": "Montre le même côté du visage avant et après, à la lumière naturelle et sans filtre.",
+            },
+        ]
+    return [
+        {
+            "title": f"La correction la plus utile à tester cette semaine en {niche}",
+            "problem": f"Le public applique souvent une méthode trop générale en {niche} sans vérifier le résultat attendu.",
+            "correction": f"Choisis un cas réel en {niche}, montre le point de départ, exécute une seule correction et explique chaque décision avec des mots simples.",
+            "result": "Compare le résultat avant et après avec le même cadre, puis nomme le signal concret qui prouve l'amélioration.",
+        },
+        {
+            "title": f"Le mini-test qui évite une mauvaise décision en {niche}",
+            "problem": "Prendre une décision sur une impression empêche de savoir ce qui produit réellement le changement.",
+            "correction": "Teste une seule variable pendant sept jours, garde le même format et relève la mesure utile 24 heures après chaque essai.",
+            "result": "Conserve la variante seulement si elle améliore la mesure choisie sur au moins deux publications comparables.",
+        },
+    ]
+
+
+def generated_idea_fallback(profile: CreatorProfile) -> dict[str, Any]:
+    niche = niche_label(profile)
+    example = niche_post_examples(niche)[0]
+    return {
+        "score": 82,
+        "summary": (
+            f"Un contenu de démonstration directement exploitable en {niche}: il part d'une erreur visible, "
+            "montre la correction dans l'ordre et se termine sur une preuve vérifiable."
+        ),
+        "optimizedHook": example["title"],
+        "scriptSteps": [
+            f"Ouverture · Affiche et dis exactement: « {example['title']} »",
+            f"Point de départ · « {example['problem']} » Montre la situation de près pendant que tu prononces cette phrase.",
+            f"Correction · « {example['correction']} » Filme chaque geste dans l'ordre, avec une coupe courte entre les étapes.",
+            f"Preuve · « {example['result']} » Place l'avant et l'après dans le même cadre pour rendre la différence lisible.",
+            "Fin · Résume la correction en une phrase et demande au public quel cas concret il veut voir traité ensuite.",
+        ],
+        "audiencePromise": f"Comprendre et reproduire une correction précise en {niche} dès aujourd'hui.",
+        "revenuePath": f"Faire de cette démonstration une preuve d'expertise reliée à {monetization_label(profile)}.",
+        "risks": ["Ne remplace pas la preuve par une affirmation.", "Garde une seule correction principale dans ce contenu."],
+        "source": "fallback_rules",
+    }
+
+
 def ideas_fallback(profile: CreatorProfile, count: int) -> dict[str, Any]:
     format_name = preferred_format(profile)
     niche = niche_label(profile)
@@ -737,22 +839,25 @@ def fallback_content_plan(
     type_indexes = {"video": 0, "carousel": 0}
 
     def execution_script(event_type: str, title: str, position: int) -> str:
+        example = niche_post_examples(niche)[position % len(niche_post_examples(niche))]
         if event_type == "video":
             return (
-                f"Séquence 1 · 0-2 s — Dis face caméra : « {title}. Voici le point qui change vraiment {objective}. »\n"
-                f"Séquence 2 · 3-8 s — Montre une erreur précise en {niche} à l'écran et nomme son effet concret.\n"
-                f"Séquence 3 · 9-18 s — Fais la correction en direct, étape par étape, avec un exemple adapté à {niche}.\n"
-                f"Séquence 4 · 19-26 s — Affiche le résultat avant/après et explique le signal à observer pour valider la correction.\n"
-                "Montage — Une coupe par idée, sous-titres sur les mots clés et aucun préambule avant la démonstration."
+                f"Post vidéo · Sujet — {example['title']}\n"
+                f"Séquence 1 · 0-2 s — Dis exactement : « {example['title']} » et montre immédiatement le résultat final.\n"
+                f"Séquence 2 · 3-8 s — Dis : « {example['problem']} » puis filme le problème dans un plan serré.\n"
+                f"Séquence 3 · 9-20 s — Dis : « {example['correction']} » et montre chaque étape dans le même ordre.\n"
+                f"Séquence 4 · 21-28 s — Dis : « {example['result']} » avec l'avant et l'après dans le même cadre.\n"
+                "Montage — Coupe tout préambule, sous-titre les mots décisifs et garde une seule idée par plan."
             )
         return (
-            f"Slide 1 — Écris exactement : « {title} »\n"
-            f"Slide 2 — Vérification 1 : la promesse nomme un résultat précis lié à {objective}, pas seulement le thème {niche}.\n"
-            f"Slide 3 — Vérification 2 : montre l'erreur visible que fait la cible aujourd'hui et son effet immédiat.\n"
-            f"Slide 4 — Vérification 3 : donne une correction réalisable en moins de 15 minutes, avec l'ordre exact des gestes.\n"
-            f"Slide 5 — Vérification 4 : ajoute un exemple concret de {niche} avec une situation de départ et un résultat attendu.\n"
-            "Slide 6 — Vérification 5 : indique la mesure à relever après 24 heures : sauvegardes, réponses ou clics qualifiés.\n"
-            f"Slide 7 — Résume la méthode en une phrase : « problème précis → correction visible → mesure ». Variation {position + 1}."
+            f"Post carrousel · Sujet — {example['title']}\n"
+            f"Slide 1 — « {example['title']} »\n"
+            f"Slide 2 — « L'erreur : {example['problem']} »\n"
+            f"Slide 3 — « Commence ici : {example['correction'].split('.')[0]}. »\n"
+            f"Slide 4 — « Puis applique la suite : {example['correction']} »\n"
+            f"Slide 5 — « Le résultat à rechercher : {example['result']} »\n"
+            f"Slide 6 — « À retenir : une erreur visible, une correction précise, une preuve dans le même cadre. »\n"
+            f"Slide 7 — « Quel cas concret en {niche} veux-tu que je transforme en prochain guide ? »"
         )
 
     for index, event_type in enumerate(feed_types):
@@ -761,6 +866,7 @@ def fallback_content_plan(
         type_indexes[event_type] += 1
         titles = video_titles if event_type == "video" else carousel_titles
         title = titles[type_index % len(titles)]
+        title = niche_post_examples(niche)[index % len(niche_post_examples(niche))]["title"]
         series = type_index // len(titles)
         if series:
             title = f"{title} · Partie {series + 1}"
@@ -1515,6 +1621,48 @@ async def generate_ideas(
     return report
 
 
+@app.post("/api/v1/ideas/generate-one")
+async def generate_one_idea(
+    request: IdeaGenerationRequest,
+    user_id: str = Depends(require_user),
+    db: Database = Depends(database),
+    ai: AIEngine = Depends(ai_engine),
+):
+    report = None
+    if has_ai_budget(db, user_id):
+        try:
+            report = await ai.generate_json(
+                model=settings.strategy_model,
+                feature="single_idea_generation",
+                effort="medium",
+                verbosity="medium",
+                schema=IDEA_SCHEMA,
+                prompt=(
+                    "Crée une seule idée de contenu complète, spécifique et immédiatement publiable. "
+                    f"Profil: {compact_context(request.profile.model_dump())}. "
+                    f"Analyse du compte: {compact_context(request.account_context)}. "
+                    "Choisis toi-même un sujet concret propre à la niche, pas une catégorie générique. "
+                    "Le hook doit être le texte final prononcé ou affiché. Le résumé explique l'angle retenu. "
+                    "Dans scriptSteps, livre tout le contenu: pour une vidéo, écris les paroles, plans et temps; "
+                    "pour un carrousel, écris le texte final de chaque slide dans l'ordre. Aucun placeholder, aucune instruction vague "
+                    "comme 'montre une erreur' sans nommer précisément cette erreur. Termine par une action naturelle et cohérente avec l'objectif. "
+                    "La promesse, le chemin de conversion et les risques doivent être propres à ce contenu."
+                ),
+            )
+            used_model = str(report.pop("_model", settings.strategy_model))
+            report["source"] = ai_provider_for_model(used_model)
+            db.record_ai_usage(user_id, "single-idea-generation", used_model)
+        except AIUnavailableError:
+            report = None
+    if report is None:
+        report = generated_idea_fallback(request.profile)
+    history_title = str(report.get("optimizedHook") or "Idée de contenu")[:120]
+    report["idea"] = history_title
+    report["historyTitle"] = history_title
+    report["analysisId"] = db.save_analysis(user_id, "idea", report)
+    return report
+
+
 @app.post("/api/v1/coach")
 async def coach(
     request: CoachRequest,
@@ -1626,11 +1774,13 @@ async def generate_content_plan(
                         "Les carrousels doivent être concrets, sauvegardables et plus nombreux qu'avant. "
                         "Prends parti pour une seule stratégie cohérente avec la niche, le niveau du compte, l'objectif, "
                         "le format naturel, le temps disponible et la monétisation. Donne des titres spécifiques à cette niche, "
-                        "des exemples de contenu réutilisables et un déroulé complet dans le champ hook. Pour une vidéo, écris au moins quatre "
-                        "séquences minutées avec les mots d'ouverture, ce qui doit être montré et le montage. Pour un carrousel, écris chaque slide "
-                        "sur une ligne séparée avec son texte ou sa consigne exacte. Pour une story, écris chaque écran sur une ligne séparée. "
+                        "et transforme chaque événement en post prêt à publier, au même niveau de détail qu'une idée de contenu finalisée. "
+                        "Invente un cas, un exemple ou un sujet réel propre à la niche pour chaque publication; ne répète pas simplement le nom de la niche. "
+                        "Dans le champ hook d'une vidéo, écris au moins quatre séquences minutées avec les paroles exactes, le plan à filmer et la preuve montrée. "
+                        "Dans le hook d'un carrousel, écris le texte final de chaque slide sur une ligne séparée. Pour une story, écris chaque écran final. "
                         "Ne donne jamais une intention vague comme 'commence par ces vérifications': écris réellement toutes les vérifications. "
-                        "Le champ cta doit rester vide. Chaque événement doit être directement productible sans phrase méta. Utilise des moments réalistes de la journée. "
+                        "Interdis les placeholders comme '[résultat]' ou 'ajoute un exemple'. Le champ cta doit rester vide. "
+                        "Chaque événement doit être directement productible sans phrase méta. Utilise des moments réalistes de la journée. "
                         "Ne parle ni d'éligibilité, ni de LIVE, ni de boutique sociale, ni de revenus détaillés. "
                         "N'invente aucune tendance ou donnée temps réel."
                     ),
