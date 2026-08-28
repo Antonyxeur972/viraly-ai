@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef } from "react";
-import { Animated, Easing, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import { Animated, Easing, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Path, Stop } from "react-native-svg";
 
 import { palette, radius, spacing, typography } from "../theme";
@@ -79,10 +79,117 @@ export function MiniSparkline({ color, variant = 0 }: { color: string; variant?:
   );
 }
 
-const growthSteps = ["Analyser", "Optimiser", "Booster", "Monétiser", "Scaler"];
+const GROWTH_PROGRESS_KEY = "viraly_growth_progress";
 
-export function GrowthJourney({ active = 2 }: { active?: number }) {
+async function readGrowthProgress(progressKey: string) {
+  try {
+    const raw = Platform.OS === "web" && typeof window !== "undefined"
+      ? window.localStorage.getItem(GROWTH_PROGRESS_KEY)
+      : await (await import("expo-secure-store")).getItemAsync(GROWTH_PROGRESS_KEY);
+    if (!raw) return null;
+    const saved = JSON.parse(raw) as Record<string, number[]>;
+    return Array.isArray(saved[progressKey]) ? saved[progressKey] : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeGrowthProgress(progressKey: string, values: number[]) {
+  try {
+    const secureStore = Platform.OS === "web" ? null : await import("expo-secure-store");
+    const raw = Platform.OS === "web" && typeof window !== "undefined"
+      ? window.localStorage.getItem(GROWTH_PROGRESS_KEY)
+      : await secureStore?.getItemAsync(GROWTH_PROGRESS_KEY);
+    const saved = raw ? JSON.parse(raw) as Record<string, number[]> : {};
+    saved[progressKey] = values;
+    const next = JSON.stringify(saved);
+    if (Platform.OS === "web" && typeof window !== "undefined") window.localStorage.setItem(GROWTH_PROGRESS_KEY, next);
+    else await secureStore?.setItemAsync(GROWTH_PROGRESS_KEY, next);
+  } catch {
+    // The checklist still works in memory when device storage is unavailable.
+  }
+}
+
+export function GrowthJourney({
+  active = 2,
+  niche = "ta niche",
+  platform = "TikTok"
+}: {
+  active?: number;
+  niche?: string;
+  platform?: string;
+}) {
   const pulse = useRef(new Animated.Value(0)).current;
+  const progressKey = `${platform}:${niche}`.toLowerCase();
+  const initialCompleted = Array.from({ length: Math.max(0, active - 1) }, (_, index) => index);
+  const [completed, setCompleted] = useState<Set<number>>(new Set(initialCompleted));
+  const [expanded, setExpanded] = useState<number | null>(0);
+  const missions = [
+    {
+      title: "Analyser",
+      summary: "Lire le compte avant d'agir",
+      tasks: [
+        `Importer une capture récente du profil ${platform}.`,
+        "Noter le score, le prochain levier et les trois statistiques principales.",
+        "Choisir la faiblesse qui sera corrigée en premier."
+      ]
+    },
+    {
+      title: "Optimiser",
+      summary: "Clarifier le profil",
+      tasks: [
+        `Réécrire la bio: cible précise + résultat concret en ${niche} + prochaine action.`,
+        "Aligner le nom, la photo et les trois contenus épinglés sur cette promesse.",
+        "Faire relire le profil: la promesse doit être comprise en cinq secondes."
+      ]
+    },
+    {
+      title: "Booster",
+      summary: "Exécuter les meilleurs posts",
+      tasks: [
+        "Choisir trois posts complets du plan et les placer dans le calendrier.",
+        "Publier sans changer le hook, le format et le créneau en même temps.",
+        "Relever vues, abonnements, sauvegardes et demandes après 24 heures."
+      ]
+    },
+    {
+      title: "Monétiser",
+      summary: "Relier contenu et offre",
+      tasks: [
+        "Choisir une seule offre, ressource ou recommandation à mettre en avant.",
+        "Créer un contenu preuve qui montre le problème, la méthode et le résultat.",
+        "Utiliser la même prochaine action sur trois publications consécutives."
+      ]
+    },
+    {
+      title: "Scaler",
+      summary: "Répéter ce qui gagne",
+      tasks: [
+        "Identifier les deux angles qui convertissent le mieux, pas seulement ceux qui font des vues.",
+        "Décliner chaque angle avec trois nouveaux exemples propres à la niche.",
+        "Comparer les variantes sur sept jours et conserver seulement la meilleure."
+      ]
+    }
+  ];
+
+  useEffect(() => {
+    let mounted = true;
+    readGrowthProgress(progressKey).then((saved) => {
+      if (mounted) setCompleted(new Set(saved ?? initialCompleted));
+    });
+    return () => { mounted = false; };
+  }, [progressKey]);
+
+  const toggleMission = (index: number) => {
+    setCompleted((current) => {
+      const next = new Set(current);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      writeGrowthProgress(progressKey, [...next]).catch(() => {});
+      return next;
+    });
+  };
+
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
@@ -99,24 +206,47 @@ export function GrowthJourney({ active = 2 }: { active?: number }) {
       <View style={styles.journeyTop}>
         <View>
           <Text style={styles.journeyEyebrow}>TON PARCOURS DE CROISSANCE</Text>
-          <Text style={styles.journeyTitle}>Plan 7 jours</Text>
+          <Text style={styles.journeyTitle}>Missions à valider</Text>
         </View>
-        <View style={styles.dayBadge}><Text style={styles.dayBadgeText}>Jour {active} sur 7</Text></View>
+        <View style={styles.dayBadge}><Text style={styles.dayBadgeText}>{completed.size} / 5</Text></View>
       </View>
-      <View style={styles.steps}>
-        <View style={styles.stepsTrack} />
-        {growthSteps.map((step, index) => {
-          const reached = index + 1 <= active;
+      <View style={styles.missionList}>
+        {missions.map((mission, index) => {
+          const checked = completed.has(index);
+          const isCurrent = !checked && index === missions.findIndex((_, itemIndex) => !completed.has(itemIndex));
           return (
-            <View key={step} style={styles.growthStep}>
-              <Animated.View style={[
-                styles.growthNode,
-                reached && styles.growthNodeReached,
-                index + 1 === active ? { transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1.12] }) }] } : undefined
-              ]}>
-                <Text style={[styles.growthNodeText, reached && styles.growthNodeTextReached]}>{reached && index + 1 < active ? "✓" : index + 1}</Text>
-              </Animated.View>
-              <Text numberOfLines={2} style={[styles.growthLabel, reached && styles.growthLabelReached]}>{step}</Text>
+            <View key={mission.title} style={[styles.mission, checked && styles.missionChecked]}>
+              <View style={styles.missionTop}>
+                <TouchableOpacity accessibilityLabel={`${checked ? "Décocher" : "Cocher"} ${mission.title}`} accessibilityRole="checkbox" accessibilityState={{ checked }} onPress={() => toggleMission(index)}>
+                  <Animated.View style={[
+                    styles.missionCheckbox,
+                    checked && styles.missionCheckboxChecked,
+                    isCurrent ? { transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1.08] }) }] } : undefined
+                  ]}>
+                    {checked ? <Ionicons color={palette.white} name="checkmark" size={17} /> : <Text style={styles.missionNumber}>{index + 1}</Text>}
+                  </Animated.View>
+                </TouchableOpacity>
+                <TouchableOpacity accessibilityRole="button" onPress={() => setExpanded((current) => current === index ? null : index)} style={styles.missionToggle}>
+                  <View style={styles.missionCopy}>
+                    <Text style={[styles.missionTitle, checked && styles.missionTitleChecked]}>{mission.title}</Text>
+                    <Text style={styles.missionSummary}>{mission.summary}</Text>
+                  </View>
+                  <View style={styles.executePill}>
+                    <Text style={styles.executePillText}>À EXÉCUTER</Text>
+                    <Ionicons color={palette.electric} name={expanded === index ? "chevron-up" : "chevron-down"} size={15} />
+                  </View>
+                </TouchableOpacity>
+              </View>
+              {expanded === index ? (
+                <View style={styles.missionDetails}>
+                  {mission.tasks.map((task, taskIndex) => (
+                    <View key={task} style={styles.missionTask}>
+                      <Text style={styles.missionTaskIndex}>{String(taskIndex + 1).padStart(2, "0")}</Text>
+                      <Text style={styles.missionTaskText}>{task}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
             </View>
           );
         })}
@@ -139,19 +269,28 @@ const styles = StyleSheet.create({
   recommendationMetric: { gap: 2 },
   recommendationLabel: { color: palette.muted, fontSize: 9, fontWeight: "700" },
   recommendationValue: { fontSize: 17, fontWeight: "900" },
-  journey: { gap: spacing.lg, minHeight: 190, padding: spacing.lg },
+  journey: { gap: spacing.lg, padding: spacing.lg },
   journeyTop: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   journeyEyebrow: { ...typography.caption, color: palette.electric, fontSize: 9 },
   journeyTitle: { ...typography.h3, color: palette.white, marginTop: 3 },
   dayBadge: { backgroundColor: "rgba(18,69,153,0.36)", borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 7 },
   dayBadgeText: { color: palette.sky, fontSize: 10, fontWeight: "800" },
-  steps: { flexDirection: "row", justifyContent: "space-between", position: "relative" },
-  stepsTrack: { backgroundColor: "rgba(69,111,180,0.24)", height: 2, left: 22, position: "absolute", right: 22, top: 16 },
-  growthStep: { alignItems: "center", flex: 1, gap: 8, zIndex: 2 },
-  growthNode: { alignItems: "center", backgroundColor: "rgba(6,17,40,1)", borderColor: "rgba(98,139,202,0.24)", borderRadius: radius.pill, borderWidth: 1, height: 33, justifyContent: "center", width: 33 },
-  growthNodeReached: { backgroundColor: "rgba(9,71,166,1)", borderColor: palette.cyan, shadowColor: palette.electric, shadowOpacity: 0.8, shadowRadius: 9 },
-  growthNodeText: { color: palette.muted, fontSize: 10, fontWeight: "900" },
-  growthNodeTextReached: { color: palette.white },
-  growthLabel: { color: palette.muted, fontSize: 8, fontWeight: "700", lineHeight: 11, textAlign: "center" },
-  growthLabelReached: { color: palette.paperMuted }
+  missionList: { gap: 3 },
+  mission: { backgroundColor: "rgba(4,13,31,0.58)", borderRadius: radius.sm, overflow: "hidden" },
+  missionChecked: { backgroundColor: "rgba(10,48,104,0.45)" },
+  missionTop: { alignItems: "center", flexDirection: "row", gap: spacing.sm, minHeight: 62, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm },
+  missionCheckbox: { alignItems: "center", backgroundColor: "rgba(8,23,51,0.96)", borderColor: "rgba(84,131,207,0.45)", borderRadius: radius.sm, borderWidth: 1, height: 34, justifyContent: "center", width: 34 },
+  missionCheckboxChecked: { backgroundColor: palette.electric, borderColor: palette.cyan, shadowColor: palette.electric, shadowOpacity: 0.7, shadowRadius: 8 },
+  missionNumber: { color: palette.paperMuted, fontSize: 10, fontWeight: "900" },
+  missionToggle: { alignItems: "center", flex: 1, flexDirection: "row", gap: spacing.sm },
+  missionCopy: { flex: 1, gap: 2, minWidth: 0 },
+  missionTitle: { color: palette.white, fontSize: 13, fontWeight: "800" },
+  missionTitleChecked: { color: palette.sky },
+  missionSummary: { color: palette.muted, fontSize: 9, lineHeight: 12 },
+  executePill: { alignItems: "center", flexDirection: "row", gap: 4 },
+  executePillText: { color: palette.electric, fontSize: 7, fontWeight: "900" },
+  missionDetails: { borderTopColor: "rgba(73,117,188,0.18)", borderTopWidth: 1, gap: spacing.sm, padding: spacing.md, paddingLeft: 51 },
+  missionTask: { alignItems: "flex-start", flexDirection: "row", gap: spacing.sm },
+  missionTaskIndex: { color: palette.electric, fontSize: 8, fontWeight: "900", paddingTop: 2 },
+  missionTaskText: { color: palette.paperMuted, flex: 1, fontSize: 11, lineHeight: 17 }
 });
