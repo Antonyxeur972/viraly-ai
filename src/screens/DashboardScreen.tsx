@@ -461,9 +461,13 @@ export function DashboardScreen({
         ) : null}
       </View>
 
-      <GrowthJourney active={report ? 2 : 1} />
+      <GrowthJourney
+        active={report ? 2 : 1}
+        niche={profile.nicheTopic || profile.niche || "ta niche"}
+        platform={platform === "instagram" ? "Instagram" : "TikTok"}
+      />
 
-      <SectionHeader eyebrow="Priorité absolue" title="Ordre d'exécution" action={actionPlan ? "Cycle IA" : "Priorités profil"} />
+      <SectionHeader eyebrow="Priorité absolue" title="Ordre d'exécution" />
       <View style={styles.executionStack}>
         {executionActions.map((action, index) => (
           <TouchableOpacity
