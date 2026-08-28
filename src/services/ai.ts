@@ -154,6 +154,16 @@ export async function generateIdeas(
   return result.ideas;
 }
 
+export function generateIdea(
+  profile: CreatorOnboardingProfile,
+  accountContext: Context
+) {
+  return apiRequest<IdeaAnalysisReport>("/api/v1/ideas/generate-one", {
+    method: "POST",
+    body: JSON.stringify({ profile, account_context: accountContext, count: 1 })
+  });
+}
+
 export function askCoach(
   question: string,
   profile: CreatorOnboardingProfile,
