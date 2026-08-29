@@ -146,11 +146,6 @@ export function DashboardScreen({
   };
 
   const pickScreenshot = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert("Accès aux photos", "Autorise VIRALY AI à choisir la capture de ton profil.");
-      return;
-    }
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: false,
       mediaTypes: ImagePicker.MediaTypeOptions.Images,

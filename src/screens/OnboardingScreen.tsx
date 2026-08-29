@@ -254,11 +254,6 @@ export function OnboardingScreen({
   };
 
   const chooseProfileCapture = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert("Accès aux photos", "Autorise VIRALY AI à lire uniquement la capture que tu sélectionnes.");
-      return;
-    }
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: false,
       mediaTypes: ImagePicker.MediaTypeOptions.Images,

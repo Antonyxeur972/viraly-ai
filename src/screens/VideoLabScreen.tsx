@@ -64,11 +64,6 @@ export function VideoLabScreen({ platform }: Props) {
   }, [analysisTop, report, shouldRevealReport]);
 
   const pickContent = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert("Accès aux photos", "Autorise VIRALY AI à ouvrir la galerie.");
-      return;
-    }
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: false,
       allowsMultipleSelection: true,
