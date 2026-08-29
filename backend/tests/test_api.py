@@ -101,6 +101,36 @@ def test_idea_analysis_falls_back_without_key(client, auth_headers):
     assert response.json()["analysisId"].startswith("ana_")
 
 
+def test_single_idea_generation_is_complete_and_saved(client, auth_headers):
+    response = client.post(
+        "/api/v1/ideas/generate-one",
+        headers=auth_headers,
+        json={
+            "profile": {
+                "goal": "traffic",
+                "niche": "clear",
+                "nicheTopic": "recettes antillaises rapides",
+                "followers": "100-1000",
+                "cadence": "3-4",
+                "format": "carousel",
+                "time": "3-5h",
+                "monetization": "affiliate",
+            },
+            "account_context": None,
+            "count": 1,
+        },
+    )
+
+    assert response.status_code == 200
+    report = response.json()
+    assert report["analysisId"].startswith("ana_")
+    assert len(report["scriptSteps"]) >= 5
+    assert "colombo" in " ".join(report["scriptSteps"]).lower()
+    history = client.get("/api/v1/analyses?kind=idea&limit=20", headers=auth_headers)
+    assert history.status_code == 200
+    assert report["analysisId"] in {item["id"] for item in history.json()["analyses"]}
+
+
 def test_ai_authentication_error_is_sanitized(client):
     from openai import AuthenticationError
     from app.ai import AIEngine, AIUnavailableError
@@ -313,6 +343,7 @@ def test_onboarding_uses_structured_ai_and_persists_result(client, auth_headers)
                 "score": 61,
                 "summary": "Une base réaliste à structurer.",
                 "priorities": ["Préciser la promesse", "Tester deux hooks", "Mesurer les sauvegardes"],
+                "strengths": ["Format clair", "Cadence réaliste", "Piste de revenu choisie"],
                 "cycle": "3 contenus par semaine",
                 "firstWeek": ["Recherche", "Tutoriel", "Retour d'expérience"],
                 "revenueDirection": "Valider d'abord une demande d'audit.",
@@ -341,6 +372,7 @@ def test_onboarding_uses_structured_ai_and_persists_result(client, auth_headers)
 
     assert response.status_code == 200
     assert response.json()["score"] == 61
+    assert len(response.json()["strengths"]) == 3
     assert response.json()["analysisId"].startswith("ana_")
 
 
@@ -371,6 +403,7 @@ def test_onboarding_falls_back_to_profile_rules_when_ai_is_unavailable(client, a
     assert response.status_code == 200
     assert response.json()["source"] == "profile_rules"
     assert len(response.json()["priorities"]) == 3
+    assert len(response.json()["strengths"]) == 3
     assert response.json()["analysisId"].startswith("ana_")
 
 
@@ -617,7 +650,8 @@ def test_weekly_plan_has_exact_personalized_mix_and_seven_days(client, auth_head
     feed_events = [event for event in plan["events"] if event["type"] in {"video", "carousel"}]
     assert all("\n" in event["hook"] for event in feed_events)
     assert all(event["cta"] == "" for event in plan["events"])
-    assert any("Vérification 5" in event["hook"] for event in feed_events if event["type"] == "carousel")
+    assert any("colombo" in event["hook"].lower() for event in feed_events)
+    assert all("Vérification" not in event["hook"] for event in feed_events)
 
 
 def test_old_plans_are_kept_while_active_ai_calendar_is_replaced(client, auth_headers):
