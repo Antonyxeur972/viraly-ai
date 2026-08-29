@@ -116,6 +116,7 @@ export type OnboardingAIReport = {
   score: number;
   summary: string;
   priorities: string[];
+  strengths: string[];
   cycle: string;
   firstWeek: string[];
   revenueDirection: string;
