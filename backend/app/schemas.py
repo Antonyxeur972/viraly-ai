@@ -376,11 +376,12 @@ CALENDAR_SCHEMA = {
 ONBOARDING_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["score", "summary", "priorities", "cycle", "firstWeek", "revenueDirection"],
+    "required": ["score", "summary", "priorities", "strengths", "cycle", "firstWeek", "revenueDirection"],
     "properties": {
         "score": {"type": "integer", "minimum": 0, "maximum": 100},
         "summary": {"type": "string"},
         "priorities": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 3},
+        "strengths": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 3},
         "cycle": {"type": "string"},
         "firstWeek": {"type": "array", "items": {"type": "string"}, "minItems": 3, "maxItems": 7},
         "revenueDirection": {"type": "string"},

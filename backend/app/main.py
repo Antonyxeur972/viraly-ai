@@ -230,6 +230,11 @@ def onboarding_fallback(profile: CreatorProfile) -> dict[str, Any]:
             "un format et un rythme mesurable."
         ),
         "priorities": [niche_priority, goal_priority, format_priority],
+        "strengths": [
+            f"Tu as identifié {preferred_format(profile)} comme format naturel.",
+            f"Ton rythme de {cadence} donne une base mesurable.",
+            f"La piste {monetization_label(profile)} donne une direction économique claire.",
+        ],
         "cycle": cadence,
         "firstWeek": [
             f"Jour 1 : préciser la promesse pour {niche_label(profile)} et préparer trois hooks",
@@ -1570,7 +1575,8 @@ async def analyze_onboarding(
                     f"Établis le premier bilan de ce créateur: {compact_context(profile.model_dump())}. "
                     "Le score mesure uniquement la préparation opérationnelle déclarée, pas le potentiel viral garanti. "
                     "Respecte exactement sa cadence, son format naturel et son temps disponible. Prends parti pour un système simple. "
-                    "Donne trois priorités ordonnées, un cycle réaliste, une première semaine concrète et une direction de revenu "
+                    "Donne exactement trois priorités en une phrase chacune et exactement trois forces fondées uniquement sur les réponses. "
+                    "Ajoute un cycle réaliste, une première semaine concrète et une direction de revenu "
                     "qui correspond au niveau actuel du compte."
                 ),
             )
