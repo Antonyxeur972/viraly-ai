@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Image,
@@ -20,6 +20,7 @@ import { CoachScreen } from "./src/screens/CoachScreen";
 import { DashboardScreen } from "./src/screens/DashboardScreen";
 import { IdeaLabScreen } from "./src/screens/IdeaLabScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
+import { PaywallScreen } from "./src/screens/PaywallScreen";
 import { StrategyScreen } from "./src/screens/StrategyScreen";
 import { VideoLabScreen } from "./src/screens/VideoLabScreen";
 import {
@@ -46,6 +47,7 @@ import {
 } from "./src/services/instagram";
 import { listAnalysisHistory } from "./src/services/analysisHistory";
 import { ProfileAnalysisReport } from "./src/services/profileAnalysis";
+import { beginEligibleWinbackOffer, SubscriptionPlan } from "./src/services/subscription";
 import { palette } from "./src/theme";
 import {
   CreatorOnboardingProfile,
@@ -74,6 +76,8 @@ export default function App() {
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [creatorSetup, setCreatorSetup] = useState<CreatorOnboardingProfile | null>(null);
   const [accountContext, setAccountContext] = useState<ProfileAnalysisReport | null>(null);
+  const [winbackExpiresAt, setWinbackExpiresAt] = useState<number | null>(null);
+  const completedOnboardingThisSession = useRef(false);
 
   useEffect(() => {
     const handleUrl = (url: string) => {
@@ -152,7 +156,11 @@ export default function App() {
 
     const restoreSession = async () => {
       const token = await loadApiSessionToken();
-      if (!token) return;
+      if (!token) {
+        const session = await createPreviewSession();
+        if (!cancelled) await activateApiSession(session.token, session.name);
+        return;
+      }
 
       const storedProfile = await loadCreatorProfile();
       if (!getApiSessionToken()) {
@@ -175,6 +183,11 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!onboardingComplete || completedOnboardingThisSession.current) return;
+    beginEligibleWinbackOffer().then(setWinbackExpiresAt).catch(() => {});
+  }, [onboardingComplete]);
 
   useEffect(() => {
     if (!onboardingComplete || !creatorSetup || !getApiSessionToken()) return;
@@ -236,10 +249,26 @@ export default function App() {
     }
   };
 
-  const finishOnboarding = (profile: CreatorOnboardingProfile) => {
+  const ensureApiSession = useCallback(async () => {
+    if (getApiSessionToken()) return;
+    const session = await createPreviewSession();
+    await activateApiSession(session.token, session.name);
+  }, []);
+
+  const finishOnboarding = (profile: CreatorOnboardingProfile, context: ProfileAnalysisReport | null) => {
+    completedOnboardingThisSession.current = true;
     setCreatorSetup(profile);
+    setAccountContext(context);
     setOnboardingComplete(true);
     saveCreatorProfile(profile).catch(() => {});
+  };
+
+  const purchaseSubscription = async (_plan: SubscriptionPlan) => {
+    Alert.alert(
+      "Paiement Google Play",
+      "L'achat réel sera activé dans le build Google Play après création des produits d'abonnement dans Play Console."
+    );
+    return false;
   };
 
   const resetCreatorProfile = async () => {
@@ -334,7 +363,17 @@ export default function App() {
               style={styles.screenTexture}
             />
           </View>
-          {onboardingComplete && creatorSetup ? (
+          {onboardingComplete && creatorSetup && winbackExpiresAt ? (
+            <View style={styles.screen}>
+              <PaywallScreen
+                expiresAt={winbackExpiresAt}
+                mode="winback"
+                onClose={() => setWinbackExpiresAt(null)}
+                onPurchase={purchaseSubscription}
+                onUnlocked={() => setWinbackExpiresAt(null)}
+              />
+            </View>
+          ) : onboardingComplete && creatorSetup ? (
             <>
               <View key={activeTab} style={styles.screen}><ScreenTransition>{screen}</ScreenTransition></View>
               <BottomTabs
@@ -353,12 +392,8 @@ export default function App() {
           ) : (
             <View style={styles.screen}>
               <OnboardingScreen
-                googleName={googleName}
-                googleStatus={googleStatus}
                 onComplete={finishOnboarding}
-                onConnectGoogle={connectGoogle}
-                onDeveloperPreview={useDeveloperPreview}
-                previewAvailable
+                onEnsureSession={ensureApiSession}
               />
             </View>
           )}
