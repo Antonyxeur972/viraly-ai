@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import * as ImagePicker from "expo-image-picker";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,13 +14,23 @@ import {
 
 import { GlassPanel } from "../components/GlassPanel";
 import { NeonButton } from "../components/NeonButton";
+import { PaywallScreen } from "./PaywallScreen";
 import { ProgressBar } from "../components/ProgressBar";
 import { ScreenHero } from "../components/ScreenHero";
+import { ViralyLoader } from "../components/ViralyLoader";
 import { analyzeOnboarding, OnboardingAIReport } from "../services/ai";
+import { estimateProfileRevenue } from "../lib/revenueModel";
+import {
+  clearOnboardingDraft,
+  loadOnboardingDraft,
+  saveOnboardingDraft
+} from "../services/onboardingState";
+import { scheduleStarterPublishingReminders } from "../services/postNotifications";
+import { ProfileAnalysisReport, requestProfileAnalysis } from "../services/profileAnalysis";
+import { internalTestingEnabled, markPaywallDismissed, SubscriptionPlan } from "../services/subscription";
 import { palette, radius, spacing, typography } from "../theme";
 import {
   CreatorOnboardingProfile,
-  GoogleConnectionStatus,
   IconName
 } from "../types";
 
@@ -149,37 +161,72 @@ const questions: Question[] = [
 ];
 
 type Props = {
-  googleStatus: GoogleConnectionStatus;
-  googleName?: string;
-  onConnectGoogle: () => void;
-  onDeveloperPreview: () => void;
-  previewAvailable: boolean;
-  onComplete: (profile: CreatorOnboardingProfile) => void;
+  onComplete: (profile: CreatorOnboardingProfile, accountContext: ProfileAnalysisReport | null) => void;
+  onEnsureSession: () => Promise<void>;
+};
+
+type Phase = "questions" | "profile" | "notifications" | "analyzing" | "report" | "paywall";
+
+const defaultProfile: CreatorOnboardingProfile = {
+  platform: "tiktok",
+  goal: "reach",
+  niche: "none",
+  nicheTopic: "Création de contenu",
+  followers: "0-100",
+  cadence: "3-4",
+  format: "mixed",
+  time: "3-5h",
+  monetization: "affiliate"
 };
 
 export function OnboardingScreen({
-  googleStatus,
-  googleName,
-  onConnectGoogle,
-  onDeveloperPreview,
-  previewAvailable,
-  onComplete
+  onComplete,
+  onEnsureSession
 }: Props) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Partial<CreatorOnboardingProfile>>({});
   const [customNiche, setCustomNiche] = useState("");
   const [report, setReport] = useState<OnboardingAIReport | null>(null);
+  const [phase, setPhase] = useState<Phase>("questions");
+  const [profileReport, setProfileReport] = useState<ProfileAnalysisReport | null>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [profileAnalyzing, setProfileAnalyzing] = useState(false);
+  const [draftReady, setDraftReady] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const googleConnected = googleStatus === "connected";
-  const showingReport = step >= questions.length && report !== null;
   const current = questions[Math.min(step, questions.length - 1)];
   const selected = current?.id === "nicheTopic" && customNiche.trim()
     ? customNiche.trim()
     : answers[current?.id];
 
+  const completedProfile = useMemo(
+    () => ({ ...defaultProfile, ...answers, nicheTopic: customNiche.trim() || answers.nicheTopic || defaultProfile.nicheTopic }),
+    [answers, customNiche]
+  ) as CreatorOnboardingProfile;
+  const revenue = useMemo(
+    () => estimateProfileRevenue(completedProfile, profileReport?.metrics.followers),
+    [completedProfile, profileReport]
+  );
+
+  useEffect(() => {
+    loadOnboardingDraft()
+      .then((draft) => {
+        if (!draft) return;
+        setStep(Math.min(draft.step, questions.length - 1));
+        setAnswers(draft.answers);
+        setCustomNiche(draft.customNiche);
+        if (draft.phase) setPhase(draft.phase);
+      })
+      .finally(() => setDraftReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (!draftReady || !["questions", "profile", "notifications"].includes(phase)) return;
+    saveOnboardingDraft({ answers, customNiche, phase: phase as "questions" | "profile" | "notifications", step }).catch(() => {});
+  }, [answers, customNiche, draftReady, phase, step]);
+
   const continueOnboarding = async () => {
-    if (!selected || isAnalyzing) return;
+    if (!selected) return;
     const nextAnswers = current?.id === "nicheTopic" && customNiche.trim()
       ? { ...answers, nicheTopic: customNiche.trim() }
       : answers;
@@ -189,66 +236,211 @@ export function OnboardingScreen({
       return;
     }
 
-    setIsAnalyzing(true);
+    setAnswers(nextAnswers);
+    setPhase("profile");
+  };
+
+  const skipCurrent = () => {
+    const nextAnswers = { ...answers, [current.id]: defaultProfile[current.id] };
+    setAnswers(nextAnswers);
+    if (step < questions.length - 1) setStep((value) => value + 1);
+    else setPhase("profile");
+  };
+
+  const skipQuestionnaire = () => {
+    setAnswers(defaultProfile);
+    setCustomNiche(defaultProfile.nicheTopic || "");
+    setPhase("profile");
+  };
+
+  const chooseProfileCapture = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Accès aux photos", "Autorise VIRALY AI à lire uniquement la capture que tu sélectionnes.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: false,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 1
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    setProfileImage(asset.uri);
+    setProfileAnalyzing(true);
     setAnalysisError(null);
     try {
-      const nextReport = await analyzeOnboarding(nextAnswers as CreatorOnboardingProfile);
-      setAnswers(nextAnswers);
-      setReport(nextReport);
-      setStep(questions.length);
+      await onEnsureSession();
+      setProfileReport(await requestProfileAnalysis(asset, completedProfile.platform));
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Impossible de générer ton bilan.";
+      const message = error instanceof Error ? error.message : "La capture n'a pas pu être analysée.";
       setAnalysisError(message);
-      Alert.alert(
-        "Bilan indisponible",
-        message
-      );
+      Alert.alert("Analyse du profil", message);
     } finally {
-      setIsAnalyzing(false);
+      setProfileAnalyzing(false);
     }
   };
 
-  if (!googleConnected) {
+  const generateReport = async () => {
+    setPhase("analyzing");
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    try {
+      await onEnsureSession();
+      setReport(await analyzeOnboarding(completedProfile));
+    } catch (error) {
+      setAnalysisError(error instanceof Error ? error.message : "Le bilan IA est momentanément indisponible.");
+      setReport({
+        score: 58,
+        summary: `Une base exploitable en ${completedProfile.nicheTopic}, à rendre plus précise et régulière.`,
+        priorities: [
+          "Formule une promesse unique pour une audience et un résultat précis.",
+          "Publie trois contenus avec le même angle avant de changer de direction.",
+          "Mesure les vues, sauvegardes et visites du profil après chaque publication."
+        ],
+        strengths: [
+          `Tu as choisi ${completedProfile.format === "mixed" ? "plusieurs formats complémentaires" : "un format naturel clair"}.`,
+          `Ta cadence de ${completedProfile.cadence} contenus par semaine est mesurable.`,
+          `La piste ${completedProfile.monetization} donne une direction de revenu à tester.`
+        ],
+        cycle: "Un test de 7 jours, un angle, trois publications",
+        firstWeek: ["Clarifier la promesse", "Publier trois variantes", "Comparer les signaux"],
+        revenueDirection: "Valide d'abord une demande réelle avant de développer une offre.",
+        analysisId: "local_onboarding"
+      });
+    } finally {
+      setIsAnalyzing(false);
+      setPhase("report");
+    }
+  };
+
+  const enableNotifications = async () => {
+    try {
+      const result = await scheduleStarterPublishingReminders();
+      if (!result.permissionGranted && !result.unsupported) {
+        Alert.alert("Notifications non activées", "Tu pourras les activer plus tard depuis les réglages du téléphone.");
+      }
+    } catch {
+      Alert.alert("Rappels indisponibles", "Tu pourras les activer plus tard depuis ton plan.");
+    }
+    await generateReport();
+  };
+
+  const finishAccess = async (dismissed: boolean) => {
+    if (dismissed) await markPaywallDismissed();
+    await clearOnboardingDraft();
+    onComplete(completedProfile, profileReport);
+  };
+
+  const purchase = async (_plan: SubscriptionPlan) => {
+    Alert.alert(
+      "Paiement Google Play",
+      internalTestingEnabled
+        ? "Dans Expo Go, utilise le code testeur pour débloquer gratuitement VIRALY Pro. Le paiement réel s'ouvrira dans la version Google Play."
+        : "Le produit doit être activé dans Google Play Console avant l'ouverture des achats."
+    );
+    return false;
+  };
+
+  if (phase === "paywall") {
     return (
-      <ScrollView contentContainerStyle={styles.authContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.authHero}>
-          <Text style={styles.brand}>VIRALY <Text style={styles.brandAccent}>AI</Text></Text>
-          <ScreenHero
-            eyebrow="Studio de croissance"
-            icon="sparkles-outline"
-            subtitle="Connecte Google pour retrouver ton diagnostic, ta niche et ton calendrier sur chaque session."
-            title={<>Transforme ton contenu en <Text style={styles.titleAccent}>système.</Text></>}
-          />
+      <PaywallScreen
+        onClose={() => finishAccess(true)}
+        onPurchase={purchase}
+        onUnlocked={() => finishAccess(false)}
+      />
+    );
+  }
+
+  if (phase === "analyzing") {
+    return (
+      <View style={styles.loaderScreen}>
+        <ViralyLoader />
+        <Text style={styles.loaderTitle}>VIRALY construit ton point de départ</Text>
+        <Text style={styles.loaderBody}>Lecture de ta niche, de ton rythme et des signaux visibles du profil.</Text>
+      </View>
+    );
+  }
+
+  if (phase === "profile") {
+    const platformLabel = completedProfile.platform === "instagram" ? "Instagram" : "TikTok";
+    const platformIcon = completedProfile.platform === "instagram" ? "logo-instagram" : "logo-tiktok";
+    return (
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.progressTop}>
+          <Text style={styles.progressText}>PROFIL · FACULTATIF</Text>
+          <TouchableOpacity onPress={() => setPhase("notifications")}><Text style={styles.skipText}>Passer</Text></TouchableOpacity>
         </View>
-        <GlassPanel style={styles.authPanel}>
-          <View style={styles.authMark}>
-            <Ionicons color={palette.ink} name="logo-google" size={28} />
+        <ScreenHero
+          eyebrow="DONNÉES DU COMPTE"
+          icon={platformIcon}
+          subtitle="La connexion officielle arrivera après validation des API. Ta capture permet déjà une vraie lecture visuelle."
+          title={<>Ajoute ton profil <Text style={styles.titleAccent}>{platformLabel}.</Text></>}
+        />
+        <TouchableOpacity
+          onPress={() => Alert.alert(`Connexion ${platformLabel}`, "Prochainement disponible · nous attendons l'autorisation officielle de la plateforme.")}
+          style={styles.socialButton}
+        >
+          <Ionicons color={palette.white} name={platformIcon} size={23} />
+          <Text style={styles.socialButtonText}>Connecter {platformLabel}</Text>
+          <Text style={styles.soonBadge}>BIENTÔT</Text>
+        </TouchableOpacity>
+        <TouchableOpacity disabled={profileAnalyzing} onPress={chooseProfileCapture} style={styles.captureButton}>
+          <View style={styles.captureIcon}><Ionicons color={palette.white} name="image-outline" size={25} /></View>
+          <View style={styles.captureCopy}>
+            <Text style={styles.captureTitle}>{profileImage ? "Changer la capture" : "Choisir une capture du profil"}</Text>
+            <Text style={styles.captureDetail}>Une image verticale et nette, sélectionnée par toi.</Text>
           </View>
-          <Text style={styles.authPanelTitle}>Un espace créateur personnel</Text>
-          <Text style={styles.authPanelBody}>Tes réponses, ton diagnostic et ton plan restent liés à ton espace VIRALY AI.</Text>
-          <TouchableOpacity disabled={googleStatus === "connecting"} onPress={onConnectGoogle} style={styles.googleButton}>
-            <Ionicons color={palette.ink} name="logo-google" size={20} />
-            <Text style={styles.googleButtonText}>{googleStatus === "connecting" ? "Connexion..." : "Continuer avec Google"}</Text>
-          </TouchableOpacity>
-          {previewAvailable ? (
-            <TouchableOpacity disabled={googleStatus === "connecting"} onPress={onDeveloperPreview} style={styles.previewButton}>
-              <Text style={styles.previewText}>{googleStatus === "connecting" ? "Ouverture..." : "Découvrir sans connexion"}</Text>
-            </TouchableOpacity>
-          ) : null}
-        </GlassPanel>
-        <Text style={styles.privacy}>Tes réponses servent uniquement à personnaliser ton plan.</Text>
+          <Ionicons color={palette.paperMuted} name="chevron-forward" size={21} />
+        </TouchableOpacity>
+        {profileImage ? (
+          <GlassPanel style={styles.captureResult} textureOpacity={0.04}>
+            <Image source={{ uri: profileImage }} style={styles.capturePreview} />
+            {profileAnalyzing ? (
+              <View style={styles.captureStatus}><ViralyLoader compact /><Text style={styles.captureStatusText}>Analyse visuelle en cours...</Text></View>
+            ) : profileReport ? (
+              <View style={styles.captureStatus}>
+                <Text style={styles.captureScore}>{profileReport.score}<Text style={styles.captureScoreMax}> /100</Text></Text>
+                <Text style={styles.captureStatusText}>{profileReport.summary}</Text>
+              </View>
+            ) : null}
+          </GlassPanel>
+        ) : null}
+        {analysisError ? <Text style={styles.inlineError}>{analysisError}</Text> : null}
+        <NeonButton disabled={profileAnalyzing} onPress={() => setPhase("notifications")} title={profileReport ? "Continuer avec cette analyse" : "Continuer"} />
       </ScrollView>
     );
   }
 
-  if (showingReport && report) {
+  if (phase === "notifications") {
+    return (
+      <ScrollView contentContainerStyle={styles.notificationContent} showsVerticalScrollIndicator={false}>
+        <ViralyLoader compact />
+        <ScreenHero
+          eyebrow="RYTHME DE PUBLICATION"
+          icon="notifications-outline"
+          subtitle="Deux rappels quotidiens à 12:00 et 18:30, heure de Paris. Tu peux les désactiver à tout moment dans les réglages."
+          title={<>Publie au <Text style={styles.titleAccent}>bon moment.</Text></>}
+        />
+        <GlassPanel style={styles.notificationPanel} textureOpacity={0.06}>
+          <View style={styles.timeLine}><Text style={styles.timeValue}>12:00</Text><Text style={styles.timeCopy}>Premier créneau à tester</Text></View>
+          <View style={styles.timeLine}><Text style={styles.timeValue}>18:30</Text><Text style={styles.timeCopy}>Deuxième créneau à tester</Text></View>
+        </GlassPanel>
+        <Text style={styles.consentCopy}>Active les notifications pour optimiser ton utilisation, savoir quand poster et maintenir ta régularité. VIRALY demandera ensuite l'autorisation du téléphone.</Text>
+        <NeonButton icon="notifications" onPress={enableNotifications} title="Activer les notifications" />
+        <TouchableOpacity onPress={generateReport}><Text style={styles.discoveryLink}>Pas maintenant</Text></TouchableOpacity>
+      </ScrollView>
+    );
+  }
+
+  if (phase === "report" && report) {
     return (
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <ScreenHero
           eyebrow="Premier bilan"
           icon="analytics-outline"
-          subtitle={`${googleName ? `${googleName}, voici` : "Voici"} le point de départ calculé à partir de tes réponses.`}
-          title={<>Ton système peut <Text style={styles.titleAccent}>commencer.</Text></>}
+          subtitle="Ce diagnostic combine tes réponses et, si tu l'as ajoutée, la lecture réelle de ta capture."
+          title={<>Ton point de départ est <Text style={styles.titleAccent}>clair.</Text></>}
         />
         <GlassPanel style={styles.reportPanel}>
           <View style={styles.reportTop}>
@@ -261,25 +453,35 @@ export function OnboardingScreen({
           <ProgressBar color={palette.mint} value={report.score} />
           <Text style={styles.reportSummary}>{report.summary}</Text>
         </GlassPanel>
-        <Text style={styles.sectionLabel}>TES 3 PRIORITÉS</Text>
+        <Text style={styles.sectionLabel}>3 CONSEILS · 3 LIGNES</Text>
         <GlassPanel style={styles.priorityPanel} textureOpacity={0.08}>
-          {report.priorities.map((priority, index) => (
+          {[...(profileReport?.priorities || []), ...report.priorities].filter((item, index, values) => values.indexOf(item) === index).slice(0, 3).map((priority, index) => (
             <View key={priority} style={styles.priorityLine}>
               <Text style={styles.priorityIndex}>0{index + 1}</Text>
               <Text style={styles.priorityText}>{priority}</Text>
             </View>
           ))}
         </GlassPanel>
-        <GlassPanel style={styles.cyclePanel}>
-          <Text style={styles.cycleLabel}>PREMIER CYCLE RECOMMANDÉ</Text>
-          <Text style={styles.cycleValue}>{report.cycle}</Text>
-          <Text style={styles.cycleBody}>{report.firstWeek.join(" · ")}</Text>
-          <View style={styles.revenueLine}>
-            <Ionicons color={palette.mint} name="cash-outline" size={18} />
-            <Text style={styles.revenueText}>{report.revenueDirection}</Text>
-          </View>
+        <Text style={styles.sectionLabel}>TES 3 POINTS FORTS</Text>
+        <GlassPanel style={styles.strengthPanel} textureOpacity={0.05}>
+          {(report.strengths || [
+            "Tu as choisi un format de contenu exploitable.",
+            "Ta cadence donne une base de progression mesurable.",
+            "Ta piste de monétisation fournit une direction claire."
+          ]).slice(0, 3).map((strength) => (
+            <View key={strength} style={styles.strengthLine}>
+              <Ionicons color={palette.positive} name="checkmark-circle" size={19} />
+              <Text style={styles.strengthText}>{strength}</Text>
+            </View>
+          ))}
         </GlassPanel>
-        <NeonButton onPress={() => onComplete(answers as CreatorOnboardingProfile)} title="Entrer dans VIRALY AI" />
+        <GlassPanel style={styles.cyclePanel}>
+          <Text style={styles.cycleLabel}>REVENU POTENTIEL APRÈS OPTIMISATION</Text>
+          <Text style={styles.revenueValue}>{revenue.monthlyLow.toLocaleString("fr-FR")} à {revenue.monthlyHigh.toLocaleString("fr-FR")} € / mois</Text>
+          <Text style={styles.revenueBasis}>{revenue.channel} · {revenue.basis}</Text>
+          <Text style={styles.revenueDisclaimer}>Projection indicative, jamais garantie. Le résultat dépend de l'offre, de l'audience et de la conversion réelle.</Text>
+        </GlassPanel>
+        <NeonButton onPress={() => setPhase("paywall")} title="Continuer" />
       </ScrollView>
     );
   }
@@ -288,7 +490,7 @@ export function OnboardingScreen({
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.progressTop}>
         <Text style={styles.progressText}>{step + 1} / {questions.length}</Text>
-        <Text style={styles.accountName}>{googleName || "Espace Google connecté"}</Text>
+        <TouchableOpacity onPress={skipCurrent}><Text style={styles.skipText}>Passer</Text></TouchableOpacity>
       </View>
       <ProgressBar color={palette.mint} value={((step + 1) / questions.length) * 100} />
       <ScreenHero eyebrow={current.eyebrow} icon="navigate-outline" subtitle={current.subtitle} title={current.title} />
@@ -345,12 +547,15 @@ export function OnboardingScreen({
         ) : <View style={styles.backPlaceholder} />}
         <View style={styles.continueGrow}>
           <NeonButton
-            disabled={!selected || isAnalyzing}
+            disabled={!selected}
             onPress={continueOnboarding}
-            title={isAnalyzing ? "Analyse en cours..." : step === questions.length - 1 ? "Générer mon bilan" : "Continuer"}
+            title={step === questions.length - 1 ? "Continuer vers mon profil" : "Continuer"}
           />
         </View>
       </View>
+      {step === 0 ? (
+        <TouchableOpacity onPress={skipQuestionnaire}><Text style={styles.discoveryLink}>Passer tout le questionnaire</Text></TouchableOpacity>
+      ) : null}
     </ScrollView>
   );
 }
@@ -420,5 +625,37 @@ const styles = StyleSheet.create({
   revenueLine: { alignItems: "flex-start", borderTopColor: palette.line, borderTopWidth: 1, flexDirection: "row", gap: spacing.sm, paddingTop: spacing.md },
   revenueText: { ...typography.body, color: palette.paperMuted, flex: 1 },
   primaryButton: { alignItems: "center", backgroundColor: palette.mint, borderRadius: radius.pill, flexDirection: "row", gap: spacing.sm, justifyContent: "center", minHeight: 56 },
-  primaryButtonText: { ...typography.body, color: palette.ink, fontWeight: "900" }
+  primaryButtonText: { ...typography.body, color: palette.ink, fontWeight: "900" },
+  skipText: { ...typography.caption, color: palette.paperMuted, textDecorationLine: "underline" },
+  discoveryLink: { ...typography.body, color: palette.paperMuted, textAlign: "center", textDecorationLine: "underline" },
+  loaderScreen: { alignItems: "center", flex: 1, gap: spacing.lg, justifyContent: "center", padding: spacing.xl },
+  loaderTitle: { ...typography.h2, color: palette.white, textAlign: "center" },
+  loaderBody: { ...typography.body, color: palette.paperMuted, maxWidth: 340, textAlign: "center" },
+  socialButton: { alignItems: "center", backgroundColor: "rgba(5,14,34,0.72)", borderColor: palette.lineStrong, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, minHeight: 62, paddingHorizontal: spacing.lg },
+  socialButtonText: { ...typography.h3, color: palette.white, flex: 1 },
+  soonBadge: { color: palette.cyan, fontSize: 9, fontWeight: "900" },
+  captureButton: { alignItems: "center", backgroundColor: "rgba(13,78,196,0.16)", borderColor: palette.electric, borderRadius: radius.md, borderWidth: 1, flexDirection: "row", gap: spacing.md, minHeight: 88, padding: spacing.md },
+  captureIcon: { alignItems: "center", backgroundColor: palette.electric, borderRadius: radius.pill, height: 48, justifyContent: "center", width: 48 },
+  captureCopy: { flex: 1, gap: 4 },
+  captureTitle: { ...typography.h3, color: palette.white },
+  captureDetail: { ...typography.caption, color: palette.paperMuted },
+  captureResult: { flexDirection: "row", gap: spacing.md, minHeight: 150, padding: spacing.md },
+  capturePreview: { backgroundColor: palette.panelSoft, borderRadius: radius.sm, height: 140, width: 78 },
+  captureStatus: { alignItems: "flex-start", flex: 1, gap: spacing.sm, justifyContent: "center" },
+  captureStatusText: { ...typography.body, color: palette.paperMuted, flexShrink: 1 },
+  captureScore: { color: palette.white, fontSize: 36, fontWeight: "900" },
+  captureScoreMax: { ...typography.body, color: palette.muted },
+  inlineError: { ...typography.caption, color: palette.coral },
+  notificationContent: { alignItems: "center", flexGrow: 1, gap: spacing.xl, justifyContent: "center", padding: spacing.lg, paddingBottom: spacing.xxl, paddingTop: 64 },
+  notificationPanel: { alignSelf: "stretch", gap: 0, paddingHorizontal: spacing.lg },
+  timeLine: { alignItems: "center", borderBottomColor: palette.line, borderBottomWidth: 1, flexDirection: "row", gap: spacing.lg, minHeight: 64 },
+  timeValue: { color: palette.cyan, fontSize: 22, fontWeight: "900" },
+  timeCopy: { ...typography.body, color: palette.white, flex: 1 },
+  consentCopy: { ...typography.body, color: palette.paperMuted, maxWidth: 380, textAlign: "center" },
+  strengthPanel: { gap: spacing.md, padding: spacing.lg },
+  strengthLine: { alignItems: "flex-start", flexDirection: "row", gap: spacing.sm },
+  strengthText: { ...typography.body, color: palette.white, flex: 1 },
+  revenueValue: { color: palette.white, fontSize: 25, fontWeight: "900", lineHeight: 31 },
+  revenueBasis: { ...typography.caption, color: palette.cyan },
+  revenueDisclaimer: { color: palette.muted, fontSize: 11, lineHeight: 17 }
 });
